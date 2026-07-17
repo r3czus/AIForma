@@ -1,0 +1,22 @@
+{
+  "name": "FormaAI — dieta i trening",
+  "short_name": "FormaAI",
+  "id": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f5fa",
+  "theme_color": "#6750a4",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ]
+}

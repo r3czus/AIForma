@@ -1,0 +1,32 @@
+services:
+  app:
+    build: .
+    restart: on-failure
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ConnectionStrings__FormaAI: "Server=sqlserver,1433;Database=FormaAI;User Id=sa;Password=${FORMAAI_DB_PASSWORD:-FormaAI_dev_Only_123!};TrustServerCertificate=True"
+      Gemini__ApiKey: "${GEMINI_API_KEY:-}"
+      Admin__Email: "${ADMIN_EMAIL:-}"
+      DataProtection__KeysPath: "/keys"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - sqlserver
+    volumes:
+      - formaai-keys:/keys
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${FORMAAI_DB_PASSWORD:-FormaAI_dev_Only_123!}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - formaai-sql:/var/opt/mssql
+      - formaai-backups:/var/opt/mssql/backups
+
+volumes:
+  formaai-sql:
+  formaai-backups:
+  formaai-keys:

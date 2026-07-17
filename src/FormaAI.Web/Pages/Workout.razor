@@ -1,0 +1,165 @@
+@page "/workout/{Id:guid}"
+@implements IAsyncDisposable
+@inject TrainingClient TrainingApi
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Aktywny trening · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap workout-mode">
+    @if (_session is null)
+    {
+        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Przygotowuję sesję</span></div>
+    }
+    else
+    {
+        <div class="workout-heading">
+            <div>
+                <span class="page-kicker">Sesja na żywo</span>
+                <MudText Typo="Typo.h4">@_session.Name</MudText>
+            </div>
+            @if (_restSeconds > 0)
+            {
+                <MudChip T="string" Color="Color.Primary" Icon="@Icons.Material.Filled.Timer">@FormatTime(_restSeconds)</MudChip>
+            }
+        </div>
+
+        <section class="workout-progress-strip" aria-label="Postęp sesji">
+            <span>Zapisane serie</span>
+            <strong>@_session.Exercises.Sum(x => x.Sets.Count) / @_session.Exercises.Sum(x => x.PlannedSets)</strong>
+            <small>Trening trwa od @_session.StartedAtUtc.ToLocalTime().ToString("HH:mm")</small>
+        </section>
+
+        @foreach (var exercise in _session.Exercises.OrderBy(x => x.Order))
+        {
+            var form = _forms[exercise.Id];
+            <MudPaper Class="workout-exercise" Elevation="0">
+                <span class="card-kicker">Plan serii</span>
+                <MudText Typo="Typo.h6">@exercise.ExerciseName</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Plan: @exercise.PlannedSets × @exercise.MinReps–@exercise.MaxReps
+                    @if (exercise.TargetRir is not null) { <span> · RIR @exercise.TargetRir</span> }
+                </MudText>
+
+                @if (exercise.ExerciseId is Guid exerciseId && _history.TryGetValue(exerciseId, out var last) && last is not null)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">Ostatnio: @last.WeightKg kg × @last.Repetitions, RIR @(last.Rir?.ToString("0.#") ?? "—")</MudAlert>
+                }
+
+                @foreach (var set in exercise.Sets.OrderBy(x => x.SetNumber))
+                {
+                    <div class="saved-set">
+                        <span>@set.SetNumber. @(set.SetType == SetType.Warmup ? "Rozgrzewka" : "Seria robocza")</span>
+                        <strong>@set.WeightKg kg × @set.Repetitions</strong>
+                        <span>RIR @(set.Rir?.ToString("0.#") ?? "—")</span>
+                    </div>
+                }
+
+                <div class="set-entry">
+                    <MudNumericField @bind-Value="form.WeightKg" Label="Ciężar (kg)" Min="0m" />
+                    <MudNumericField @bind-Value="form.Repetitions" Label="Powtórzenia" Min="1" />
+                    <MudNumericField @bind-Value="form.Rir" Label="RIR" Min="0m" Max="10m" />
+                </div>
+                <MudCheckBox @bind-Value="form.IsWarmup" Label="Seria rozgrzewkowa" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="() => SaveSet(exercise, form)">Zapisz serię</MudButton>
+            </MudPaper>
+        }
+
+        <div class="session-actions">
+            <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ trening</MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
+        </div>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private WorkoutSessionResponse? _session;
+    private readonly Dictionary<Guid, SetForm> _forms = [];
+    private readonly Dictionary<Guid, ExerciseHistoryEntry?> _history = [];
+    private CancellationTokenSource? _timerCancellation;
+    private int _restSeconds;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await Reload();
+        foreach (var exercise in _session!.Exercises)
+        {
+            _forms.TryAdd(exercise.Id, new SetForm());
+            if (exercise.ExerciseId is Guid exerciseId && !_history.ContainsKey(exerciseId))
+                _history[exerciseId] = (await TrainingApi.GetHistory(exerciseId)).FirstOrDefault();
+        }
+    }
+
+    private async Task SaveSet(WorkoutExerciseResponse exercise, SetForm form)
+    {
+        try
+        {
+            var setNumber = exercise.Sets.Count == 0 ? 1 : exercise.Sets.Max(x => x.SetNumber) + 1;
+            await TrainingApi.SaveSet(Id, new SaveSetRequest(exercise.Id, setNumber, form.WeightKg, form.Repetitions, form.Rir, form.IsWarmup ? SetType.Warmup : SetType.Working));
+            await Reload();
+            form.IsWarmup = false;
+            StartRestTimer(exercise.RestSeconds ?? 0);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się zapisać serii.", Severity.Error);
+        }
+    }
+
+    private async Task Reload() => _session = await TrainingApi.GetSession(Id);
+
+    private void StartRestTimer(int seconds)
+    {
+        _timerCancellation?.Cancel();
+        _timerCancellation?.Dispose();
+        _timerCancellation = new CancellationTokenSource();
+        _restSeconds = seconds;
+        _ = CountDown(_timerCancellation.Token);
+    }
+
+    private async Task CountDown(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (_restSeconds > 0 && await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                _restSeconds--;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task Complete()
+    {
+        await TrainingApi.Complete(Id);
+        Snackbar.Add("Trening zakończony. Dobra robota!", Severity.Success);
+        Navigation.NavigateTo("/training");
+    }
+
+    private async Task Abandon()
+    {
+        await TrainingApi.Abandon(Id);
+        Navigation.NavigateTo("/training");
+    }
+
+    private static string FormatTime(int seconds) => $"{seconds / 60:00}:{seconds % 60:00}";
+
+    public ValueTask DisposeAsync()
+    {
+        _timerCancellation?.Cancel();
+        _timerCancellation?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private sealed class SetForm
+    {
+        public decimal WeightKg { get; set; }
+        public int Repetitions { get; set; } = 8;
+        public decimal? Rir { get; set; } = 2;
+        public bool IsWarmup { get; set; }
+    }
+}

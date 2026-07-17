@@ -1,0 +1,270 @@
+@page "/"
+@inject AccountClient Account
+@inject NutritionClient Nutrition
+@inject TrainingClient TrainingApi
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="content-wrap home-page">
+    @if (_loading)
+    {
+        <div class="page-loader">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            <span>Synchronizuję plan dnia</span>
+        </div>
+    }
+    else if (_user is null)
+    {
+        <section class="auth-shell">
+            <div class="auth-intro">
+                <span class="page-kicker">Ruch · paliwo · rytm</span>
+                <h1>Forma nie dzieje się kiedyś. <em>Zaczyna się dzisiaj.</em></h1>
+                <p>Połącz trening, jedzenie i progres w jednym spokojnym rytmie. FormaAI podpowiada kolejny krok, a decyzja zawsze zostaje po Twojej stronie.</p>
+                <div class="performance-tape" aria-label="Obszary aplikacji">
+                    <span>Trening</span><i></i><span>Odżywianie</span><i></i><span>Progres</span>
+                </div>
+            </div>
+
+            <MudPaper Class="auth-card" Elevation="0">
+                <span class="card-kicker">Twoja przestrzeń</span>
+                <h2>Wejdź do planu dnia</h2>
+                <p class="auth-copy">Zaloguj się albo utwórz konto w mniej niż minutę.</p>
+                <MudTabs @bind-ActivePanelIndex="_tab">
+                    <MudTabPanel Text="Logowanie">
+                        <EditForm Model="_login">
+                            <MudTextField @bind-Value="_login.Email" Label="E-mail" InputType="InputType.Email" Immediate="true" Required="true" />
+                            <MudTextField @bind-Value="_login.Password" Label="Hasło" InputType="InputType.Password" Immediate="true" Required="true" />
+                            <MudButton OnClick="Login" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4">Przejdź do pulpitu</MudButton>
+                        </EditForm>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Nowe konto">
+                        <EditForm Model="_register">
+                            <MudTextField @bind-Value="_register.Email" Label="E-mail" InputType="InputType.Email" Immediate="true" Required="true" />
+                            <MudTextField @bind-Value="_register.Password" Label="Hasło" InputType="InputType.Password" Immediate="true" Required="true" />
+                            <MudTextField @bind-Value="_register.TimeZoneId" Label="Strefa czasowa" Immediate="true" Required="true" HelperText="Np. Europe/Warsaw" />
+                            <MudButton OnClick="Register" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4">Utwórz konto</MudButton>
+                        </EditForm>
+                    </MudTabPanel>
+                </MudTabs>
+            </MudPaper>
+        </section>
+    }
+    else
+    {
+        <header class="dashboard-hero">
+            <div>
+                <span class="page-kicker">@DateTime.Now.ToString("dddd · d MMMM")</span>
+                <h1>Twój plan na dziś</h1>
+                <p>Najpierw kolejny dobry krok. Reszta może poczekać.</p>
+            </div>
+            <MudButton Href="/assistant" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AutoAwesome">Zapytaj asystenta</MudButton>
+        </header>
+
+        <section class="day-pulse" aria-label="Tempo dnia">
+            <div><span>Trening</span><strong>@TrainingStatus</strong></div>
+            <div><span>Energia</span><strong>@EnergyStatus</strong></div>
+            <div><span>Kierunek</span><strong>@GoalStatus</strong></div>
+        </section>
+
+        <div class="dashboard-grid">
+            <main class="dashboard-main">
+                @if (_todayWorkout is not null)
+                {
+                    <MudPaper Class="workout-today" Elevation="0">
+                        <div class="card-heading">
+                            <div>
+                                <span class="card-kicker">Dzisiejszy trening · @_todayWorkout.PlanName</span>
+                                <h2>@_todayWorkout.DayName</h2>
+                            </div>
+                            <span class="data-chip">@_todayWorkout.Exercises.Count ćwiczeń</span>
+                        </div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_todayWorkout.AlreadyCompleted" OnClick="StartWorkout">
+                            @(_todayWorkout.AlreadyCompleted ? "Trening wykonany" : "Rozpocznij trening")
+                        </MudButton>
+                    </MudPaper>
+                }
+                else
+                {
+                    <MudPaper Class="workout-today workout-empty" Elevation="0">
+                        <span class="card-kicker">Dzisiejszy trening</span>
+                        <h2>Dzień bez przypisanego planu</h2>
+                        <p>Regeneruj się albo zaplanuj sesję, jeśli chcesz dziś trenować.</p>
+                        <MudButton Href="/training" Variant="Variant.Outlined">Przejdź do planów</MudButton>
+                    </MudPaper>
+                }
+
+                @if (_day is not null)
+                {
+                    <MacroSummary Day="_day" />
+                    <section class="meal-log">
+                        <div class="section-heading">
+                            <div><span class="card-kicker">Dziennik</span><h2>Dzisiejsze posiłki</h2></div>
+                            <MudButton Href="/food" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add">Dodaj posiłek</MudButton>
+                        </div>
+                        @if (_day.Meals.Count == 0)
+                        {
+                            <p class="empty-copy">Pierwszy posiłek nada rytm dzisiejszemu bilansowi.</p>
+                        }
+                        @foreach (var meal in _day.Meals)
+                        {
+                            <MudPaper Class="meal-row" Elevation="0">
+                                <MudText>@meal.Name</MudText>
+                                <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
+                            </MudPaper>
+                        }
+                    </section>
+                }
+            </main>
+
+            <aside class="dashboard-aside">
+                <MudPaper Class="quick-actions" Elevation="0">
+                    <span class="card-kicker">Szybki start</span>
+                    <h2>Co robisz teraz?</h2>
+                    <MudButton Href="/food" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.RestaurantMenu" FullWidth="true">Zapisz posiłek</MudButton>
+                    <MudButton Href="/training" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.FitnessCenter" FullWidth="true">Otwórz trening</MudButton>
+                    <MudButton Href="/progress" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ShowChart" FullWidth="true">Dodaj pomiar</MudButton>
+                </MudPaper>
+
+                @if (_profile is not null)
+                {
+                    <MudExpansionPanels Class="settings-panels">
+                        <MudExpansionPanel Text="Profil i ustawienia">
+                            <EditForm Model="_profileForm" OnValidSubmit="SaveProfile">
+                                <MudTextField @bind-Value="_profileForm.TimeZoneId" Label="Strefa czasowa" Required="true" />
+                                <MudNumericField @bind-Value="_profileForm.HeightCm" Label="Wzrost (cm)" />
+                                <MudNumericField @bind-Value="_profileForm.StartingWeightKg" Label="Masa początkowa (kg)" />
+                                <MudSelect T="BodyGoal?" @bind-Value="_profileForm.Goal" Label="Cel">
+                                    <MudSelectItem T="BodyGoal?" Value="BodyGoal.Reduction">Redukcja</MudSelectItem>
+                                    <MudSelectItem T="BodyGoal?" Value="BodyGoal.Maintenance">Utrzymanie</MudSelectItem>
+                                    <MudSelectItem T="BodyGoal?" Value="BodyGoal.MuscleGain">Budowanie masy</MudSelectItem>
+                                </MudSelect>
+                                <MudNumericField @bind-Value="_profileForm.PlannedTrainingsPerWeek" Label="Treningi tygodniowo" />
+                                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">Zapisz zmiany</MudButton>
+                            </EditForm>
+                        </MudExpansionPanel>
+                        <MudExpansionPanel Text="Prywatność i konto">
+                            <MudAlert Severity="Severity.Warning" Dense="true">Usunięcie konta trwale kasuje wszystkie zapisane dane.</MudAlert>
+                            <MudTextField @bind-Value="_delete.Password" Label="Hasło" InputType="InputType.Password" />
+                            <MudTextField @bind-Value="_delete.Confirmation" Label="Wpisz USUŃ" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Error" Disabled="@(_delete.Confirmation != "USUŃ" || string.IsNullOrEmpty(_delete.Password))" OnClick="DeleteAccount" Class="mt-3">Usuń konto na stałe</MudButton>
+                            <MudButton Href="/privacy" Variant="Variant.Text" Class="mt-3">Prywatność i źródła danych</MudButton>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                }
+                @if (_user.IsAdmin)
+                {
+                    <MudButton Href="/admin" Variant="Variant.Outlined" FullWidth="true" StartIcon="@Icons.Material.Outlined.AdminPanelSettings">Panel administratora</MudButton>
+                }
+                <MudButton OnClick="Logout" Variant="Variant.Text" Color="Color.Secondary">Wyloguj się</MudButton>
+            </aside>
+        </div>
+    }
+</MudContainer>
+
+@code {
+    private readonly LoginForm _login = new();
+    private readonly RegisterForm _register = new();
+    private readonly ProfileForm _profileForm = new();
+    private readonly DeleteForm _delete = new();
+    private CurrentUserResponse? _user;
+    private UserProfileResponse? _profile;
+    private NutritionDayResponse? _day;
+    private TodayWorkoutResponse? _todayWorkout;
+    private bool _loading = true;
+    private int _tab;
+    private string TrainingStatus => _todayWorkout is null ? "Regeneracja" : _todayWorkout.AlreadyCompleted ? "Wykonany" : _todayWorkout.DayName;
+    private string EnergyStatus => _day?.Target is null ? "Ustaw cel" : $"{_day.Consumed.CaloriesKcal:0} / {_day.Target.CaloriesKcal:0} kcal";
+    private string GoalStatus => _profile?.Goal switch
+    {
+        BodyGoal.Reduction => "Redukcja",
+        BodyGoal.Maintenance => "Utrzymanie",
+        BodyGoal.MuscleGain => "Budowanie masy",
+        _ => "Uzupełnij profil"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await Account.GetCurrentUser();
+        if (_user is not null) await LoadUserData();
+        _loading = false;
+    }
+
+    private async Task Login() => await Run(async () =>
+    {
+        _user = await Account.Login(new LoginRequest(_login.Email, _login.Password));
+        await LoadUserData();
+        Navigation.NavigateTo("/", forceLoad: true);
+    }, "Nie udało się zalogować.");
+
+    private async Task Register() => await Run(async () =>
+    {
+        _user = await Account.Register(new RegisterRequest(_register.Email, _register.Password, _register.TimeZoneId));
+        await LoadUserData();
+        Navigation.NavigateTo("/", forceLoad: true);
+    }, "Nie udało się utworzyć konta.");
+
+    private async Task SaveProfile() => await Run(async () =>
+    {
+        _profile = await Account.UpdateProfile(new UpdateUserProfileRequest(_profileForm.TimeZoneId, _profileForm.HeightCm, _profileForm.StartingWeightKg, _profileForm.Goal, _profileForm.PlannedTrainingsPerWeek));
+        Snackbar.Add("Profil zapisany.", Severity.Success);
+    }, "Nie udało się zapisać profilu.");
+
+    private async Task Logout()
+    {
+        await Account.Logout();
+        _user = null;
+        _profile = null;
+        _day = null;
+        _todayWorkout = null;
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private async Task DeleteAccount() => await Run(async () =>
+    {
+        await Account.DeleteAccount(new DeleteAccountRequest(_delete.Password, _delete.Confirmation));
+        _user = null;
+        _profile = null;
+        _day = null;
+        _todayWorkout = null;
+        Snackbar.Add("Konto i dane zostały usunięte.", Severity.Success);
+        Navigation.NavigateTo("/", forceLoad: true);
+    }, "Nie udało się usunąć konta. Sprawdź hasło i potwierdzenie.");
+
+    private async Task LoadUserData()
+    {
+        _profile = await Account.GetProfile();
+        _day = await Nutrition.GetDay(DateOnly.FromDateTime(DateTime.Now));
+        _todayWorkout = await TrainingApi.GetToday();
+        _profileForm.TimeZoneId = _profile.TimeZoneId;
+        _profileForm.HeightCm = _profile.HeightCm;
+        _profileForm.StartingWeightKg = _profile.StartingWeightKg;
+        _profileForm.Goal = _profile.Goal;
+        _profileForm.PlannedTrainingsPerWeek = _profile.PlannedTrainingsPerWeek;
+    }
+
+    private async Task StartWorkout()
+    {
+        var session = await TrainingApi.Start(_todayWorkout!.TrainingDayId);
+        Navigation.NavigateTo($"/workout/{session.Id}");
+    }
+
+    private async Task Run(Func<Task> action, string error)
+    {
+        try { await action(); }
+        catch (HttpRequestException) { Snackbar.Add(error, Severity.Error); }
+    }
+
+    private sealed class LoginForm { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; }
+    private sealed class RegisterForm { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; public string TimeZoneId { get; set; } = "Europe/Warsaw"; }
+    private sealed class DeleteForm { public string Password { get; set; } = string.Empty; public string Confirmation { get; set; } = string.Empty; }
+    private sealed class ProfileForm
+    {
+        public string TimeZoneId { get; set; } = string.Empty;
+        public decimal? HeightCm { get; set; }
+        public decimal? StartingWeightKg { get; set; }
+        public BodyGoal? Goal { get; set; }
+        public int? PlannedTrainingsPerWeek { get; set; }
+    }
+}

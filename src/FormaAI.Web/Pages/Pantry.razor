@@ -1,0 +1,190 @@
+@page "/pantry"
+@inject AccountClient Account
+@inject NutritionClient Nutrition
+@inject PantryClient PantryApi
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Spiżarnia · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page pantry-page">
+    <header class="module-heading">
+        <div>
+            <span class="page-kicker">Kuchnia · zapasy</span>
+            <MudText Typo="Typo.h4">Kuchnia</MudText>
+            <p>Połącz to, co masz w domu, z przepisami i krótką listą zakupów.</p>
+        </div>
+        <MudButton Href="/food" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ArrowBack" Class="module-heading-action">Wróć do dziennika</MudButton>
+    </header>
+
+    @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Sprawdzam zapasy</span></div> }
+    else
+    {
+        <section class="module-status pantry-status" aria-label="Stan kuchni">
+            <div><span>Zapasy</span><strong>@_items.Count</strong></div>
+            <div><span>Przepisy</span><strong>@_recipes.Count</strong></div>
+            <div><span>Do kupienia</span><strong>@(_shoppingList?.Items.Count(x => !x.IsPurchased) ?? 0)</strong></div>
+            <div><span>Produkty</span><strong>@_products.Count</strong></div>
+        </section>
+
+        <MudTabs Class="module-tabs" PanelClass="food-panel">
+            <MudTabPanel Text="Spiżarnia">
+                <section class="module-form pantry-form">
+                    <div class="module-form-heading"><span class="card-kicker">Aktualizacja stanu</span><h2>Dodaj do zapasów</h2></div>
+                    <MudSelect T="Guid?" @bind-Value="_pantry.ProductId" Label="Produkt">
+                        @foreach (var product in _products) { <MudSelectItem T="Guid?" Value="@((Guid?)product.Id)">@product.Name</MudSelectItem> }
+                    </MudSelect>
+                    <div class="set-entry">
+                        <MudNumericField @bind-Value="_pantry.Quantity" Label="Ilość" Min="0m" />
+                        <MudSelect T="ServingUnit" @bind-Value="_pantry.Unit" Label="Jednostka">
+                            @foreach (var unit in Enum.GetValues<ServingUnit>()) { <MudSelectItem Value="@unit">@UnitName(unit)</MudSelectItem> }
+                        </MudSelect>
+                    </div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SavePantry">Zapisz stan</MudButton>
+                </section>
+                @if (_items.Count == 0)
+                {
+                    <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.Inventory2" /><div><strong>Spiżarnia jest pusta</strong><span>Dodaj produkt, który masz pod ręką.</span></div></div>
+                }
+                @foreach (var item in _items)
+                {
+                    <MudPaper Class="pantry-row" Elevation="0">
+                        <div class="row-copy"><MudText>@item.ProductName</MudText><MudText Typo="Typo.caption">@item.Quantity.ToString("0.##") @UnitName(item.Unit)</MudText></div>
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => DeletePantry(item.Id)" />
+                    </MudPaper>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="Przepisy">
+                <section class="module-form pantry-form">
+                    <div class="module-form-heading"><span class="card-kicker">Własny przepis</span><h2>Zapisz pomysł na posiłek</h2></div>
+                    <MudTextField @bind-Value="_recipe.Name" Label="Nazwa przepisu" />
+                    <div class="set-entry">
+                        <MudNumericField @bind-Value="_recipe.Servings" Label="Porcje" Min="1" />
+                        <MudNumericField @bind-Value="_recipe.Minutes" Label="Czas (min)" Min="0" />
+                    </div>
+                    <MudSelect T="Guid?" @bind-Value="_recipe.ProductId" Label="Składnik">
+                        @foreach (var product in _products) { <MudSelectItem T="Guid?" Value="@((Guid?)product.Id)">@product.Name</MudSelectItem> }
+                    </MudSelect>
+                    <div class="set-entry">
+                        <MudNumericField @bind-Value="_recipe.Quantity" Label="Ilość" Min="0.01m" />
+                        <MudSelect T="ServingUnit" @bind-Value="_recipe.Unit" Label="Jednostka">
+                            @foreach (var unit in Enum.GetValues<ServingUnit>()) { <MudSelectItem Value="@unit">@UnitName(unit)</MudSelectItem> }
+                        </MudSelect>
+                    </div>
+                    <MudButton Variant="Variant.Outlined" OnClick="AddIngredient">Dodaj składnik</MudButton>
+                    @if (_recipe.Ingredients.Count > 0)
+                    {
+                        <div class="draft-chips">
+                            @foreach (var ingredient in _recipe.Ingredients) { <MudChip T="string">@ingredient.Name · @ingredient.Quantity @UnitName(ingredient.Unit)</MudChip> }
+                        </div>
+                    }
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(_recipe.Ingredients.Count == 0)" OnClick="SaveRecipe" Class="mt-4">Zapisz przepis</MudButton>
+                </section>
+
+                @if (_recipes.Count == 0)
+                {
+                    <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.MenuBook" /><div><strong>Nie masz jeszcze przepisów</strong><span>Zapisz pierwszy, żeby porównać go z zawartością spiżarni.</span></div></div>
+                }
+                @foreach (var recipe in _recipes)
+                {
+                    <MudPaper Class="recipe-card" Elevation="0">
+                        <MudText Typo="Typo.h6">@recipe.Name</MudText>
+                        <div class="recipe-metrics">
+                            <div><span>Porcje</span><strong>@recipe.Servings</strong></div>
+                            <div><span>Czas</span><strong>@recipe.PreparationMinutes min</strong></div>
+                            <div><span>Energia</span><strong>@recipe.Macro.CaloriesKcal.ToString("0") kcal</strong></div>
+                        </div>
+                        @if (_missing.TryGetValue(recipe.Id, out var missing) && missing.Count > 0)
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">Brakuje: @string.Join(", ", missing.Select(x => $"{x.ProductName} {x.MissingQuantity:0.##} {UnitName(x.Unit)}"))</MudAlert>
+                            <MudButton Size="Size.Small" OnClick="() => AddMissing(recipe.Id)" Class="mt-2">Dodaj brakujące do zakupów</MudButton>
+                        }
+                        else { <MudChip T="string" Color="Color.Success" Size="Size.Small" Class="mt-2">Masz wszystkie składniki</MudChip> }
+                    </MudPaper>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="Zakupy">
+                <section class="module-form pantry-form">
+                    <div class="module-form-heading"><span class="card-kicker">Krótka lista</span><h2>Dodaj do zakupów</h2></div>
+                    <MudTextField @bind-Value="_shopping.Name" Label="Nazwa produktu" />
+                    <div class="set-entry">
+                        <MudNumericField @bind-Value="_shopping.Quantity" Label="Ilość" Min="0.01m" />
+                        <MudSelect T="ServingUnit" @bind-Value="_shopping.Unit" Label="Jednostka">
+                            @foreach (var unit in Enum.GetValues<ServingUnit>()) { <MudSelectItem Value="@unit">@UnitName(unit)</MudSelectItem> }
+                        </MudSelect>
+                    </div>
+                    <MudSelect T="ShoppingCategory" @bind-Value="_shopping.Category" Label="Kategoria">
+                        @foreach (var category in Enum.GetValues<ShoppingCategory>()) { <MudSelectItem Value="@category">@category</MudSelectItem> }
+                    </MudSelect>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="AddShopping" Class="mt-3">Dodaj do listy</MudButton>
+                </section>
+                @if (_shoppingList?.Items.Count == 0)
+                {
+                    <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.ShoppingBasket" /><div><strong>Lista zakupów jest pusta</strong><span>Dodaj tylko to, czego naprawdę brakuje.</span></div></div>
+                }
+                @foreach (var item in _shoppingList!.Items)
+                {
+                    <MudPaper Class="pantry-row shopping-row" Elevation="0">
+                        <MudCheckBox T="bool" Value="item.IsPurchased" ValueChanged="value => SetPurchased(item.Id, value)" Label="@item.Name" />
+                        <MudText Typo="Typo.caption">@item.Quantity.ToString("0.##") @UnitName(item.Unit)</MudText>
+                    </MudPaper>
+                }
+            </MudTabPanel>
+        </MudTabs>
+    }
+</MudContainer>
+
+@code {
+    private IReadOnlyList<ProductResponse> _products = [];
+    private IReadOnlyList<PantryItemResponse> _items = [];
+    private IReadOnlyList<RecipeResponse> _recipes = [];
+    private readonly Dictionary<Guid, IReadOnlyList<MissingIngredientResponse>> _missing = [];
+    private ShoppingListResponse? _shoppingList;
+    private readonly PantryForm _pantry = new();
+    private readonly RecipeForm _recipe = new();
+    private readonly ShoppingForm _shopping = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
+        _products = await Nutrition.GetProducts();
+        await Reload(); _loading = false;
+    }
+
+    private async Task Reload()
+    {
+        _items = await PantryApi.GetPantry();
+        _recipes = await PantryApi.GetRecipes();
+        _shoppingList = await PantryApi.GetShoppingList();
+        _missing.Clear();
+        foreach (var recipe in _recipes) _missing[recipe.Id] = await PantryApi.GetMissing(recipe.Id);
+    }
+
+    private async Task SavePantry() => await Run(async () => { if (_pantry.ProductId is null) return; await PantryApi.SavePantry(new(_pantry.ProductId.Value, _pantry.Quantity, _pantry.Unit, null)); await Reload(); });
+    private async Task DeletePantry(Guid id) => await Run(async () => { await PantryApi.DeletePantry(id); await Reload(); });
+    private void AddIngredient()
+    {
+        var product = _products.FirstOrDefault(x => x.Id == _recipe.ProductId);
+        if (product is null) return;
+        _recipe.Ingredients.Add(new(product.Id, product.Name, _recipe.Quantity, _recipe.Unit));
+        _recipe.ProductId = null;
+    }
+    private async Task SaveRecipe() => await Run(async () =>
+    {
+        await PantryApi.SaveRecipe(new(_recipe.Name, null, _recipe.Servings, _recipe.Minutes, _recipe.Ingredients.Select(x => new RecipeIngredientRequest(x.ProductId, x.Quantity, x.Unit)).ToList()));
+        _recipe.Name = string.Empty; _recipe.Ingredients.Clear(); await Reload();
+    });
+    private async Task AddMissing(Guid id) => await Run(async () => { _shoppingList = await PantryApi.AddMissing(id); Snackbar.Add("Brakujące składniki dodane do listy.", Severity.Success); });
+    private async Task AddShopping() => await Run(async () => { _shoppingList = await PantryApi.AddShoppingItem(new(null, _shopping.Name, _shopping.Quantity, _shopping.Unit, _shopping.Category)); _shopping.Name = string.Empty; });
+    private async Task SetPurchased(Guid id, bool purchased) => await Run(async () => { _shoppingList = await PantryApi.SetPurchased(id, new(purchased, true)); await Reload(); });
+    private async Task Run(Func<Task> action) { try { await action(); } catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać zmian.", Severity.Error); } }
+    private static string UnitName(ServingUnit unit) => unit switch { ServingUnit.Gram => "g", ServingUnit.Milliliter => "ml", _ => "szt." };
+
+    private sealed class PantryForm { public Guid? ProductId { get; set; } public decimal Quantity { get; set; } = 100; public ServingUnit Unit { get; set; } }
+    private sealed class RecipeForm { public string Name { get; set; } = string.Empty; public int Servings { get; set; } = 2; public int Minutes { get; set; } = 20; public Guid? ProductId { get; set; } public decimal Quantity { get; set; } = 100; public ServingUnit Unit { get; set; } public List<IngredientDraft> Ingredients { get; } = []; }
+    private sealed class ShoppingForm { public string Name { get; set; } = string.Empty; public decimal Quantity { get; set; } = 1; public ServingUnit Unit { get; set; } = ServingUnit.Piece; public ShoppingCategory Category { get; set; } = ShoppingCategory.Other; }
+    private sealed record IngredientDraft(Guid ProductId, string Name, decimal Quantity, ServingUnit Unit);
+}

@@ -1,0 +1,21 @@
+@page "/privacy"
+
+<PageTitle>Prywatność · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap">
+    <MudText Typo="Typo.h4" GutterBottom="true">Prywatność i źródła danych</MudText>
+    <MudText Typo="Typo.h6" Class="mt-4">Jakie dane zapisujemy</MudText>
+    <MudText>FormaAI zapisuje dane konta, profil, pomiary, dziennik żywienia, treningi, spiżarnię, przepisy i rozmowy potrzebne do działania aplikacji. Dane każdego konta są oddzielone po stronie serwera.</MudText>
+
+    <MudText Typo="Typo.h6" Class="mt-4">Asystent Gemini</MudText>
+    <MudText>Gdy wysyłasz wiadomość do asystenta, niezbędny fragment rozmowy i wyniki kontrolowanych narzędzi są przekazywane do Google Gemini API. Nie wysyłamy hasła ani klucza API. Sposób przetwarzania zależy od wybranego wariantu usługi, dlatego administrator wdrożenia musi dobrać usługę zgodną z regionem i wymaganiami prywatności.</MudText>
+    <MudLink Href="https://ai.google.dev/gemini-api/terms" Target="_blank">Warunki Gemini API</MudLink>
+
+    <MudText Typo="Typo.h6" Class="mt-4">Open Food Facts</MudText>
+    <MudText>Dane importowane po kodzie kreskowym pochodzą ze społecznościowej bazy Open Food Facts. Mogą być niepełne lub błędne, dlatego aplikacja zawsze pokazuje je do sprawdzenia przed zapisem.</MudText>
+    <MudLink Href="https://world.openfoodfacts.org/data" Target="_blank">Open Food Facts — dane i warunki ponownego użycia</MudLink>
+
+    <MudText Typo="Typo.h6" Class="mt-4">Usunięcie danych</MudText>
+    <MudText>W ustawieniach konta możesz trwale usunąć konto oraz dane zależne. Logi techniczne nie zawierają pełnej treści rozmów ani sekretów.</MudText>
+    <MudButton Href="/" Variant="Variant.Text" Class="mt-4">Wróć</MudButton>
+</MudContainer>

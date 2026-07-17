@@ -1,0 +1,35 @@
+using System.Net.Http.Json;
+using FormaAI.Contracts.Assistant;
+using FormaAI.Contracts.Users;
+
+namespace FormaAI.Web.Services;
+
+public sealed class AdminClient(HttpClient http)
+{
+    public async Task<AiConfigurationResponse> GetAiConfiguration()
+    {
+        using var response = await http.GetAsync("api/v1/admin/ai");
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<AiConfigurationResponse>())!;
+    }
+
+    public async Task<AiConfigurationResponse> SaveAiConfiguration(SaveAiConfigurationRequest request)
+    {
+        var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        var message = new HttpRequestMessage(HttpMethod.Put, "api/v1/admin/ai") { Content = JsonContent.Create(request) };
+        message.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+        using var response = await http.SendAsync(message);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<AiConfigurationResponse>())!;
+    }
+
+    public async Task<AiConnectionTestResponse> TestAiConnection()
+    {
+        var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        var message = new HttpRequestMessage(HttpMethod.Post, "api/v1/admin/ai/test");
+        message.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+        using var response = await http.SendAsync(message);
+        var result = await response.Content.ReadFromJsonAsync<AiConnectionTestResponse>();
+        return result ?? new AiConnectionTestResponse(false, "Nie udało się odczytać odpowiedzi usługi.");
+    }
+}

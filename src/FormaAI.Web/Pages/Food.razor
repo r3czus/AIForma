@@ -1,0 +1,280 @@
+@page "/food"
+@inject AccountClient Account
+@inject NutritionClient Nutrition
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Jedzenie · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page food-page">
+    <header class="module-heading">
+        <div>
+            <span class="page-kicker">Paliwo · dzisiaj</span>
+            <MudText Typo="Typo.h4">Jedzenie</MudText>
+            <p>Zapisuj posiłki i trzymaj dzienny rytm bez liczenia wszystkiego w pamięci.</p>
+        </div>
+        <MudButton Href="/pantry" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Kitchen" Class="module-heading-action">Otwórz kuchnię</MudButton>
+    </header>
+
+    @if (_loading)
+    {
+        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję dziennik</span></div>
+    }
+    else
+    {
+        <section class="module-status fuel-status" aria-label="Bilans dnia">
+            <div><span>Data</span><strong>@_date.ToString("dd.MM")</strong></div>
+            <div><span>Energia</span><strong>@(_day is null ? "—" : $"{_day.Consumed.CaloriesKcal:0} kcal")</strong></div>
+            <div><span>Posiłki</span><strong>@(_day?.Meals.Count ?? 0)</strong></div>
+            <div><span>Cel</span><strong>@(_day?.Target is null ? "Do ustawienia" : $"{_day.Target.CaloriesKcal:0} kcal")</strong></div>
+        </section>
+
+        <MudTabs Rounded="true" Class="module-tabs" PanelClass="food-panel">
+            <MudTabPanel Text="Dziennik">
+                @if (_day is not null)
+                {
+                    <MacroSummary Day="_day" />
+                    @if (_day.Meals.Count == 0)
+                    {
+                        <div class="module-empty">
+                            <MudIcon Icon="@Icons.Material.Outlined.RestaurantMenu" />
+                            <div><strong>Dziennik jest jeszcze pusty</strong><span>Dodaj pierwszy posiłek, żeby zobaczyć bilans dnia.</span></div>
+                        </div>
+                    }
+                    @foreach (var meal in _day.Meals)
+                    {
+                        <MudPaper Class="meal-row" Elevation="0">
+                            <div class="row-copy">
+                                <MudText Typo="Typo.subtitle1">@meal.Name</MudText>
+                                <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => $"{x.ProductName} {x.AmountGrams:0.#} g"))</MudText>
+                            </div>
+                            <div class="meal-actions">
+                                <MudText Typo="Typo.body2">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" />
+                            </div>
+                        </MudPaper>
+                    }
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="Dodaj posiłek">
+                <section class="module-form fuel-form">
+                    <div class="module-form-heading">
+                        <span class="card-kicker">Nowy wpis</span>
+                        <h2>Zbuduj posiłek</h2>
+                        <p>Dodawaj produkty po kolei, a aplikacja policzy całość.</p>
+                    </div>
+                    <MudTextField @bind-Value="_meal.Name" Label="Nazwa posiłku" />
+                    <MudSelect T="Guid?" @bind-Value="_meal.ProductId" Label="Produkt">
+                        @foreach (var product in _products)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)product.Id)">@product.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudNumericField @bind-Value="_meal.AmountGrams" Label="Ilość (g)" Min="0.01m" />
+                    <MudButton Variant="Variant.Outlined" OnClick="AddItem" Class="mt-2">Dodaj pozycję</MudButton>
+
+                    @if (_meal.Items.Count > 0)
+                    {
+                        <div class="draft-chips">
+                            @foreach (var item in _meal.Items)
+                            {
+                                <MudChip T="string">@item.Name · @item.AmountGrams.ToString("0.#") g</MudChip>
+                            }
+                        </div>
+                    }
+
+                    <MudCheckBox @bind-Value="_meal.DeductFromPantry" Label="Odejmij składniki ze spiżarni" />
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(_meal.Items.Count == 0)" OnClick="SaveMeal" Class="mt-4">Zapisz posiłek</MudButton>
+                </section>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Produkty i cel">
+                <section class="module-form fuel-form">
+                    <div class="module-form-heading"><span class="card-kicker">Punkt odniesienia</span><h2>Dzienny cel</h2></div>
+                    <div class="field-grid">
+                        <MudNumericField @bind-Value="_target.Calories" Label="Kalorie (kcal)" Min="1m" />
+                        <MudNumericField @bind-Value="_target.Protein" Label="Białko (g)" Min="0m" />
+                        <MudNumericField @bind-Value="_target.Fat" Label="Tłuszcze (g)" Min="0m" />
+                        <MudNumericField @bind-Value="_target.Carbs" Label="Węglowodany (g)" Min="0m" />
+                    </div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveTarget" Class="mt-3">Zapisz cel</MudButton>
+                </section>
+
+                <section class="module-form fuel-form">
+                    <div class="module-form-heading"><span class="card-kicker">Baza produktów</span><h2>Dodaj produkt</h2><p>Wpisz wartości dla 100 g albo zacznij od kodu kreskowego.</p></div>
+                    <div class="barcode-entry">
+                        <MudTextField @bind-Value="_barcode" Label="Kod kreskowy" MaxLength="14" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Search" Color="Color.Primary" OnClick="LookupBarcode" aria-label="Wyszukaj kod" />
+                    </div>
+                    @if (_barcodeMessage is not null)
+                    {
+                        <MudAlert Severity="@(_barcodeUnavailable ? Severity.Warning : Severity.Info)" Dense="true" Class="mb-3">@_barcodeMessage</MudAlert>
+                    }
+                    <div class="field-grid">
+                        <MudTextField @bind-Value="_product.Name" Label="Nazwa" />
+                        <MudTextField @bind-Value="_product.Brand" Label="Marka (opcjonalnie)" />
+                        <MudNumericField @bind-Value="_product.Calories" Label="Kalorie / 100 g" Min="0m" />
+                        <MudNumericField @bind-Value="_product.Protein" Label="Białko / 100 g" Min="0m" />
+                        <MudNumericField @bind-Value="_product.Fat" Label="Tłuszcze / 100 g" Min="0m" />
+                        <MudNumericField @bind-Value="_product.Carbs" Label="Węglowodany / 100 g" Min="0m" />
+                    </div>
+                    <div class="set-entry">
+                        <MudNumericField @bind-Value="_product.ServingAmount" Label="Porcja domyślna" Min="0.01m" />
+                        <MudSelect T="ServingUnit" @bind-Value="_product.ServingUnit" Label="Jednostka porcji">
+                            @foreach (var unit in Enum.GetValues<ServingUnit>()) { <MudSelectItem Value="@unit">@unit</MudSelectItem> }
+                        </MudSelect>
+                    </div>
+                    @if (_product.ServingUnit == ServingUnit.Piece)
+                    {
+                        <MudNumericField @bind-Value="_product.GramsPerPiece" Label="Gramów na sztukę" Min="0.01m" />
+                    }
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveProduct" Class="mt-3">Dodaj produkt</MudButton>
+                </section>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</MudContainer>
+
+@code {
+    private readonly DateOnly _date = DateOnly.FromDateTime(DateTime.Now);
+    private readonly TargetForm _target = new();
+    private readonly ProductForm _product = new();
+    private readonly MealForm _meal = new();
+    private IReadOnlyList<ProductResponse> _products = [];
+    private NutritionDayResponse? _day;
+    private string _barcode = string.Empty;
+    private string? _barcodeMessage;
+    private bool _barcodeUnavailable;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Account.GetCurrentUser() is null)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await Reload();
+        _loading = false;
+    }
+
+    private async Task Reload()
+    {
+        _day = await Nutrition.GetDay(_date);
+        _products = await Nutrition.GetProducts();
+        if (_day.Target is not null)
+        {
+            _target.Calories = _day.Target.CaloriesKcal;
+            _target.Protein = _day.Target.ProteinG;
+            _target.Fat = _day.Target.FatG;
+            _target.Carbs = _day.Target.CarbohydratesG;
+        }
+    }
+
+    private void AddItem()
+    {
+        var product = _products.FirstOrDefault(x => x.Id == _meal.ProductId);
+        if (product is null || _meal.AmountGrams <= 0) return;
+        _meal.Items.Add(new MealDraftItem(product.Id, product.Name, _meal.AmountGrams));
+        _meal.ProductId = null;
+        _meal.AmountGrams = 100;
+    }
+
+    private async Task SaveMeal() => await Run(async () =>
+    {
+        await Nutrition.SaveMeal(new SaveMealRequest(
+            string.IsNullOrWhiteSpace(_meal.Name) ? "Posiłek" : _meal.Name,
+            DateTimeOffset.Now,
+            _meal.Items.Select(x => new MealItemRequest(x.ProductId, x.AmountGrams, false)).ToList(),
+            _meal.DeductFromPantry));
+        _meal.Items.Clear();
+        _meal.Name = string.Empty;
+        await Reload();
+        Snackbar.Add("Posiłek zapisany.", Severity.Success);
+    });
+
+    private async Task SaveTarget() => await Run(async () =>
+    {
+        await Nutrition.SaveTarget(new SaveNutritionTargetRequest(_date, _target.Calories, _target.Protein, _target.Fat, _target.Carbs));
+        await Reload();
+        Snackbar.Add("Cel zapisany.", Severity.Success);
+    });
+
+    private async Task SaveProduct() => await Run(async () =>
+    {
+        await Nutrition.SaveProduct(new SaveProductRequest(_product.Name, _product.Brand, _product.Calories, _product.Protein, _product.Fat, _product.Carbs, _product.ServingAmount, _product.ServingUnit, _product.GramsPerPiece, _product.Barcode));
+        _product.Clear();
+        await Reload();
+        Snackbar.Add("Produkt dodany.", Severity.Success);
+    });
+
+    private async Task LookupBarcode()
+    {
+        if (_barcode.Length is < 8 or > 14 || _barcode.Any(x => !char.IsDigit(x)))
+        {
+            _barcodeMessage = "Kod musi zawierać od 8 do 14 cyfr.";
+            return;
+        }
+        var result = await Nutrition.GetByBarcode(_barcode);
+        _barcodeMessage = result.Message;
+        _barcodeUnavailable = result.TemporarilyUnavailable;
+        if (result.Product is null) return;
+        var product = result.Product;
+        _product.Name = product.Name; _product.Brand = product.Brand; _product.Calories = product.CaloriesPer100;
+        _product.Protein = product.ProteinPer100; _product.Fat = product.FatPer100; _product.Carbs = product.CarbohydratesPer100;
+        _product.ServingAmount = product.ServingAmount; _product.ServingUnit = product.ServingUnit; _product.Barcode = product.Barcode;
+    }
+
+    private async Task DeleteMeal(Guid id) => await Run(async () =>
+    {
+        await Nutrition.DeleteMeal(id);
+        await Reload();
+    });
+
+    private async Task Run(Func<Task> action)
+    {
+        try { await action(); }
+        catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać zmian.", Severity.Error); }
+    }
+
+    private sealed class TargetForm
+    {
+        public decimal Calories { get; set; } = 2500;
+        public decimal Protein { get; set; } = 160;
+        public decimal Fat { get; set; } = 80;
+        public decimal Carbs { get; set; } = 300;
+    }
+
+    private sealed class ProductForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Brand { get; set; }
+        public decimal Calories { get; set; }
+        public decimal Protein { get; set; }
+        public decimal Fat { get; set; }
+        public decimal Carbs { get; set; }
+        public decimal? ServingAmount { get; set; }
+        public ServingUnit ServingUnit { get; set; }
+        public decimal? GramsPerPiece { get; set; }
+        public string? Barcode { get; set; }
+        public void Clear()
+        {
+            (Name, Brand, Calories, Protein, Fat, Carbs) = (string.Empty, null, 0, 0, 0, 0);
+            ServingAmount = GramsPerPiece = null; ServingUnit = ServingUnit.Gram; Barcode = null;
+        }
+    }
+
+    private sealed class MealForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public Guid? ProductId { get; set; }
+        public decimal AmountGrams { get; set; } = 100;
+        public bool DeductFromPantry { get; set; }
+        public List<MealDraftItem> Items { get; } = [];
+    }
+
+    private sealed record MealDraftItem(Guid ProductId, string Name, decimal AmountGrams);
+}

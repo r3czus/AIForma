@@ -1,0 +1,281 @@
+@page "/training"
+@inject AccountClient Account
+@inject TrainingClient TrainingApi
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Trening · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page training-page">
+    <header class="module-heading">
+        <div>
+            <span class="page-kicker">Plan tygodnia</span>
+            <MudText Typo="Typo.h4">Trening</MudText>
+            <p>Ułóż rytm tygodnia, a podczas sesji skup się już tylko na kolejnej serii.</p>
+        </div>
+    </header>
+    @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję plan</span></div> }
+    else
+    {
+        <section class="module-status training-status" aria-label="Stan treningów">
+            <div><span>Plany</span><strong>@_plans.Count</strong></div>
+            <div><span>Aktywny</span><strong>@(_plans.FirstOrDefault(x => x.IsActive)?.Name ?? "Brak")</strong></div>
+            <div><span>Ćwiczenia</span><strong>@_exercises.Count</strong></div>
+            <div><span>Dzisiaj</span><strong>@(_today is null ? "Regeneracja" : _today.AlreadyCompleted ? "Wykonany" : _today.DayName)</strong></div>
+        </section>
+
+        @if (_today is not null)
+        {
+            <MudPaper Class="workout-today" Elevation="1">
+                <div class="card-heading">
+                    <div><span class="card-kicker">Dzisiaj · @_today.PlanName</span><MudText Typo="Typo.h5">@_today.DayName</MudText></div>
+                    <span class="data-chip">@_today.Exercises.Count ćwiczeń</span>
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_today.AlreadyCompleted" OnClick="Start" Class="mt-3">
+                    @(_today.AlreadyCompleted ? "Trening wykonany" : "Rozpocznij trening")
+                </MudButton>
+            </MudPaper>
+        }
+        else
+        {
+            <div class="module-empty training-empty"><MudIcon Icon="@Icons.Material.Outlined.SelfImprovement" /><div><strong>Dziś nie ma przypisanej sesji</strong><span>To może być dzień regeneracji albo moment na aktywowanie planu.</span></div></div>
+        }
+
+        <MudTabs Class="module-tabs mt-4" PanelClass="food-panel">
+            <MudTabPanel Text="Plany">
+                @if (_plans.Count == 0)
+                {
+                    <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.EventNote" /><div><strong>Nie masz jeszcze planu</strong><span>Przejdź do zakładki „Nowy plan” i ułóż pierwszy tydzień.</span></div></div>
+                }
+                @foreach (var plan in _plans)
+                {
+                    <MudPaper Class="plan-row" Elevation="0">
+                        <div class="row-copy"><MudText Typo="Typo.subtitle1">@plan.Name</MudText><MudText Typo="Typo.caption">@plan.Days.Count dni · @plan.Goal</MudText></div>
+                        @if (plan.IsActive) { <MudChip T="string" Color="Color.Success" Size="Size.Small">Aktywny</MudChip> }
+                        else { <MudButton Size="Size.Small" OnClick="() => Activate(plan.Id)">Aktywuj</MudButton> }
+                    </MudPaper>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="Nowy plan">
+                <section class="module-form training-form">
+                    <div class="module-form-heading"><span class="card-kicker">Kreator planu</span><h2>Ułóż tydzień krok po kroku</h2><p>Najpierw ustal cel, potem zbuduj każdy dzień i sprawdź całość przed zapisaniem.</p></div>
+                    <div class="plan-stepper" aria-label="Etapy tworzenia planu">
+                        @for (var step = 1; step <= 4; step++)
+                        {
+                            <div class="plan-step @StepClass(step)"><span>@step</span><small>@StepName(step)</small></div>
+                        }
+                    </div>
+
+                    <div class="builder-stage plan-step-card">
+                        @if (_planStep == 1)
+                        {
+                            <span class="card-kicker">Krok 1 z 4 · Podstawy</span>
+                            <h3>Nazwij plan i określ jego cel</h3>
+                            <p class="step-lead">Ta nazwa będzie widoczna na pulpicie i podczas każdego treningu.</p>
+                            <MudTextField @bind-Value="_plan.Name" Label="Nazwa planu" Required="true" />
+                            <MudTextField @bind-Value="_plan.Goal" Label="Cel planu" HelperText="Np. siła, masa mięśniowa albo powrót do regularności" Lines="2" MaxLength="500" />
+                            <div class="builder-actions end"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(_plan.Name))" OnClick="NextToDay">Dalej · dodaj dzień</MudButton></div>
+                        }
+                        else if (_planStep == 2)
+                        {
+                            <span class="card-kicker">Krok 2 z 4 · Dzień treningowy</span>
+                            <h3>@(_plan.Days.Count == 0 ? "Zaplanuj pierwszy dzień" : "Dodaj kolejny dzień")</h3>
+                            <p class="step-lead">Nadaj mu prostą nazwę, którą rozpoznasz w trakcie tygodnia.</p>
+                            @if (_plan.Days.Count > 0) { <div class="draft-count">W planie: <strong>@_plan.Days.Count</strong> @DayCountLabel(_plan.Days.Count)</div> }
+                            <MudTextField @bind-Value="_day.Name" Label="Nazwa dnia" Placeholder="Np. Góra ciała A" Required="true" />
+                            <MudSelect T="DayOfWeek?" @bind-Value="_day.DayOfWeek" Label="Dzień tygodnia" Clearable="true" HelperText="Możesz zostawić puste, jeśli treningi robisz rotacyjnie">
+                                @foreach (var day in Enum.GetValues<DayOfWeek>()) { <MudSelectItem T="DayOfWeek?" Value="@((DayOfWeek?)day)">@DayName(day)</MudSelectItem> }
+                            </MudSelect>
+                            <div class="builder-actions"><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.ArrowBack" OnClick="() => _planStep = 1">Wstecz</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(_day.Name))" OnClick="NextToExercises">Dalej · ćwiczenia</MudButton></div>
+                        }
+                        else if (_planStep == 3)
+                        {
+                            <span class="card-kicker">Krok 3 z 4 · @_day.Name</span>
+                            <h3>Dodaj ćwiczenia w kolejności wykonania</h3>
+                            <p class="step-lead">Ustaw serie, zakres powtórzeń, zapas RIR i przerwę. Możesz dodać kilka ćwiczeń jedno po drugim.</p>
+                            <MudSelect T="Guid?" @bind-Value="_planned.ExerciseId" Label="Wybierz ćwiczenie" Clearable="true">
+                                @foreach (var exercise in _exercises) { <MudSelectItem T="Guid?" Value="@((Guid?)exercise.Id)">@exercise.Name · @EquipmentName(exercise.Equipment)</MudSelectItem> }
+                            </MudSelect>
+                            @if (SelectedExercise() is { } selected)
+                            {
+                                <div class="selected-exercise"><div><strong>@selected.Name</strong><span>@MuscleGroupName(selected.MuscleGroup) · @EquipmentName(selected.Equipment)</span></div>@if (!string.IsNullOrWhiteSpace(selected.Description)) { <p>@selected.Description</p> }</div>
+                            }
+                            <div class="set-grid">
+                                <MudNumericField @bind-Value="_planned.Sets" Label="Serie" Min="1" Max="10" />
+                                <MudNumericField @bind-Value="_planned.MinReps" Label="Powtórzenia od" Min="1" />
+                                <MudNumericField @bind-Value="_planned.MaxReps" Label="Powtórzenia do" Min="1" />
+                                <MudNumericField @bind-Value="_planned.Rir" Label="RIR" HelperText="Powtórzenia w zapasie" Min="0m" Max="10m" />
+                                <MudNumericField @bind-Value="_planned.RestSeconds" Label="Przerwa (sek.)" Min="0" />
+                            </div>
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Add" Disabled="@(_planned.ExerciseId is null)" OnClick="AddExercise">Dodaj do dnia</MudButton>
+                            @if (_day.Exercises.Count > 0)
+                            {
+                                <div class="day-exercise-list">
+                                    @for (var i = 0; i < _day.Exercises.Count; i++)
+                                    {
+                                        var index = i;
+                                        var exercise = _day.Exercises[index];
+                                        <div class="day-exercise-row"><span class="exercise-order">@(index + 1)</span><div><strong>@exercise.Name</strong><small>@exercise.Sets serie · @exercise.MinReps–@exercise.MaxReps powt. · RIR @(exercise.Rir?.ToString("0.#") ?? "—") · @(exercise.RestSeconds ?? 0) s</small></div><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" OnClick="() => RemoveDraftExercise(index)" aria-label="Usuń ćwiczenie" /></div>
+                                    }
+                                </div>
+                            }
+                            <div class="builder-actions multi"><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.ArrowBack" OnClick="() => _planStep = 2">Wstecz</MudButton><MudButton Variant="Variant.Outlined" Disabled="@(_day.Exercises.Count == 0)" OnClick="() => CommitDay(true)">Zapisz dzień i dodaj następny</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_day.Exercises.Count == 0)" OnClick="() => CommitDay(false)">Do podsumowania</MudButton></div>
+                        }
+                        else
+                        {
+                            <span class="card-kicker">Krok 4 z 4 · Podsumowanie</span>
+                            <h3>@_plan.Name</h3>
+                            <p class="step-lead">@(_plan.Goal.Length == 0 ? "Plan bez dodatkowego opisu celu." : _plan.Goal)</p>
+                            <div class="plan-review">
+                                @for (var i = 0; i < _plan.Days.Count; i++)
+                                {
+                                    var index = i;
+                                    var day = _plan.Days[index];
+                                    <div class="draft-day"><div><strong>@day.Name</strong><span>@(day.DayOfWeek is null ? "Tryb rotacyjny" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń · @day.Exercises.Sum(x => x.Sets) serii</span></div><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" OnClick="() => RemoveDraftDay(index)" aria-label="Usuń dzień" /></div>
+                                }
+                            </div>
+                            <div class="builder-actions multi"><MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Add" OnClick="AddAnotherDay">Dodaj kolejny dzień</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_plan.Days.Count == 0)" OnClick="SavePlan">Zapisz i aktywuj plan</MudButton></div>
+                        }
+                    </div>
+                </section>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Ćwiczenia">
+                <section class="module-form training-form">
+                    <div class="module-form-heading"><span class="card-kicker">Biblioteka</span><h2>Dodaj własne ćwiczenie</h2><p>Opisz ruch i wybierz sprzęt tak, aby później od razu wiedzieć, czy potrzebujesz maszyny czy wolnego ciężaru.</p></div>
+                    <MudTextField @bind-Value="_custom.Name" Label="Nazwa ćwiczenia" Required="true" />
+                    <MudTextField @bind-Value="_custom.Description" Label="Opis i wskazówki wykonania" Placeholder="Np. ustaw ławkę pod kątem 30°, łopatki trzymaj ściągnięte" Lines="3" MaxLength="1000" />
+                    <div class="field-grid">
+                        <MudSelect T="MuscleGroup" @bind-Value="_custom.MuscleGroup" Label="Grupa mięśniowa">
+                            @foreach (var group in Enum.GetValues<MuscleGroup>()) { <MudSelectItem Value="@group">@MuscleGroupName(group)</MudSelectItem> }
+                        </MudSelect>
+                        <MudSelect T="Equipment" @bind-Value="_custom.Equipment" Label="Sprzęt / rodzaj obciążenia" HelperText="@EquipmentKind(_custom.Equipment)">
+                            @foreach (var equipment in Enum.GetValues<Equipment>()) { <MudSelectItem Value="@equipment">@EquipmentName(equipment)</MudSelectItem> }
+                        </MudSelect>
+                    </div>
+                    <MudCheckBox @bind-Value="_custom.IsUnilateral" Label="Ćwiczenie jednostronne" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(_custom.Name))" OnClick="SaveExercise">Dodaj do biblioteki</MudButton>
+                </section>
+                <div class="exercise-index">
+                    @foreach (var exercise in _exercises)
+                    {
+                        <article class="exercise-card"><div><strong>@exercise.Name</strong>@if (exercise.IsOwn) { <small>Własne</small> }</div><span>@MuscleGroupName(exercise.MuscleGroup) · @EquipmentName(exercise.Equipment)</span>@if (!string.IsNullOrWhiteSpace(exercise.Description)) { <p>@exercise.Description</p> }</article>
+                    }
+                </div>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</MudContainer>
+
+@code {
+    private IReadOnlyList<ExerciseResponse> _exercises = [];
+    private IReadOnlyList<TrainingPlanResponse> _plans = [];
+    private TodayWorkoutResponse? _today;
+    private readonly PlanDraft _plan = new();
+    private readonly DayDraft _day = new();
+    private readonly PlannedDraft _planned = new();
+    private readonly ExerciseDraft _custom = new();
+    private bool _loading = true;
+    private int _planStep = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
+        await Reload(); _loading = false;
+    }
+    private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); }
+    private void AddExercise()
+    {
+        var exercise = _exercises.FirstOrDefault(x => x.Id == _planned.ExerciseId);
+        if (exercise is null) return;
+        if (_planned.MinReps > _planned.MaxReps)
+        {
+            Snackbar.Add("Dolna granica powtórzeń nie może być większa od górnej.", Severity.Warning);
+            return;
+        }
+        _day.Exercises.Add(new PlannedDraftItem(exercise.Id, exercise.Name, _planned.Sets, _planned.MinReps, _planned.MaxReps, _planned.Rir, _planned.RestSeconds));
+        _planned.ExerciseId = null;
+    }
+
+    private void NextToDay() => _planStep = 2;
+    private void NextToExercises() => _planStep = 3;
+    private void AddAnotherDay() => _planStep = 2;
+    private ExerciseResponse? SelectedExercise() => _exercises.FirstOrDefault(x => x.Id == _planned.ExerciseId);
+
+    private void CommitDay(bool addAnother)
+    {
+        if (_day.Exercises.Count == 0) return;
+        if (_day.DayOfWeek is not null && _plan.Days.Any(x => x.DayOfWeek == _day.DayOfWeek))
+        {
+            Snackbar.Add("Ten dzień tygodnia jest już użyty w planie.", Severity.Warning);
+            return;
+        }
+        _plan.Days.Add(new DayDraftItem(_day.Name.Trim(), _day.DayOfWeek, [.. _day.Exercises]));
+        _day.Name = string.Empty; _day.DayOfWeek = null; _day.Exercises.Clear();
+        _planStep = addAnother ? 2 : 4;
+    }
+
+    private void RemoveDraftExercise(int index) => _day.Exercises.RemoveAt(index);
+    private void RemoveDraftDay(int index) => _plan.Days.RemoveAt(index);
+
+    private async Task SavePlan() => await Run(async () =>
+    {
+        var request = new SaveTrainingPlanRequest(_plan.Name, _plan.Goal, DateOnly.FromDateTime(DateTime.Now), _plan.Days.Select(d => new TrainingDayRequest(d.Name, d.DayOfWeek, d.Exercises.Select(x => new PlannedExerciseRequest(x.ExerciseId, x.Sets, x.MinReps, x.MaxReps, x.Rir, x.RestSeconds)).ToList())).ToList());
+        var saved = await TrainingApi.SavePlan(request); await TrainingApi.Activate(saved.Id);
+        _plan.Name = "Mój plan"; _plan.Goal = string.Empty; _plan.Days.Clear(); _planStep = 1;
+        await Reload(); Snackbar.Add("Plan zapisany i aktywowany.", Severity.Success);
+    });
+    private async Task SaveExercise() => await Run(async () =>
+    {
+        await TrainingApi.SaveExercise(new SaveExerciseRequest(_custom.Name, _custom.MuscleGroup, _custom.Equipment, _custom.IsUnilateral, _custom.Description));
+        _custom.Name = string.Empty; _custom.Description = string.Empty; _custom.IsUnilateral = false;
+        await Reload(); Snackbar.Add("Ćwiczenie dodane do biblioteki.", Severity.Success);
+    });
+    private async Task Activate(Guid id) => await Run(async () => { await TrainingApi.Activate(id); await Reload(); });
+    private async Task Start() { var session = await TrainingApi.Start(_today!.TrainingDayId); Navigation.NavigateTo($"/workout/{session.Id}"); }
+    private async Task Run(Func<Task> action) { try { await action(); } catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać zmian.", Severity.Error); } }
+    private static string DayName(DayOfWeek day) => day switch { DayOfWeek.Monday => "Poniedziałek", DayOfWeek.Tuesday => "Wtorek", DayOfWeek.Wednesday => "Środa", DayOfWeek.Thursday => "Czwartek", DayOfWeek.Friday => "Piątek", DayOfWeek.Saturday => "Sobota", _ => "Niedziela" };
+    private string StepClass(int step) => step == _planStep ? "active" : step < _planStep ? "done" : string.Empty;
+    private static string StepName(int step) => step switch { 1 => "Cel", 2 => "Dzień", 3 => "Ćwiczenia", _ => "Sprawdź" };
+    private static string DayCountLabel(int count) => count == 1 ? "dzień" : count is 2 or 3 or 4 ? "dni" : "dni";
+    private static string EquipmentKind(Equipment equipment) => equipment switch
+    {
+        Equipment.Barbell or Equipment.Dumbbell or Equipment.Kettlebell => "Wolny ciężar",
+        Equipment.Machine => "Maszyna z prowadnicą lub stosem",
+        Equipment.Cable => "Wyciąg / stos",
+        Equipment.Bodyweight => "Masa własnego ciała",
+        _ => "Inny rodzaj sprzętu"
+    };
+    private static string EquipmentName(Equipment equipment) => equipment switch
+    {
+        Equipment.Barbell => "Sztanga · wolny ciężar",
+        Equipment.Dumbbell => "Hantle · wolny ciężar",
+        Equipment.Machine => "Maszyna",
+        Equipment.Cable => "Wyciąg",
+        Equipment.Bodyweight => "Masa ciała",
+        Equipment.Kettlebell => "Kettlebell · wolny ciężar",
+        _ => "Inny sprzęt"
+    };
+    private static string MuscleGroupName(MuscleGroup group) => group switch
+    {
+        MuscleGroup.Chest => "Klatka piersiowa",
+        MuscleGroup.Back => "Plecy",
+        MuscleGroup.Shoulders => "Barki",
+        MuscleGroup.Biceps => "Biceps",
+        MuscleGroup.Triceps => "Triceps",
+        MuscleGroup.Quadriceps => "Czworogłowe uda",
+        MuscleGroup.Hamstrings => "Dwugłowe uda",
+        MuscleGroup.Glutes => "Pośladki",
+        MuscleGroup.Calves => "Łydki",
+        MuscleGroup.Core => "Brzuch i core",
+        _ => "Całe ciało"
+    };
+
+    private sealed class PlanDraft { public string Name { get; set; } = "Mój plan"; public string Goal { get; set; } = string.Empty; public List<DayDraftItem> Days { get; } = []; }
+    private sealed class DayDraft { public string Name { get; set; } = string.Empty; public DayOfWeek? DayOfWeek { get; set; } public List<PlannedDraftItem> Exercises { get; } = []; }
+    private sealed class PlannedDraft { public Guid? ExerciseId { get; set; } public int Sets { get; set; } = 3; public int MinReps { get; set; } = 8; public int MaxReps { get; set; } = 12; public decimal? Rir { get; set; } = 2; public int? RestSeconds { get; set; } = 90; }
+    private sealed class ExerciseDraft { public string Name { get; set; } = string.Empty; public string? Description { get; set; } public MuscleGroup MuscleGroup { get; set; } = MuscleGroup.FullBody; public Equipment Equipment { get; set; } = Equipment.Other; public bool IsUnilateral { get; set; } }
+    private sealed record PlannedDraftItem(Guid ExerciseId, string Name, int Sets, int MinReps, int MaxReps, decimal? Rir, int? RestSeconds);
+    private sealed record DayDraftItem(string Name, DayOfWeek? DayOfWeek, List<PlannedDraftItem> Exercises);
+}

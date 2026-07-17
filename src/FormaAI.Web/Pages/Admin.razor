@@ -1,0 +1,110 @@
+@page "/admin"
+@using FormaAI.Contracts.Assistant
+@using FormaAI.Domain.Assistant
+@inject AccountClient Account
+@inject AdminClient AdminApi
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Panel administratora · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap admin-page">
+    <header class="admin-heading">
+        <span class="page-kicker">Centrum sterowania</span>
+        <MudText Typo="Typo.h4">Panel administratora</MudText>
+        <MudText Color="Color.Secondary">Wybierz API używane do rozmów, podsumowań i generowania szkiców.</MudText>
+    </header>
+
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudPaper Class="profile-card admin-config-card" Elevation="0">
+            <div class="admin-card-heading">
+                <span class="admin-card-icon"><MudIcon Icon="@Icons.Material.Outlined.SettingsSuggest" /></span>
+                <div>
+                    <h2>Połączenie z modelem</h2>
+                    <p>Dostawca, adres i model mogą być zmieniane bez przebudowy aplikacji.</p>
+                </div>
+                <span class="api-status @(_hasApiKey ? "ready" : "missing")">@(_hasApiKey ? "Klucz aktywny" : "Brak klucza")</span>
+            </div>
+
+            <div class="admin-form-grid">
+                <MudSelect T="AiProvider" @bind-Value="_provider" Label="Dostawca API">
+                    <MudSelectItem Value="AiProvider.Gemini">Google Gemini</MudSelectItem>
+                    <MudSelectItem Value="AiProvider.OpenAiCompatible">API zgodne z OpenAI</MudSelectItem>
+                </MudSelect>
+                <MudTextField @bind-Value="_model" Label="Model" HelperText="Nazwa modelu obsługiwana przez wybrane API" Required="true" />
+                <MudTextField @bind-Value="_apiBaseUrl" Label="Adres bazowy API" HelperText="Pełny adres usługi, zakończony ukośnikiem" Required="true" />
+                <MudTextField @bind-Value="_apiKey" Label="Nowy klucz API" InputType="InputType.Password" HelperText="Pozostaw puste, aby zachować obecny klucz" />
+            </div>
+            <MudAlert Severity="Severity.Info" Dense="true" Class="my-3">
+                @(_hasApiKey ? "Klucz API jest zapisany i zaszyfrowany." : "Klucz API nie został jeszcze ustawiony.")
+            </MudAlert>
+            <div class="admin-save-row">
+                <small>Nowy klucz zastąpi poprzedni dopiero po zapisaniu.</small>
+                <div class="admin-actions">
+                    <MudButton Variant="Variant.Outlined" Disabled="@(!_hasApiKey || _saving || _testing)" OnClick="TestConnection">Sprawdź zapisane połączenie</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_saving || _testing)" OnClick="Save">Zapisz konfigurację</MudButton>
+                </div>
+            </div>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private AiProvider _provider = AiProvider.Gemini;
+    private string _apiBaseUrl = "https://generativelanguage.googleapis.com/";
+    private string _model = "gemini-3.5-flash";
+    private string? _apiKey;
+    private bool _hasApiKey;
+    private bool _loading = true;
+    private bool _saving;
+    private bool _testing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await Account.GetCurrentUser();
+        if (user?.IsAdmin != true)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        var config = await AdminApi.GetAiConfiguration();
+        _provider = config.Provider;
+        _apiBaseUrl = config.ApiBaseUrl;
+        _model = config.Model;
+        _hasApiKey = config.HasApiKey;
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_apiBaseUrl) || string.IsNullOrWhiteSpace(_model)) return;
+        _saving = true;
+        try
+        {
+            var saved = await AdminApi.SaveAiConfiguration(new SaveAiConfigurationRequest(_provider, _apiBaseUrl, _model, _apiKey));
+            _hasApiKey = saved.HasApiKey;
+            _apiKey = null;
+            Snackbar.Add("Konfiguracja AI zapisana.", Severity.Success);
+        }
+        catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać konfiguracji AI.", Severity.Error); }
+        finally { _saving = false; }
+    }
+
+    private async Task TestConnection()
+    {
+        _testing = true;
+        try
+        {
+            var result = await AdminApi.TestAiConnection();
+            Snackbar.Add(result.Message, result.Succeeded ? Severity.Success : Severity.Error);
+        }
+        catch (HttpRequestException) { Snackbar.Add("Nie udało się sprawdzić połączenia z modelem.", Severity.Error); }
+        finally { _testing = false; }
+    }
+}

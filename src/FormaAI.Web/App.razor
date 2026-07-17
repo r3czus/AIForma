@@ -1,0 +1,17 @@
+﻿<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="main" />
+    </Found>
+    <NotFound>
+        <PageTitle>Nie znaleziono strony · FormaAI</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap empty-page">
+                <span class="page-kicker">404 / poza trasą</span>
+                <h1>Nie ma tu takiej strony.</h1>
+                <p role="alert">Wróć do pulpitu i wybierz kolejny krok.</p>
+                <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary">Wróć do pulpitu</MudButton>
+            </MudContainer>
+        </LayoutView>
+    </NotFound>
+</Router>

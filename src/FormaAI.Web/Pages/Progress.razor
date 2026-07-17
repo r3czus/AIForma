@@ -1,0 +1,156 @@
+@page "/progress"
+@inject AccountClient Account
+@inject ProgressClient ProgressApi
+@inject TrainingClient TrainingApi
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Progres · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page progress-page">
+    <header class="module-heading">
+        <div>
+            <span class="page-kicker">Dziennik · 90 dni</span>
+            <MudText Typo="Typo.h4">Progres</MudText>
+            <p>Patrz na trend, nie na pojedynczy dzień. Masa, regularność i siła mają tu wspólny kontekst.</p>
+        </div>
+    </header>
+
+    @if (_loading)
+    {
+        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Liczymy trend</span></div>
+    }
+    else
+    {
+        <section class="module-status progress-status" aria-label="Podsumowanie progresu">
+            <div><span>Pomiary</span><strong>@(_weight?.Points.Count ?? 0)</strong></div>
+            <div><span>Średnia kg</span><strong>@(_weight?.CurrentAverageKg?.ToString("0.00") ?? "—")</strong></div>
+            <div><span>Zmiana kg</span><strong>@Signed(_weight?.ChangeKg)</strong></div>
+            <div><span>Plan</span><strong>@(_consistency?.CompletionPercent.ToString("0.#") ?? "0")%</strong></div>
+        </section>
+
+        <MudPaper Class="progress-card" Elevation="0">
+            <div class="progress-card-heading"><span class="card-kicker">Pomiar ciała</span><MudText Typo="Typo.h6">Masa i obwód</MudText><p>Dodaj wynik z podobnej pory dnia, żeby trend był bardziej miarodajny.</p></div>
+            <div class="set-entry">
+                <MudDatePicker @bind-Date="_measurementDate" Label="Data" />
+                <MudNumericField @bind-Value="_weightKg" Label="Masa (kg)" Min="20m" Max="500m" />
+                <MudNumericField @bind-Value="_waistCm" Label="Talia (cm)" Min="30m" Max="300m" />
+            </div>
+            <MudTextField @bind-Value="_notes" Label="Notatka" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveMeasurement" Class="mt-3">Zapisz pomiar</MudButton>
+
+            @if (_weight?.Points.Count > 0)
+            {
+                <div class="chart-label">Trend masy · średnia 7 dni</div>
+                <MudChart ChartType="ChartType.Line" ChartSeries="@WeightSeries" XAxisLabels="@WeightLabels" Width="100%" Height="240px" Class="mt-4" />
+                <div class="metric-row">
+                    <div><span>Średnia 7 dni</span><strong>@_weight.CurrentAverageKg?.ToString("0.00") kg</strong></div>
+                    <div><span>Zmiana trendu</span><strong>@Signed(_weight.ChangeKg) kg</strong></div>
+                </div>
+            }
+            else
+            {
+                <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.MonitorWeight" /><div><strong>Brakuje pierwszego punktu</strong><span>Dodaj pomiar, żeby rozpocząć linię trendu.</span></div></div>
+            }
+        </MudPaper>
+
+        <MudPaper Class="progress-card" Elevation="0">
+            <div class="progress-card-heading"><span class="card-kicker">Rytm tygodnia</span><MudText Typo="Typo.h6">Regularność treningów</MudText></div>
+            <div class="metric-row">
+                <div><span>Wykonane</span><strong>@_consistency?.CompletedWorkouts</strong></div>
+                <div><span>Realizacja planu</span><strong>@_consistency?.CompletionPercent.ToString("0.#")%</strong></div>
+            </div>
+            @if (_consistency?.Weeks.Count > 0)
+            {
+                <div class="chart-label">Ukończone sesje tygodniowo</div>
+                <MudChart ChartType="ChartType.Bar" ChartSeries="@ConsistencySeries" XAxisLabels="@ConsistencyLabels" Width="100%" Height="220px" />
+            }
+            <MudText Typo="Typo.caption">Wykonano @_consistency?.CompletedWorkouts z @_consistency?.PlannedWorkouts planowanych treningów.</MudText>
+        </MudPaper>
+
+        <MudPaper Class="progress-card" Elevation="0">
+            <div class="progress-card-heading"><span class="card-kicker">Dziennik siły</span><MudText Typo="Typo.h6">Progres ćwiczenia</MudText><p>Objętość i szacowany rekord są pokazane osobno, bo pracują na różnych skalach.</p></div>
+            <MudSelect T="Guid?" Value="_selectedExercise" ValueChanged="LoadExercise" Label="Wybierz ćwiczenie">
+                @foreach (var exercise in _exercises) { <MudSelectItem T="Guid?" Value="@((Guid?)exercise.Id)">@exercise.Name</MudSelectItem> }
+            </MudSelect>
+            @if (_exerciseProgress?.Points.Count > 0)
+            {
+                <div class="progress-chart-stack">
+                    <div><span class="chart-label">Objętość serii</span><MudChart ChartType="ChartType.Line" ChartSeries="@ExerciseVolumeSeries" XAxisLabels="@ExerciseLabels" Width="100%" Height="190px" /></div>
+                    <div><span class="chart-label">Szacowany e1RM</span><MudChart ChartType="ChartType.Line" ChartSeries="@ExerciseStrengthSeries" XAxisLabels="@ExerciseLabels" Width="100%" Height="190px" /></div>
+                </div>
+                <div class="metric-row">
+                    <div><span>Zmiana objętości</span><strong>@Signed(_exerciseProgress.VolumeChangePercent)%</strong></div>
+                    <div><span>Zmiana e1RM</span><strong>@Signed(_exerciseProgress.EstimatedOneRepMaxChangeKg) kg</strong></div>
+                </div>
+                <MudText Typo="Typo.caption">e1RM jest szacunkiem na podstawie wykonanych serii, a nie faktycznym rekordem.</MudText>
+            }
+            else if (_selectedExercise is not null)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3">Brak ukończonych serii tego ćwiczenia w wybranym okresie.</MudAlert>
+            }
+            else
+            {
+                <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.QueryStats" /><div><strong>Wybierz ćwiczenie</strong><span>Pokażemy osobno zmianę objętości i szacowanej siły.</span></div></div>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private readonly DateOnly _to = DateOnly.FromDateTime(DateTime.Now);
+    private DateOnly From => _to.AddDays(-89);
+    private WeightProgressResponse? _weight;
+    private ConsistencyResponse? _consistency;
+    private ExerciseProgressResponse? _exerciseProgress;
+    private IReadOnlyList<ExerciseResponse> _exercises = [];
+    private Guid? _selectedExercise;
+    private DateTime? _measurementDate = DateTime.Today;
+    private decimal _weightKg = 75;
+    private decimal? _waistCm;
+    private string? _notes;
+    private bool _loading = true;
+
+    private List<ChartSeries> WeightSeries => [new() { Name = "Średnia 7 dni", Data = _weight!.Points.Select(x => (double)x.SevenDayAverageKg).ToArray() }];
+    private string[] WeightLabels => _weight!.Points.Select(x => x.Date.ToString("dd.MM")).ToArray();
+    private List<ChartSeries> ConsistencySeries => [new() { Name = "Treningi", Data = _consistency!.Weeks.Select(x => (double)x.CompletedWorkouts).ToArray() }];
+    private string[] ConsistencyLabels => _consistency!.Weeks.Select(x => x.WeekStarting.ToString("dd.MM")).ToArray();
+    private List<ChartSeries> ExerciseVolumeSeries => [new() { Name = "Objętość (kg)", Data = _exerciseProgress!.Points.Select(x => (double)x.VolumeKg).ToArray() }];
+    private List<ChartSeries> ExerciseStrengthSeries => [new() { Name = "e1RM (kg)", Data = _exerciseProgress!.Points.Select(x => (double)(x.EstimatedOneRepMaxKg ?? 0)).ToArray() }];
+    private string[] ExerciseLabels => _exerciseProgress!.Points.Select(x => x.Date.ToString("dd.MM")).ToArray();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
+        _exercises = await TrainingApi.GetExercises();
+        await Reload();
+        _loading = false;
+    }
+
+    private async Task Reload()
+    {
+        _weight = await ProgressApi.GetWeight(From, _to);
+        _consistency = await ProgressApi.GetConsistency(From, _to);
+    }
+
+    private async Task SaveMeasurement()
+    {
+        if (_measurementDate is null) return;
+        try
+        {
+            await ProgressApi.SaveMeasurement(new SaveBodyMeasurementRequest(DateOnly.FromDateTime(_measurementDate.Value), _weightKg, _waistCm, _notes));
+            _notes = null;
+            await Reload();
+            Snackbar.Add("Pomiar zapisany.", Severity.Success);
+        }
+        catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać pomiaru.", Severity.Error); }
+    }
+
+    private async Task LoadExercise(Guid? exerciseId)
+    {
+        _selectedExercise = exerciseId;
+        _exerciseProgress = exerciseId is null ? null : await ProgressApi.GetExercise(exerciseId.Value, From, _to);
+    }
+
+    private static string Signed(decimal? value) => value is null ? "—" : $"{(value > 0 ? "+" : string.Empty)}{value:0.##}";
+}

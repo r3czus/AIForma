@@ -1,0 +1,38 @@
+﻿Jak polaczyc folder AIFroma z GitHub
+=====================================
+
+Repozytorium GitHub:
+https://github.com/r3czus/AIForma.git
+
+Folder lokalny:
+C:\Users\Jannu\OneDrive\Pulpit\AIFroma
+
+Najprostsza opcja, jesli folder AIFroma jest pusty:
+
+1. Otworz PowerShell.
+2. Wklej:
+
+   git clone https://github.com/r3czus/AIForma.git "C:\Users\Jannu\OneDrive\Pulpit\AIFroma"
+
+Jesli Git powie, ze folder juz istnieje i nie jest pusty:
+
+1. Wejdz do folderu:
+
+   cd "C:\Users\Jannu\OneDrive\Pulpit\AIFroma"
+
+2. Uruchom:
+
+   git init
+   git remote add origin https://github.com/r3czus/AIForma.git
+   git fetch origin
+
+3. Potem wybierz galaz, ktora ma byc lokalnie, np.:
+
+   git checkout -b main origin/main
+
+   albo, jesli repo uzywa galezi dev:
+
+   git checkout -b dev origin/dev
+
+Uwaga:
+Folder C:\Users\Jannu jest juz widziany przez Git jako repozytorium nadrzedne. Najczysciej bedzie miec osobne repo tylko w folderze AIFroma, czyli po udanym klonowaniu folder AIFroma powinien zawierac wlasny podfolder .git.

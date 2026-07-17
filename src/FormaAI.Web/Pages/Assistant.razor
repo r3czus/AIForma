@@ -1,0 +1,185 @@
+@page "/assistant"
+@using FormaAI.Contracts.Assistant
+@inject AccountClient Account
+@inject AssistantClient AssistantApi
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Asystent · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap assistant-page module-page">
+    <header class="module-heading assistant-heading">
+        <div>
+            <span class="page-kicker">FormaAI · rozmowa</span>
+            <MudText Typo="Typo.h4">Asystent</MudText>
+            <p>Zapytaj o dzisiejsze makro, posiłek ze spiżarni albo szkic planu treningowego.</p>
+        </div>
+        <span class="assistant-availability"><i></i> Gotowy do pracy</span>
+    </header>
+
+    @if (_checking)
+    {
+        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Sprawdzam dostęp</span></div>
+    }
+    else
+    {
+        <MudPaper Class="assistant-thread" Elevation="0">
+            @if (_messages.Count == 0)
+            {
+                <section class="assistant-welcome">
+                    <span class="assistant-mark"><MudIcon Icon="@Icons.Material.Filled.AutoAwesome" /></span>
+                    <div>
+                        <span class="card-kicker">Pierwsza wiadomość</span>
+                        <h2>Od czego zaczynamy?</h2>
+                        <p>Wybierz gotowy kierunek albo napisz własne pytanie.</p>
+                    </div>
+                    <div class="prompt-grid">
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Kitchen" OnClick='@(() => _message = "Co mogę zjeść z produktów, które mam w spiżarni?")'>Posiłek ze spiżarni</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.DonutLarge" OnClick='@(() => _message = "Sprawdź moje dzisiejsze makro i podpowiedz kolejny posiłek.")'>Sprawdź dzisiejsze makro</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.FitnessCenter" OnClick='@(() => _message = "Ułóż szkic planu treningowego dopasowany do mojego celu.")'>Ułóż plan treningowy</MudButton>
+                    </div>
+                </section>
+            }
+            @foreach (var message in _messages)
+            {
+                <div class="assistant-bubble @(message.FromUser ? "from-user" : "from-assistant")">@message.Text</div>
+            }
+
+            @if (_draft is not null)
+            {
+                <MudPaper Class="assistant-draft meal-draft" Elevation="0">
+                    <span class="card-kicker">Propozycja posiłku</span>
+                    <MudText Typo="Typo.h6">@_draft.Name</MudText>
+                    @foreach (var item in _draft.Items)
+                    {
+                        <MudText Typo="Typo.body2">@item.ProductName · @item.AmountGrams.ToString("0.#") g @(item.IsEstimated ? "(szacunek)" : "")</MudText>
+                    }
+                    <MudText Typo="Typo.subtitle2" Class="mt-2">@_draft.Macro.CaloriesKcal.ToString("0") kcal · B @_draft.Macro.ProteinG.ToString("0.#") g · T @_draft.Macro.FatG.ToString("0.#") g · W @_draft.Macro.CarbohydratesG.ToString("0.#") g</MudText>
+                    @if (_draft.MissingFromPantry.Count > 0)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Warning">Brak w spiżarni: @string.Join(", ", _draft.MissingFromPantry)</MudText>
+                    }
+                    <div class="assistant-actions">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_sending" OnClick="ConfirmDraft">Zatwierdź i zapisz</MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="_sending" OnClick="RejectDraft">Odrzuć</MudButton>
+                    </div>
+                </MudPaper>
+            }
+            @if (_trainingDraft is not null)
+            {
+                <MudPaper Class="assistant-draft training-draft" Elevation="0">
+                    <span class="card-kicker">Plan do zatwierdzenia</span>
+                    <MudText Typo="Typo.h6">@_trainingDraft.Plan.Name</MudText>
+                    <MudText Typo="Typo.body2">@_trainingDraft.Plan.Goal</MudText>
+                    @foreach (var day in _trainingDraft.Plan.Days)
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-2">@day.Name @(day.DayOfWeek is null ? "" : $"· {day.DayOfWeek}")</MudText>
+                        <MudText Typo="Typo.caption">@day.Exercises.Count ćwiczeń · @day.Exercises.Sum(x => x.Sets) serii</MudText>
+                    }
+                    <div class="assistant-actions">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_sending" OnClick="ConfirmTrainingDraft">Zatwierdź plan</MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="_sending" OnClick="RejectTrainingDraft">Odrzuć</MudButton>
+                    </div>
+                </MudPaper>
+            }
+            @if (_sending)
+            {
+                <div class="assistant-bubble from-assistant assistant-thinking" role="status" aria-live="polite"><span></span> Sprawdzam Twój plan i dane…</div>
+            }
+        </MudPaper>
+
+        <div class="assistant-composer">
+            <MudTextField @bind-Value="_message" Placeholder="Napisz wiadomość…" Variant="Variant.Outlined" Lines="2" MaxLength="2000" Disabled="_sending" />
+            <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(_message) || _sending)" OnClick="Send" aria-label="Wyślij" />
+        </div>
+    }
+</MudContainer>
+
+@code {
+    private readonly List<ChatLine> _messages = [];
+    private Guid? _conversationId;
+    private AssistantDraftResponse? _draft;
+    private AssistantTrainingDraftResponse? _trainingDraft;
+    private string _message = string.Empty;
+    private bool _sending;
+    private bool _checking = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Account.GetCurrentUser() is null)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _checking = false;
+    }
+
+    private async Task Send()
+    {
+        var text = _message.Trim();
+        if (text.Length == 0) return;
+        _messages.Add(new ChatLine(true, text));
+        _message = string.Empty;
+        _sending = true;
+        try
+        {
+            var response = await AssistantApi.Send(new SendAssistantMessageRequest(_conversationId, text, DateOnly.FromDateTime(DateTime.Now)));
+            _conversationId = response.ConversationId;
+            _messages.Add(new ChatLine(false, response.Reply));
+            _draft = response.Draft;
+            _trainingDraft = response.TrainingPlanDraft;
+        }
+        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Warning); }
+        finally { _sending = false; }
+    }
+
+    private async Task ConfirmDraft()
+    {
+        if (_draft is null) return;
+        _sending = true;
+        try
+        {
+            await AssistantApi.Confirm(_draft.Id);
+            _messages.Add(new ChatLine(false, "Posiłek został zapisany w dzienniku."));
+            _draft = null;
+            Snackbar.Add("Posiłek zapisany.", Severity.Success);
+        }
+        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _sending = false; }
+    }
+
+    private async Task RejectDraft()
+    {
+        if (_draft is null) return;
+        _sending = true;
+        try { await AssistantApi.Reject(_draft.Id); _draft = null; }
+        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _sending = false; }
+    }
+
+    private async Task ConfirmTrainingDraft()
+    {
+        if (_trainingDraft is null) return;
+        _sending = true;
+        try
+        {
+            await AssistantApi.ConfirmTrainingPlan(_trainingDraft.Id);
+            _messages.Add(new ChatLine(false, "Plan treningowy został zapisany. Możesz go aktywować w zakładce Trening."));
+            _trainingDraft = null;
+            Snackbar.Add("Plan zapisany.", Severity.Success);
+        }
+        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _sending = false; }
+    }
+
+    private async Task RejectTrainingDraft()
+    {
+        if (_trainingDraft is null) return;
+        _sending = true;
+        try { await AssistantApi.Reject(_trainingDraft.Id); _trainingDraft = null; }
+        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _sending = false; }
+    }
+
+    private sealed record ChatLine(bool FromUser, string Text);
+}

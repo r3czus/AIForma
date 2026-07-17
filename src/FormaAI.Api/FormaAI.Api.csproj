@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.26" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.26">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FormaAI.Application\FormaAI.Application.csproj" />
+    <ProjectReference Include="..\FormaAI.Contracts\FormaAI.Contracts.csproj" />
+    <ProjectReference Include="..\FormaAI.Infrastructure\FormaAI.Infrastructure.csproj" />
+    <ProjectReference Include="..\FormaAI.Web\FormaAI.Web.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,50 @@
+using System.Net;
+using System.Net.Http.Json;
+using FormaAI.Contracts.Training;
+using FormaAI.Contracts.Users;
+
+namespace FormaAI.Web.Services;
+
+public sealed class TrainingClient(HttpClient http)
+{
+    public async Task<IReadOnlyList<ExerciseResponse>> GetExercises() => await http.GetFromJsonAsync<List<ExerciseResponse>>("api/v1/exercises") ?? [];
+    public async Task<IReadOnlyList<TrainingPlanResponse>> GetPlans() => await http.GetFromJsonAsync<List<TrainingPlanResponse>>("api/v1/training-plans") ?? [];
+    public async Task<TodayWorkoutResponse?> GetToday()
+    {
+        var response = await http.GetAsync("api/v1/workouts/today");
+        return response.StatusCode == HttpStatusCode.NotFound ? null : await Read<TodayWorkoutResponse>(response);
+    }
+    public async Task<WorkoutSessionResponse> GetSession(Guid id) => (await http.GetFromJsonAsync<WorkoutSessionResponse>($"api/v1/workout-sessions/{id}"))!;
+    public async Task<IReadOnlyList<ExerciseHistoryEntry>> GetHistory(Guid id) => await http.GetFromJsonAsync<List<ExerciseHistoryEntry>>($"api/v1/exercises/{id}/history") ?? [];
+    public Task<ExerciseResponse> SaveExercise(SaveExerciseRequest request) => Send<ExerciseResponse>(HttpMethod.Post, "api/v1/exercises", request);
+    public Task<TrainingPlanResponse> SavePlan(SaveTrainingPlanRequest request) => Send<TrainingPlanResponse>(HttpMethod.Post, "api/v1/training-plans", request);
+    public Task<WorkoutSessionResponse> Start(Guid dayId) => Send<WorkoutSessionResponse>(HttpMethod.Post, "api/v1/workout-sessions", new StartWorkoutRequest(dayId));
+    public Task<CompletedSetResponse> SaveSet(Guid sessionId, SaveSetRequest request) => Send<CompletedSetResponse>(HttpMethod.Post, $"api/v1/workout-sessions/{sessionId}/sets", request);
+    public Task Activate(Guid planId) => SendNoContent(HttpMethod.Post, $"api/v1/training-plans/{planId}/activate");
+    public Task Complete(Guid sessionId) => SendNoContent(HttpMethod.Post, $"api/v1/workout-sessions/{sessionId}/complete");
+    public Task Abandon(Guid sessionId) => SendNoContent(HttpMethod.Post, $"api/v1/workout-sessions/{sessionId}/abandon");
+
+    private async Task<T> Send<T>(HttpMethod method, string uri, object body)
+    {
+        using var response = await Send(method, uri, body);
+        return await Read<T>(response);
+    }
+    private async Task SendNoContent(HttpMethod method, string uri)
+    {
+        using var response = await Send(method, uri, null);
+        response.EnsureSuccessStatusCode();
+    }
+    private async Task<HttpResponseMessage> Send(HttpMethod method, string uri, object? body)
+    {
+        var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        var request = new HttpRequestMessage(method, uri);
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+        if (body is not null) request.Content = JsonContent.Create(body);
+        return await http.SendAsync(request);
+    }
+    private static async Task<T> Read<T>(HttpResponseMessage response)
+    {
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<T>())!;
+    }
+}
