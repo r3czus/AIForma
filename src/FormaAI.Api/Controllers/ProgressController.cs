@@ -104,6 +104,14 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             .ToListAsync();
         var tolerance = await db.UserProfiles.Where(x => x.UserId == userId)
             .Select(x => x.CalorieToleranceKcal).SingleAsync();
+        var fromUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var toUtc = end.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var workoutDays = (await db.WorkoutSessions
+                .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed && x.FinishedAtUtc >= fromUtc && x.FinishedAtUtc < toUtc)
+                .Select(x => x.FinishedAtUtc!.Value)
+                .ToListAsync())
+            .Select(DateOnly.FromDateTime)
+            .ToHashSet();
 
         var days = Enumerable.Range(0, end.Day)
             .Select(offset => start.AddDays(offset))
@@ -113,7 +121,7 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
                 var logged = meals.Where(x => x.LocalDate == date).ToList();
                 var consumed = logged.SelectMany(x => x.Items).Sum(x => x.CaloriesKcal);
                 var within = logged.Count > 0 && target is not null && Math.Abs(consumed - target.CaloriesKcal) <= tolerance;
-                return new NutritionAdherencePoint(date, target?.CaloriesKcal, consumed, logged.Count > 0, within);
+                return new NutritionAdherencePoint(date, target?.CaloriesKcal, consumed, logged.Count > 0, within, workoutDays.Contains(date));
             }).ToList();
 
         return new NutritionAdherenceResponse(start, tolerance, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);

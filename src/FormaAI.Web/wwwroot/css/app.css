@@ -728,16 +728,21 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .calendar-toolbar strong { font-family: "IBM Plex Mono", monospace; font-size: .78rem; text-transform: capitalize; }
 .nutrition-calendar { display: grid; gap: 8px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .nutrition-calendar .weekday { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .6rem; padding-bottom: 3px; text-align: center; text-transform: uppercase; }
-.nutrition-day { align-items: center; aspect-ratio: 1; background: var(--paper); border: 1px solid var(--rule); border-radius: 50%; color: var(--muted); display: flex; font-family: "IBM Plex Mono", monospace; font-size: .7rem; justify-content: center; min-width: 0; }
-.nutrition-day.on-target { background: var(--action); border-color: var(--action); color: white; }
-.nutrition-day.outside { background: var(--fuel-soft); border-color: #efc39f; color: #8c4b16; }
+.nutrition-day { --diet-day: var(--surface); --training-day: var(--surface); align-items: center; aspect-ratio: 1; background: linear-gradient(90deg, var(--training-day) 0 50%, var(--diet-day) 50%); border: 1px solid var(--rule); border-radius: 50%; color: var(--ink); display: flex; font-family: "IBM Plex Mono", monospace; font-size: .7rem; justify-content: center; min-width: 0; }
+.nutrition-day.workout-done { --training-day: var(--action); }
+.nutrition-day.diet-on { --diet-day: var(--recovery); }
+.nutrition-day.diet-under { --diet-day: #e5ae35; }
+.nutrition-day.diet-over { --diet-day: var(--danger); }
+.nutrition-day b { align-items: center; background: rgba(255, 255, 255, .92); border-radius: 50%; display: flex; font-weight: 500; height: 38%; justify-content: center; width: 38%; }
 .nutrition-day.future { background: transparent; border-style: dashed; color: #aab3ae; }
 .nutrition-day.today { box-shadow: 0 0 0 3px var(--action-soft); }
 .calendar-legend { align-items: center; display: flex; flex-wrap: wrap; gap: 12px 18px; margin-top: 18px; }
 .calendar-legend span { align-items: center; color: var(--muted); display: inline-flex; font-size: .68rem; gap: 6px; }
 .calendar-legend i { background: var(--paper); border: 1px solid var(--rule); border-radius: 50%; height: 10px; width: 10px; }
-.calendar-legend .on-target { background: var(--action); border-color: var(--action); }
-.calendar-legend .outside { background: var(--fuel-soft); border-color: #efc39f; }
+.calendar-legend .workout { background: var(--action); border-color: var(--action); }
+.calendar-legend .diet-on { background: var(--recovery); border-color: var(--recovery); }
+.calendar-legend .diet-under { background: #e5ae35; border-color: #e5ae35; }
+.calendar-legend .diet-over { background: var(--danger); border-color: var(--danger); }
 .calendar-legend .mud-button-root { margin-left: auto; }
 
 .profile-page { max-width: 880px !important; }

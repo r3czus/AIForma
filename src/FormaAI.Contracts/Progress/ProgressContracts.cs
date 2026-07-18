@@ -12,7 +12,7 @@ public sealed record ExerciseProgressPoint(DateOnly Date, decimal VolumeKg, deci
 public sealed record ExerciseProgressResponse(Guid ExerciseId, string ExerciseName, IReadOnlyList<ExerciseProgressPoint> Points, decimal? VolumeChangePercent, decimal? EstimatedOneRepMaxChangeKg);
 public sealed record ConsistencyPoint(DateOnly WeekStarting, int CompletedWorkouts);
 public sealed record ConsistencyResponse(int CompletedWorkouts, int PlannedWorkouts, decimal CompletionPercent, IReadOnlyList<ConsistencyPoint> Weeks);
-public sealed record NutritionAdherencePoint(DateOnly Date, decimal? TargetKcal, decimal ConsumedKcal, bool HasMeals, bool IsWithinTarget);
+public sealed record NutritionAdherencePoint(DateOnly Date, decimal? TargetKcal, decimal ConsumedKcal, bool HasMeals, bool IsWithinTarget, bool HasCompletedWorkout);
 public sealed record NutritionAdherenceResponse(DateOnly Month, int ToleranceKcal, int DaysOnTarget, int LoggedDays, IReadOnlyList<NutritionAdherencePoint> Days);
 public sealed record TrainingWeekSummaryResponse(int CompletedWorkouts, int PlannedWorkouts, int TotalMinutes, int WorkingSets,
     decimal SetCompletionPercent, decimal TotalVolumeKg, decimal? VolumeChangePercent);

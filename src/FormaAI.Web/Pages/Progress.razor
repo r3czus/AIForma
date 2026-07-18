@@ -89,13 +89,15 @@
                     }
                     @foreach (var day in _nutrition.Days)
                     {
-                        <span class="nutrition-day @DayClass(day)" title="@DayTitle(day)">@day.Date.Day</span>
+                        <span class="nutrition-day @DayClass(day)" title="@DayTitle(day)"><b>@day.Date.Day</b></span>
                     }
                 </div>
                 <div class="calendar-legend">
-                    <span><i class="on-target"></i>W celu</span>
-                    <span><i class="outside"></i>Poza zakresem</span>
-                    <span><i class="empty"></i>Brak wpisów</span>
+                    <span><i class="workout"></i>Trening wykonany</span>
+                    <span><i class="diet-on"></i>Dieta w zakresie</span>
+                    <span><i class="diet-under"></i>Poniżej kalorii</span>
+                    <span><i class="diet-over"></i>Powyżej kalorii</span>
+                    <span><i class="empty"></i>Brak danych</span>
                     <MudButton Href="/profile" Variant="Variant.Text" Size="Size.Small">Ustaw tolerancję</MudButton>
                 </div>
             </MudPaper>
@@ -254,10 +256,21 @@
     private static string PercentWidth(decimal value) => $"{Math.Clamp(value, 0, 100):0.#}%";
     private static string Duration(int minutes) => minutes < 60 ? $"{minutes} min" : $"{minutes / 60} h {minutes % 60} min";
     private static string TrendWord(decimal value) => value > 0 ? "wzrosła" : value < 0 ? "spadła" : "nie zmieniła się";
-    private static string DayClass(NutritionAdherencePoint day) => day.Date > DateOnly.FromDateTime(DateTime.Today)
-        ? "future"
-        : !day.HasMeals ? "empty" : day.IsWithinTarget ? "on-target" : "outside";
-    private static string DayTitle(NutritionAdherencePoint day) => !day.HasMeals
-        ? $"{day.Date:dd.MM}: brak zapisanych posiłków"
-        : $"{day.Date:dd.MM}: {day.ConsumedKcal:0} z {day.TargetKcal:0} kcal";
+    private static string DayClass(NutritionAdherencePoint day)
+    {
+        if (day.Date > DateOnly.FromDateTime(DateTime.Today)) return "future";
+        var workout = day.HasCompletedWorkout ? "workout-done" : string.Empty;
+        var diet = !day.HasMeals || day.TargetKcal is null
+            ? "diet-empty"
+            : day.IsWithinTarget ? "diet-on" : day.ConsumedKcal < day.TargetKcal ? "diet-under" : "diet-over";
+        return $"{workout} {diet}";
+    }
+
+    private static string DayTitle(NutritionAdherencePoint day)
+    {
+        var workout = day.HasCompletedWorkout ? "trening ukończony" : "bez ukończonego treningu";
+        if (!day.HasMeals) return $"{day.Date:dd.MM}: {workout}; brak zapisanych posiłków";
+        var diet = day.IsWithinTarget ? "dieta w zakresie" : day.ConsumedKcal < day.TargetKcal ? "dieta poniżej zakresu" : "dieta powyżej zakresu";
+        return $"{day.Date:dd.MM}: {workout}; {diet} ({day.ConsumedKcal:0} z {day.TargetKcal:0} kcal)";
+    }
 }
