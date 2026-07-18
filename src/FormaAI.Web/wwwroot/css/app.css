@@ -422,6 +422,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .calorie-score { display: flex; flex-direction: column; }
 .calorie-score strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 4.4rem; line-height: .9; margin: 5px 0; }
 .calorie-score span, .calorie-score small { color: var(--muted); font-size: .72rem; }
+.calorie-score .calorie-percent { align-self: flex-start; background: var(--fuel-soft); border-radius: 99px; color: #a44e23; font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 700; margin-top: 8px; padding: 5px 8px; }
 .macro-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
 .macro-grid > div { background: var(--fuel-soft); border-radius: 14px; display: grid; gap: 4px; padding: 13px; }
 .macro-grid span, .macro-grid small { color: var(--muted); font-size: .65rem; }

@@ -28,6 +28,7 @@
                 <span>Spożyte dzisiaj</span>
                 <strong>@Day.Consumed.CaloriesKcal.ToString("0")</strong>
                 <small>cel @Day.Target.CaloriesKcal.ToString("0") kcal</small>
+                <span class="calorie-percent">@CaloriePercent% celu</span>
             </div>
         </div>
         <div class="macro-grid">
@@ -42,6 +43,7 @@
     [Parameter, EditorRequired] public NutritionDayResponse Day { get; set; } = null!;
 
     private string RemainingCaption => Day.Remaining!.CaloriesKcal < 0 ? "ponad cel" : "pozostało";
+    private int CaloriePercent => Day.Target!.CaloriesKcal <= 0 ? 0 : (int)Math.Round(Day.Consumed.CaloriesKcal / Day.Target.CaloriesKcal * 100);
 
     private static int Percent(decimal value, decimal target) => target <= 0
         ? 0
