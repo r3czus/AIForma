@@ -92,6 +92,23 @@
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.PlayArrow" Disabled="_todayWorkout.AlreadyCompleted" OnClick="StartWorkout" Class="workout-start">
                             @(_todayWorkout.AlreadyCompleted ? "Trening wykonany" : "Rozpocznij trening")
                         </MudButton>
+                        @if (_plans.SelectMany(x => x.Days).Any())
+                        {
+                            <div class="workout-choice-row">
+                                <MudSelect T="Guid?" @bind-Value="_selectedTrainingDay" Label="Wybierz inny trening" Variant="Variant.Outlined" Dense="true">
+                                    @foreach (var plan in _plans)
+                                    {
+                                        @foreach (var day in plan.Days)
+                                        {
+                                            <MudSelectItem T="Guid?" Value="day.Id">@plan.Name · @day.Name</MudSelectItem>
+                                        }
+                                    }
+                                </MudSelect>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_selectedTrainingDay is null" OnClick="StartSelectedWorkout">
+                                    Rozpocznij wybrany
+                                </MudButton>
+                            </div>
+                        }
                     </MudPaper>
                 }
                 else
@@ -176,6 +193,8 @@
     private NutritionDayResponse? _day;
     private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
     private TodayWorkoutResponse? _todayWorkout;
+    private IReadOnlyList<TrainingPlanResponse> _plans = [];
+    private Guid? _selectedTrainingDay;
     private bool _loading = true;
     private int _tab;
     private string TrainingStatus => _todayWorkout is null ? "Regeneracja" : _todayWorkout.AlreadyCompleted ? "Wykonany" : _todayWorkout.DayName;
@@ -218,11 +237,21 @@
         _mealSlots = _profile.MealSlots?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? _mealSlots;
         _day = await Nutrition.GetDay(DateOnly.FromDateTime(DateTime.Now));
         _todayWorkout = await TrainingApi.GetToday();
+        _plans = await TrainingApi.GetPlans();
     }
 
     private async Task StartWorkout()
     {
         var session = await TrainingApi.Start(_todayWorkout!.TrainingDayId);
+        Navigation.NavigateTo($"/workout/{session.Id}");
+    }
+
+    private async Task StartSelectedWorkout()
+    {
+        if (_selectedTrainingDay is not Guid dayId)
+            return;
+
+        var session = await TrainingApi.Start(dayId);
         Navigation.NavigateTo($"/workout/{session.Id}");
     }
 

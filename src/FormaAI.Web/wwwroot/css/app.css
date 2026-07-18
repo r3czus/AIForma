@@ -408,6 +408,8 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .workout-preview span { font-size: .82rem; }
 .workout-preview strong { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .65rem; white-space: nowrap; }
 .workout-start { min-height: 48px; }
+.workout-choice-row { align-items: center; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) auto; margin-top: 12px; }
+.workout-choice-row .mud-button-root { min-height: 40px; white-space: nowrap; }
 
 .macro-card { border-radius: 22px; overflow: hidden; padding: 24px; }
 .macro-card .card-kicker { color: #b85c2d; }
@@ -979,6 +981,8 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .set-entry > :nth-child(3) { grid-column: auto; }
     .saved-set { font-size: .72rem; grid-template-columns: 1.2fr 1fr .65fr; }
     .saved-set span:last-child { text-align: right; }
+    .workout-choice-row { grid-template-columns: 1fr; }
+    .workout-choice-row .mud-button-root { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
