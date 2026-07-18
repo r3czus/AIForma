@@ -110,6 +110,14 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
         return new NutritionDayResponse(date, targetMacro, MacroResponse(consumed), remaining, mealResponses);
     }
 
+    [HttpGet("meals/recent")]
+    public async Task<IReadOnlyList<MealResponse>> RecentMeals([FromQuery] int take = 8)
+    {
+        var meals = await db.Meals.Include(x => x.Items).Where(x => x.UserId == UserId())
+            .OrderByDescending(x => x.OccurredAtUtc).Take(60).ToListAsync();
+        return meals.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.First()).Take(Math.Clamp(take, 1, 20)).Select(MealResponse).ToList();
+    }
+
     [HttpPost("meals")]
     [ValidateAntiForgeryToken]
     public async Task<ActionResult<MealResponse>> CreateMeal(SaveMealRequest request)

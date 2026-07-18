@@ -19,6 +19,9 @@ public sealed class NutritionClient(HttpClient http)
     public async Task<NutritionDayResponse> GetDay(DateOnly date) =>
         (await http.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{date:yyyy-MM-dd}"))!;
 
+    public async Task<IReadOnlyList<MealResponse>> GetRecentMeals() =>
+        await http.GetFromJsonAsync<List<MealResponse>>("api/v1/meals/recent") ?? [];
+
     public async Task<IReadOnlyList<ProductResponse>> GetProducts(string? query = null) =>
         await http.GetFromJsonAsync<List<ProductResponse>>($"api/v1/products?query={Uri.EscapeDataString(query ?? string.Empty)}") ?? [];
 

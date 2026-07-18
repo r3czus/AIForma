@@ -81,6 +81,18 @@
             </MudTabPanel>
 
             <MudTabPanel Text="Dodaj posiłek">
+                @if (_recentMeals.Count > 0)
+                {
+                    <section class="recent-meals">
+                        <div class="module-form-heading"><span class="card-kicker">Ostatnie i szablony</span><h2>Dodaj ponownie</h2><p>Najczęściej powtarzane posiłki są gotowe bez ponownego wpisywania składników.</p></div>
+                        <div class="recent-meal-grid">
+                            @foreach (var recent in _recentMeals)
+                            {
+                                <button type="button" @onclick="() => CopyMeal(recent)"><strong>@recent.Name</strong><span>@recent.Macro.CaloriesKcal.ToString("0") kcal · B @recent.Macro.ProteinG.ToString("0") g</span></button>
+                            }
+                        </div>
+                    </section>
+                }
                 <section class="module-form fuel-form">
                     <div class="module-form-heading">
                         <span class="card-kicker">Nowy wpis</span>
@@ -100,8 +112,9 @@
                     {
                     @if (_editingMealId is not null) { <MudAlert Severity="Severity.Info" Dense="true">Edytujesz zapisany posiłek. Zapis zastąpi poprzednią wersję.</MudAlert> }
                     <MudTextField @bind-Value="_meal.Name" Label="Nazwa dania (opcjonalnie)" />
+                    <MudTextField @bind-Value="_productSearch" Immediate="true" Label="Szukaj produktu" Placeholder="Wpisz nazwę lub markę" />
                     <MudSelect T="Guid?" Value="_meal.ProductId" ValueChanged="SelectProduct" Label="Produkt">
-                        @foreach (var product in _products)
+                        @foreach (var product in FilteredProducts)
                         {
                             <MudSelectItem T="Guid?" Value="@((Guid?)product.Id)">@product.Name</MudSelectItem>
                         }
@@ -246,6 +259,7 @@
     private readonly ProductForm _product = new();
     private readonly MealForm _meal = new();
     private IReadOnlyList<ProductResponse> _products = [];
+    private IReadOnlyList<MealResponse> _recentMeals = [];
     private NutritionDayResponse? _day;
     private string _barcode = string.Empty;
     private string? _barcodeMessage;
@@ -258,11 +272,15 @@
     private AiMealForm? _aiDraft;
     private int _activePanel;
     private Guid? _editingMealId;
+    private string _productSearch = string.Empty;
     private decimal _basePortion = 100;
     private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
     private string _selectedMealSlot = "Śniadanie";
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
     private string DayCaption => _date == Today ? "Dzisiaj" : _date == Today.AddDays(-1) ? "Wczoraj" : "Wybrany dzień";
+    private IEnumerable<ProductResponse> FilteredProducts => string.IsNullOrWhiteSpace(_productSearch)
+        ? _products
+        : _products.Where(x => x.Name.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) || (x.Brand?.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()
     {
@@ -284,6 +302,7 @@
     {
         _day = await Nutrition.GetDay(_date);
         _products = await Nutrition.GetProducts();
+        _recentMeals = await Nutrition.GetRecentMeals();
         if (_day.Target is not null)
         {
             _target.Calories = _day.Target.CaloriesKcal;
