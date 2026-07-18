@@ -29,30 +29,47 @@
             <div><span>Cel</span><strong>@(_day?.Target is null ? "Do ustawienia" : $"{_day.Target.CaloriesKcal:0} kcal")</strong></div>
         </section>
 
-        <MudTabs Rounded="true" Class="module-tabs" PanelClass="food-panel">
+        <MudTabs Rounded="true" Class="module-tabs" PanelClass="food-panel" @bind-ActivePanelIndex="_activePanel">
             <MudTabPanel Text="Dziennik">
                 @if (_day is not null)
                 {
                     <MacroSummary Day="_day" />
-                    @if (_day.Meals.Count == 0)
+                    @foreach (var slot in _mealSlots)
                     {
-                        <div class="module-empty">
-                            <MudIcon Icon="@Icons.Material.Outlined.RestaurantMenu" />
-                            <div><strong>Dziennik jest jeszcze pusty</strong><span>Dodaj pierwszy posiłek, żeby zobaczyć bilans dnia.</span></div>
-                        </div>
+                        var meals = MealsFor(slot);
+                        var calories = meals.Sum(x => x.Macro.CaloriesKcal);
+                        <section class="meal-slot">
+                            <header class="meal-slot-heading">
+                                <div><strong>@slot</strong><span>@meals.Count pozycji · @calories.ToString("0") kcal</span></div>
+                                <MudIconButton Icon="@Icons.Material.Outlined.Add" Color="Color.Primary" OnClick="() => StartMeal(slot)" aria-label="@($"Dodaj do sekcji {slot}")" />
+                            </header>
+                            @if (meals.Count == 0)
+                            {
+                                <button class="meal-slot-empty" @onclick="() => StartMeal(slot)">Dodaj pierwszy posiłek</button>
+                            }
+                            @foreach (var meal in meals)
+                            {
+                                <MudPaper Class="meal-row" Elevation="0">
+                                    <div class="row-copy">
+                                        <MudText Typo="Typo.subtitle1">@DisplayMealName(meal.Name, slot)</MudText>
+                                        <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => $"{x.ProductName} {x.AmountGrams:0.#} g"))</MudText>
+                                    </div>
+                                    <div class="meal-actions">
+                                        <MudText Typo="Typo.body2">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
+                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" />
+                                    </div>
+                                </MudPaper>
+                            }
+                        </section>
                     }
-                    @foreach (var meal in _day.Meals)
+                    @if (OtherMeals.Count > 0)
                     {
-                        <MudPaper Class="meal-row" Elevation="0">
-                            <div class="row-copy">
-                                <MudText Typo="Typo.subtitle1">@meal.Name</MudText>
-                                <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => $"{x.ProductName} {x.AmountGrams:0.#} g"))</MudText>
-                            </div>
-                            <div class="meal-actions">
-                                <MudText Typo="Typo.body2">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
-                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" />
-                            </div>
-                        </MudPaper>
+                        <section class="meal-slot legacy-meals"><header class="meal-slot-heading"><div><strong>Inne</strong><span>Wpisy spoza obecnych sekcji</span></div></header>
+                            @foreach (var meal in OtherMeals)
+                            {
+                                <MudPaper Class="meal-row" Elevation="0"><div class="row-copy"><MudText Typo="Typo.subtitle1">@meal.Name</MudText><MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => $"{x.ProductName} {x.AmountGrams:0.#} g"))</MudText></div><div class="meal-actions"><MudText Typo="Typo.body2">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" /></div></MudPaper>
+                            }
+                        </section>
                     }
                 }
             </MudTabPanel>
@@ -69,10 +86,13 @@
                         <MudButton Variant="@(_entryMode == MealEntryMode.Photo ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="() => SelectMode(MealEntryMode.Photo)" StartIcon="@Icons.Material.Outlined.PhotoCamera">Zdjęcie AI</MudButton>
                         <MudButton Variant="@(_entryMode == MealEntryMode.Text ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="() => SelectMode(MealEntryMode.Text)" StartIcon="@Icons.Material.Outlined.AutoAwesome">Opis AI</MudButton>
                     </div>
+                    <MudSelect T="string" @bind-Value="_selectedMealSlot" Label="Sekcja dziennika">
+                        @foreach (var slot in _mealSlots) { <MudSelectItem Value="@slot">@slot</MudSelectItem> }
+                    </MudSelect>
 
                     @if (_entryMode == MealEntryMode.Manual)
                     {
-                    <MudTextField @bind-Value="_meal.Name" Label="Nazwa posiłku" />
+                    <MudTextField @bind-Value="_meal.Name" Label="Nazwa dania (opcjonalnie)" />
                     <MudSelect T="Guid?" @bind-Value="_meal.ProductId" Label="Produkt">
                         @foreach (var product in _products)
                         {
@@ -126,7 +146,7 @@
                                 {
                                     <MudAlert Severity="Severity.Info" Dense="true">@_aiDraft.Note</MudAlert>
                                 }
-                                <MudTextField @bind-Value="_aiDraft.Name" Label="Nazwa posiłku" />
+                                <MudTextField @bind-Value="_aiDraft.Name" Label="Nazwa dania" />
                                 @foreach (var item in _aiDraft.Items)
                                 {
                                     <div class="ai-food-item">
@@ -217,7 +237,11 @@
     private string _mealDescription = string.Empty;
     private MealEntryMode _entryMode;
     private AiMealForm? _aiDraft;
+    private int _activePanel;
+    private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
+    private string _selectedMealSlot = "Śniadanie";
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
+    private IReadOnlyList<MealResponse> OtherMeals => _day?.Meals.Where(x => !_mealSlots.Any(slot => BelongsTo(x.Name, slot))).ToList() ?? [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -227,6 +251,9 @@
             return;
         }
 
+        var profile = await Account.GetProfile();
+        _mealSlots = profile.MealSlots?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? _mealSlots;
+        _selectedMealSlot = _mealSlots[0];
         await Reload();
         _loading = false;
     }
@@ -257,6 +284,15 @@
     {
         _entryMode = mode;
         _aiDraft = null;
+    }
+
+    private void StartMeal(string slot)
+    {
+        _selectedMealSlot = slot;
+        _meal.Name = string.Empty;
+        _entryMode = MealEntryMode.Manual;
+        _aiDraft = null;
+        _activePanel = 1;
     }
 
     private async Task AnalyzePhoto(InputFileChangeEventArgs args)
@@ -308,7 +344,7 @@
         try
         {
             await Nutrition.SaveEstimatedMeal(new SaveEstimatedMealRequest(
-                string.IsNullOrWhiteSpace(_aiDraft.Name) ? "Posiłek" : _aiDraft.Name,
+                MealName(_aiDraft.Name),
                 DateTimeOffset.Now,
                 _aiDraft.Items.Select(x => new SaveEstimatedMealItemRequest(x.Name, x.AmountGrams, x.CaloriesPer100, x.ProteinPer100, x.FatPer100, x.CarbohydratesPer100)).ToList()));
             _aiDraft = null;
@@ -323,7 +359,7 @@
     private async Task SaveMeal() => await Run(async () =>
     {
         await Nutrition.SaveMeal(new SaveMealRequest(
-            string.IsNullOrWhiteSpace(_meal.Name) ? "Posiłek" : _meal.Name,
+            MealName(_meal.Name),
             DateTimeOffset.Now,
             _meal.Items.Select(x => new MealItemRequest(x.ProductId, x.AmountGrams, false)).ToList(),
             _meal.DeductFromPantry));
@@ -370,6 +406,11 @@
         await Nutrition.DeleteMeal(id);
         await Reload();
     });
+
+    private List<MealResponse> MealsFor(string slot) => _day?.Meals.Where(x => BelongsTo(x.Name, slot)).ToList() ?? [];
+    private static bool BelongsTo(string mealName, string slot) => mealName.Equals(slot, StringComparison.OrdinalIgnoreCase) || mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase);
+    private static string DisplayMealName(string mealName, string slot) => mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase) ? mealName[(slot.Length + 3)..] : mealName;
+    private string MealName(string? name) => string.IsNullOrWhiteSpace(name) ? _selectedMealSlot : $"{_selectedMealSlot} · {name.Trim()}";
 
     private async Task Run(Func<Task> action)
     {

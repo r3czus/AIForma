@@ -10,6 +10,7 @@ public sealed class UserProfile
         UserId = userId;
         TimeZoneId = timeZoneId;
         CalorieToleranceKcal = 100;
+        MealSlots = "Śniadanie|Lunch|Obiad|Przekąska|Kolacja";
     }
 
     public Guid Id { get; private set; }
@@ -24,6 +25,7 @@ public sealed class UserProfile
     public ActivityLevel? ActivityLevel { get; private set; }
     public decimal? TargetWeightKg { get; private set; }
     public int CalorieToleranceKcal { get; private set; }
+    public string MealSlots { get; private set; } = "Śniadanie|Lunch|Obiad|Przekąska|Kolacja";
 
     public void Update(
         string timeZoneId,
@@ -35,7 +37,8 @@ public sealed class UserProfile
         BiologicalSex? sex = null,
         ActivityLevel? activityLevel = null,
         decimal? targetWeightKg = null,
-        int calorieToleranceKcal = 100)
+        int calorieToleranceKcal = 100,
+        IReadOnlyList<string>? mealSlots = null)
     {
         TimeZoneId = timeZoneId;
         HeightCm = heightCm;
@@ -47,5 +50,10 @@ public sealed class UserProfile
         ActivityLevel = activityLevel;
         TargetWeightKg = targetWeightKg;
         CalorieToleranceKcal = calorieToleranceKcal;
+        if (mealSlots is not null)
+        {
+            var slots = mealSlots.Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).Take(10).ToList();
+            if (slots.Count > 0) MealSlots = string.Join('|', slots);
+        }
     }
 }

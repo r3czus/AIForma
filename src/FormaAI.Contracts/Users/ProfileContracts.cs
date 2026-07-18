@@ -15,7 +15,8 @@ public sealed record UserProfileResponse(
     BiologicalSex? Sex = null,
     ActivityLevel? ActivityLevel = null,
     decimal? TargetWeightKg = null,
-    int CalorieToleranceKcal = 100);
+    int CalorieToleranceKcal = 100,
+    IReadOnlyList<string>? MealSlots = null);
 
 public sealed record UpdateUserProfileRequest(
     [Required] string TimeZoneId,
@@ -27,4 +28,5 @@ public sealed record UpdateUserProfileRequest(
     BiologicalSex? Sex = null,
     ActivityLevel? ActivityLevel = null,
     [Range(20, 500)] decimal? TargetWeightKg = null,
-    [Range(0, 1000)] int CalorieToleranceKcal = 100);
+    [Range(0, 1000)] int CalorieToleranceKcal = 100,
+    [MinLength(1), MaxLength(10)] IReadOnlyList<string>? MealSlots = null);

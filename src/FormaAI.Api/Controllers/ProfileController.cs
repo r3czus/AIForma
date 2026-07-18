@@ -35,7 +35,8 @@ public sealed class ProfileController(
             profile.Sex,
             profile.ActivityLevel,
             profile.TargetWeightKg,
-            profile.CalorieToleranceKcal);
+            profile.CalorieToleranceKcal,
+            Slots(profile));
     }
 
     [HttpPut]
@@ -60,7 +61,8 @@ public sealed class ProfileController(
             request.Sex,
             request.ActivityLevel,
             request.TargetWeightKg,
-            request.CalorieToleranceKcal);
+            request.CalorieToleranceKcal,
+            request.MealSlots);
         await db.SaveChangesAsync();
 
         var email = (await users.FindByIdAsync(userId))!.Email!;
@@ -76,8 +78,12 @@ public sealed class ProfileController(
             profile.Sex,
             profile.ActivityLevel,
             profile.TargetWeightKg,
-            profile.CalorieToleranceKcal);
+            profile.CalorieToleranceKcal,
+            Slots(profile));
     }
+
+    private static string[] Slots(FormaAI.Domain.Users.UserProfile profile) =>
+        profile.MealSlots.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private static bool IsKnownTimeZone(string id)
     {

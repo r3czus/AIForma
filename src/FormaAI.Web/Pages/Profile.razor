@@ -97,6 +97,18 @@
                     <MudNumericField @bind-Value="_toleranceKcal" Label="Tolerancja zaliczenia kalorii (± kcal)" Min="0" Max="1000" HelperText="Dzień zostanie zaliczony, gdy wynik zmieści się w tym odstępie od celu." />
                     <MudNumericField @bind-Value="_plannedTrainings" Label="Planowane treningi tygodniowo" Min="1" Max="14" />
                     <MudTextField @bind-Value="_timeZoneId" Label="Strefa czasowa" HelperText="Np. Europe/Warsaw" />
+                    <div class="meal-slot-settings">
+                        <div class="profile-section-heading"><span class="card-kicker">Dziennik jedzenia</span><h3>Sekcje posiłków</h3><p>Te nazwy pojawią się w dzienniku z przyciskiem dodawania.</p></div>
+                        @for (var i = 0; i < _mealSlots.Count; i++)
+                        {
+                            var index = i;
+                            <div class="meal-slot-edit">
+                                <MudTextField @bind-Value="_mealSlots[index]" Label="Nazwa sekcji" MaxLength="40" />
+                                <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Disabled="@(_mealSlots.Count == 1)" OnClick="() => _mealSlots.RemoveAt(index)" aria-label="Usuń sekcję" />
+                            </div>
+                        }
+                        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" Disabled="@(_mealSlots.Count >= 10)" OnClick="() => _mealSlots.Add(string.Empty)">Dodaj sekcję</MudButton>
+                    </div>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveProfile" Class="mt-3">Zapisz ustawienia</MudButton>
                 </MudPaper>
 
@@ -137,6 +149,7 @@
     private int? _plannedTrainings;
     private int _toleranceKcal = 100;
     private string _timeZoneId = "Europe/Warsaw";
+    private List<string> _mealSlots = [];
     private decimal? _targetCalories;
     private decimal _proteinG;
     private decimal _fatG;
@@ -174,6 +187,7 @@
         _plannedTrainings = _profile.PlannedTrainingsPerWeek;
         _toleranceKcal = _profile.CalorieToleranceKcal;
         _timeZoneId = _profile.TimeZoneId;
+        _mealSlots = _profile.MealSlots?.ToList() ?? ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
         if (target is not null)
         {
             _targetCalories = target.CaloriesKcal;
@@ -208,7 +222,8 @@
     {
         _profile = await Account.UpdateProfile(new UpdateUserProfileRequest(
             _timeZoneId, _heightCm, _startingWeightKg, _goal, _plannedTrainings,
-            _birthDate is null ? null : DateOnly.FromDateTime(_birthDate.Value), _sex, _activity, _targetWeightKg, _toleranceKcal));
+            _birthDate is null ? null : DateOnly.FromDateTime(_birthDate.Value), _sex, _activity, _targetWeightKg, _toleranceKcal,
+            _mealSlots.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList()));
         Snackbar.Add("Profil zapisany.", Severity.Success);
     }, "Nie udało się zapisać profilu.");
 
