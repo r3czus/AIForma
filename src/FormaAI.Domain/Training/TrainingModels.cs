@@ -26,6 +26,12 @@ public sealed class Exercise
     public bool IsActive { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
+
+    public void Update(string name, MuscleGroup muscleGroup, Equipment equipment, bool unilateral, string? description)
+    {
+        Name = name.Trim(); PrimaryMuscleGroup = muscleGroup; Equipment = equipment; IsUnilateral = unilateral;
+        Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(); UpdatedAtUtc = DateTime.UtcNow;
+    }
 }
 
 public sealed class TrainingPlan

@@ -34,6 +34,17 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         return Created($"api/v1/exercises/{exercise.Id}", ExerciseResponse(exercise));
     }
 
+    [HttpPut("exercises/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<ExerciseResponse>> UpdateExercise(Guid id, SaveExerciseRequest request)
+    {
+        var exercise = await db.Exercises.SingleOrDefaultAsync(x => x.Id == id && x.OwnerUserId == UserId());
+        if (exercise is null) return NotFound();
+        exercise.Update(request.Name, request.MuscleGroup, request.Equipment, request.IsUnilateral, request.Description);
+        await db.SaveChangesAsync();
+        return ExerciseResponse(exercise);
+    }
+
     [HttpGet("training-plans")]
     public async Task<IReadOnlyList<TrainingPlanResponse>> Plans()
     {
@@ -67,14 +78,56 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     public async Task<ActionResult<TrainingPlanResponse>> UpdatePlan(Guid id, SaveTrainingPlanRequest request)
     {
         var userId = UserId();
-        var plan = await db.TrainingPlans.Include(x => x.Days).ThenInclude(x => x.Exercises)
+        var plan = await db.TrainingPlans.AsNoTracking().Include(x => x.Days).ThenInclude(x => x.Exercises)
             .SingleOrDefaultAsync(x => x.Id == id && x.UserId == userId);
         if (plan is null) return NotFound();
         var changed = await BuildPlan(userId, request);
         if (changed is null) return ValidationProblem("Plan zawiera niedostępne ćwiczenie lub nieprawidłowy zakres powtórzeń.");
-        plan.Replace(changed.Name, changed.Goal, changed.StartsOn, changed.Days);
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var currentDays = plan.Days.OrderBy(x => x.SequenceNumber).ToList();
+        var currentIds = currentDays.Select(x => x.Id).ToList();
+        await db.PlannedExercises.Where(x => currentIds.Contains(x.TrainingDayId)).ExecuteDeleteAsync();
+        await db.TrainingPlans.Where(x => x.Id == plan.Id).ExecuteUpdateAsync(x => x
+            .SetProperty(p => p.Name, changed.Name)
+            .SetProperty(p => p.Goal, changed.Goal)
+            .SetProperty(p => p.StartsOn, changed.StartsOn)
+            .SetProperty(p => p.UpdatedAtUtc, DateTime.UtcNow));
+
+        for (var i = 0; i < changed.Days.Count; i++)
+        {
+            var source = changed.Days[i];
+            if (i < currentDays.Count)
+            {
+                var day = currentDays[i];
+                await db.TrainingDays.Where(x => x.Id == day.Id).ExecuteUpdateAsync(x => x
+                    .SetProperty(d => d.Name, source.Name)
+                    .SetProperty(d => d.DayOfWeek, source.DayOfWeek)
+                    .SetProperty(d => d.SequenceNumber, i + 1));
+            }
+        }
+
+        if (currentDays.Count > changed.Days.Count)
+        {
+            var removed = currentDays.Skip(changed.Days.Count).ToList();
+            var ids = removed.Select(x => x.Id).ToList();
+            await db.WorkoutSessions.Where(x => x.TrainingDayId.HasValue && ids.Contains(x.TrainingDayId.Value))
+                .ExecuteUpdateAsync(x => x.SetProperty(s => s.TrainingDayId, (Guid?)null));
+            await db.TrainingDays.Where(x => ids.Contains(x.Id)).ExecuteDeleteAsync();
+        }
+
+        db.ChangeTracker.Clear();
+        var tracked = await db.TrainingPlans.Include(x => x.Days).SingleAsync(x => x.Id == id);
+        var kept = tracked.Days.OrderBy(x => x.SequenceNumber).ToList();
+        for (var i = 0; i < changed.Days.Count; i++)
+        {
+            if (i >= kept.Count) { tracked.Days.Add(changed.Days[i]); db.TrainingDays.Add(changed.Days[i]); }
+            else kept[i].Exercises.AddRange(changed.Days[i].Exercises);
+        }
+        db.PlannedExercises.AddRange(changed.Days.SelectMany(x => x.Exercises));
         await db.SaveChangesAsync();
-        return (await PlanResponses([plan])).Single();
+        await transaction.CommitAsync();
+        return (await PlanResponses([tracked])).Single();
     }
 
     [HttpPost("training-plans/{id:guid}/activate")]

@@ -447,6 +447,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 }
 
 .meal-actions { align-items: center; display: flex; gap: 4px; }
+.plan-actions, .row-actions, .exercise-card-actions { align-items: center; display: flex; flex-direction: row; gap: 4px; }
 .meal-slot { background: rgba(255, 255, 255, .62); border: 1px solid var(--rule); border-radius: 18px; margin: 12px 0; overflow: hidden; }
 .meal-slot-heading { align-items: center; background: var(--surface); border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; padding: 11px 12px 11px 16px; }
 .meal-slot-heading > div { display: flex; flex-direction: column; }
@@ -620,12 +621,14 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .day-exercise-list { display: grid; gap: 8px; margin-top: 16px; }
 .day-exercise-row { align-items: center; background: white; border: 1px solid rgba(49, 87, 229, .12); border-radius: 13px; display: grid; gap: 10px; grid-template-columns: auto 1fr auto; padding: 11px 9px 11px 11px; }
 .day-exercise-row > div { display: flex; flex-direction: column; min-width: 0; }
+.day-exercise-row > .row-actions { flex-direction: row; }
 .day-exercise-row small { color: var(--muted); font-size: .7rem; margin-top: 2px; }
 .exercise-order { align-items: center; background: var(--action); border-radius: 50%; color: white; display: inline-flex; font-family: "IBM Plex Mono", monospace; font-size: .65rem; height: 25px; justify-content: center; width: 25px; }
 .plan-review { background: rgba(255, 255, 255, .55); border-radius: 14px; overflow: hidden; }
 .draft-day { align-items: center; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; padding: 13px 12px; }
 .draft-day:last-child { border-bottom: 0; }
 .draft-day > div { display: flex; flex-direction: column; }
+.draft-day > .row-actions { flex-direction: row; }
 .draft-day span { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .67rem; margin-top: 3px; }
 .exercise-index { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; }
 .exercise-card { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; min-width: 0; padding: 14px; }

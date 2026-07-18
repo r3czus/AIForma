@@ -17,7 +17,9 @@ public sealed class TrainingClient(HttpClient http)
     public async Task<WorkoutSessionResponse> GetSession(Guid id) => (await http.GetFromJsonAsync<WorkoutSessionResponse>($"api/v1/workout-sessions/{id}"))!;
     public async Task<IReadOnlyList<ExerciseHistoryEntry>> GetHistory(Guid id) => await http.GetFromJsonAsync<List<ExerciseHistoryEntry>>($"api/v1/exercises/{id}/history") ?? [];
     public Task<ExerciseResponse> SaveExercise(SaveExerciseRequest request) => Send<ExerciseResponse>(HttpMethod.Post, "api/v1/exercises", request);
+    public Task<ExerciseResponse> UpdateExercise(Guid id, SaveExerciseRequest request) => Send<ExerciseResponse>(HttpMethod.Put, $"api/v1/exercises/{id}", request);
     public Task<TrainingPlanResponse> SavePlan(SaveTrainingPlanRequest request) => Send<TrainingPlanResponse>(HttpMethod.Post, "api/v1/training-plans", request);
+    public Task<TrainingPlanResponse> UpdatePlan(Guid id, SaveTrainingPlanRequest request) => Send<TrainingPlanResponse>(HttpMethod.Put, $"api/v1/training-plans/{id}", request);
     public Task<WorkoutSessionResponse> Start(Guid dayId) => Send<WorkoutSessionResponse>(HttpMethod.Post, "api/v1/workout-sessions", new StartWorkoutRequest(dayId));
     public Task<CompletedSetResponse> SaveSet(Guid sessionId, SaveSetRequest request) => Send<CompletedSetResponse>(HttpMethod.Post, $"api/v1/workout-sessions/{sessionId}/sets", request);
     public Task Activate(Guid planId) => SendNoContent(HttpMethod.Post, $"api/v1/training-plans/{planId}/activate");
