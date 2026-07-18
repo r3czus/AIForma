@@ -35,6 +35,16 @@
             <div><span>Plan</span><strong>@(_consistency?.CompletionPercent.ToString("0.#") ?? "0")%</strong></div>
         </section>
 
+        @if (_targetWeightKg is not null && _weight?.CurrentAverageKg is not null)
+        {
+            <MudPaper Class="progress-card goal-forecast" Elevation="0">
+                <div><span class="card-kicker">Cel masy ciała</span><MudText Typo="Typo.h6">@_weight.CurrentAverageKg.Value.ToString("0.0") kg → @_targetWeightKg.Value.ToString("0.0") kg</MudText></div>
+                <div class="summary-progress"><i style="width: @PercentWidth(WeightGoalPercent)"></i></div>
+                <strong>@WeightGoalPercent.ToString("0")% drogi od masy początkowej</strong>
+                <p>@WeightForecast</p>
+            </MudPaper>
+        }
+
         @if (_week is not null)
         {
             <section class="week-summary" aria-labelledby="week-summary-title">
@@ -103,6 +113,7 @@
                     <div class="calendar-day-detail">
                         <strong>@_selectedDay.Date.ToString("dddd, d MMMM", new System.Globalization.CultureInfo("pl-PL"))</strong>
                         <span>@(_selectedDay.HasMeals ? $"{_selectedDay.ConsumedKcal:0} z {_selectedDay.TargetKcal:0} kcal" : "Brak zapisanych posiłków")</span>
+                        @if (_selectedDay.HasMeals) { <span>B @_selectedDay.ProteinG.ToString("0") g · W @_selectedDay.CarbohydratesG.ToString("0") g · T @_selectedDay.FatG.ToString("0") g</span> }
                         <span>@(_selectedDay.HasCompletedWorkout ? "Trening wykonany" : "Bez ukończonego treningu")</span>
                         <MudButton Href="@($"/food?date={_selectedDay.Date:yyyy-MM-dd}")" Variant="Variant.Text" Size="Size.Small">Otwórz dziennik</MudButton>
                     </div>
@@ -169,6 +180,8 @@
             <MudPaper Class="progress-card" Elevation="0">
                 <div class="progress-card-heading"><span class="card-kicker">Energia w czasie</span><MudText Typo="Typo.h6">Kalorie a cel</MudText></div>
                 <MudChart ChartType="ChartType.Line" ChartSeries="@NutritionSeries" XAxisLabels="@NutritionLabels" Width="100%" Height="230px" />
+                <div class="chart-label">Makroskładniki w zapisanych dniach</div>
+                <MudChart ChartType="ChartType.Line" ChartSeries="@MacroTrendSeries" XAxisLabels="@NutritionLabels" Width="100%" Height="230px" />
             </MudPaper>
         }
 
@@ -228,6 +241,8 @@
     private IReadOnlyList<BodyMeasurementResponse> _measurements = [];
     private IReadOnlyList<MuscleVolumePoint> _muscleVolume = [];
     private NutritionAdherencePoint? _selectedDay;
+    private decimal? _startingWeightKg;
+    private decimal? _targetWeightKg;
     private Guid? _selectedExercise;
     private DateTime? _measurementDate = DateTime.Today;
     private decimal _weightKg = 75;
@@ -273,10 +288,41 @@
         new() { Name = "Cel", Data = _nutrition!.Days.Where(x => x.HasMeals).Select(x => (double)(x.TargetKcal ?? 0)).ToArray() }
     ];
     private string[] NutritionLabels => _nutrition!.Days.Where(x => x.HasMeals).Select(x => x.Date.ToString("dd.MM")).ToArray();
+    private List<ChartSeries> MacroTrendSeries =>
+    [
+        new() { Name = "Białko", Data = _nutrition!.Days.Where(x => x.HasMeals).Select(x => (double)x.ProteinG).ToArray() },
+        new() { Name = "Tłuszcze", Data = _nutrition!.Days.Where(x => x.HasMeals).Select(x => (double)x.FatG).ToArray() },
+        new() { Name = "Węglowodany", Data = _nutrition!.Days.Where(x => x.HasMeals).Select(x => (double)x.CarbohydratesG).ToArray() }
+    ];
+    private decimal WeightGoalPercent
+    {
+        get
+        {
+            if (_startingWeightKg is null || _targetWeightKg is null || _weight?.CurrentAverageKg is null) return 0;
+            var distance = Math.Abs(_targetWeightKg.Value - _startingWeightKg.Value);
+            return distance == 0 ? 100 : Math.Clamp(Math.Abs(_weight.CurrentAverageKg.Value - _startingWeightKg.Value) * 100m / distance, 0, 100);
+        }
+    }
+    private string WeightForecast
+    {
+        get
+        {
+            if (_weight?.CurrentAverageKg is null || _targetWeightKg is null || _weight.ChangeKg is null || _weight.Points.Count < 2) return "Dodaj więcej pomiarów, aby otrzymać ostrożną prognozę.";
+            var days = Math.Max(1, _weight.Points[^1].Date.DayNumber - _weight.Points[0].Date.DayNumber);
+            var weekly = _weight.ChangeKg.Value * 7m / days;
+            var remaining = _targetWeightKg.Value - _weight.CurrentAverageKg.Value;
+            if (weekly == 0 || Math.Sign(weekly) != Math.Sign(remaining)) return "Obecny trend nie prowadzi jeszcze w stronę ustawionego celu.";
+            var weeks = Math.Abs(remaining / weekly);
+            return weeks > 52 ? "Cel jest odległy — skup się na miesięcznym trendzie." : $"Przy obecnym tempie: około {Math.Ceiling(weeks)} tygodni. To prognoza, nie gwarancja.";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
+        var profile = await Account.GetProfile();
+        _startingWeightKg = profile.StartingWeightKg;
+        _targetWeightKg = profile.TargetWeightKg;
         _exercises = await TrainingApi.GetExercises();
         await Reload();
         _loading = false;

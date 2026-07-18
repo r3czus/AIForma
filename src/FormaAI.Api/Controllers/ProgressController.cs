@@ -119,9 +119,11 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             {
                 var target = targets.LastOrDefault(x => x.EffectiveFrom <= date);
                 var logged = meals.Where(x => x.LocalDate == date).ToList();
-                var consumed = logged.SelectMany(x => x.Items).Sum(x => x.CaloriesKcal);
+                var items = logged.SelectMany(x => x.Items).ToList();
+                var consumed = items.Sum(x => x.CaloriesKcal);
                 var within = logged.Count > 0 && target is not null && Math.Abs(consumed - target.CaloriesKcal) <= tolerance;
-                return new NutritionAdherencePoint(date, target?.CaloriesKcal, consumed, logged.Count > 0, within, workoutDays.Contains(date));
+                return new NutritionAdherencePoint(date, target?.CaloriesKcal, consumed, logged.Count > 0, within, workoutDays.Contains(date),
+                    items.Sum(x => x.ProteinG), items.Sum(x => x.FatG), items.Sum(x => x.CarbohydratesG), target?.ProteinG, target?.FatG, target?.CarbohydratesG);
             }).ToList();
 
         return new NutritionAdherenceResponse(start, tolerance, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);
