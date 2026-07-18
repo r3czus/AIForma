@@ -18,6 +18,9 @@ public sealed class ProgressClient(HttpClient http)
     public Task<NutritionAdherenceResponse?> GetNutritionAdherence(DateOnly month) =>
         http.GetFromJsonAsync<NutritionAdherenceResponse>($"api/v1/progress/nutrition-adherence?month={month:yyyy-MM-dd}");
 
+    public Task<ProgressWeekSummaryResponse?> GetWeekSummary() =>
+        http.GetFromJsonAsync<ProgressWeekSummaryResponse>("api/v1/progress/week-summary");
+
     public async Task<BodyMeasurementResponse> SaveMeasurement(SaveBodyMeasurementRequest body)
     {
         var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");

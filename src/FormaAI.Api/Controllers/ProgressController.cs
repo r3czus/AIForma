@@ -119,6 +119,70 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         return new NutritionAdherenceResponse(start, tolerance, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);
     }
 
+    [HttpGet("progress/week-summary")]
+    public async Task<ActionResult<ProgressWeekSummaryResponse>> WeekSummary()
+    {
+        var userId = UserId();
+        var to = DateOnly.FromDateTime(DateTime.UtcNow);
+        var from = to.AddDays(-6);
+        var previousFrom = from.AddDays(-7);
+        var fromUtc = previousFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var toUtc = to.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
+        var sessions = await db.WorkoutSessions
+            .Include(x => x.Exercises).ThenInclude(x => x.Sets)
+            .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed && x.FinishedAtUtc >= fromUtc && x.FinishedAtUtc < toUtc)
+            .ToListAsync();
+        var currentSessions = sessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) >= from).ToList();
+        var previousSessions = sessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) < from).ToList();
+        var currentSets = currentSessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
+        var previousSets = previousSessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
+        var volume = currentSets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions));
+        var previousVolume = previousSets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions));
+        var plannedSets = currentSessions.SelectMany(x => x.Exercises).Sum(x => x.PlannedSets);
+        var weeklyGoal = await db.UserProfiles.Where(x => x.UserId == userId).Select(x => x.PlannedTrainingsPerWeek).SingleAsync() ?? 0;
+        var training = new TrainingWeekSummaryResponse(
+            currentSessions.Count,
+            weeklyGoal,
+            (int)Math.Round(currentSessions.Sum(x => (x.FinishedAtUtc!.Value - x.StartedAtUtc).TotalMinutes)),
+            currentSets.Count,
+            plannedSets == 0 ? 0 : decimal.Round(currentSets.Count * 100m / plannedSets, 1),
+            volume,
+            previousVolume == 0 ? null : ProgressMetrics.PercentageChange(previousVolume, volume));
+
+        var meals = await db.Meals.Include(x => x.Items)
+            .Where(x => x.UserId == userId && x.LocalDate >= from && x.LocalDate <= to)
+            .ToListAsync();
+        var targets = await db.NutritionTargets.Where(x => x.UserId == userId && x.EffectiveFrom <= to)
+            .OrderBy(x => x.EffectiveFrom).ToListAsync();
+        var tolerance = await db.UserProfiles.Where(x => x.UserId == userId).Select(x => x.CalorieToleranceKcal).SingleAsync();
+        var loggedDays = meals.GroupBy(x => x.LocalDate).Select(group =>
+        {
+            var target = targets.LastOrDefault(x => x.EffectiveFrom <= group.Key);
+            var items = group.SelectMany(x => x.Items).ToList();
+            return new
+            {
+                Calories = items.Sum(x => x.CaloriesKcal),
+                Protein = items.Sum(x => x.ProteinG),
+                TargetCalories = target?.CaloriesKcal ?? 0,
+                TargetProtein = target?.ProteinG ?? 0,
+                HasTarget = target is not null
+            };
+        }).ToList();
+        var daysOnCalories = loggedDays.Count(x => x.HasTarget && Math.Abs(x.Calories - x.TargetCalories) <= tolerance);
+        var nutrition = new NutritionWeekSummaryResponse(
+            loggedDays.Count,
+            daysOnCalories,
+            loggedDays.Count == 0 ? 0 : decimal.Round(daysOnCalories * 100m / loggedDays.Count, 1),
+            loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.Calories)),
+            loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.TargetCalories)),
+            loggedDays.Count(x => x.HasTarget && x.Protein >= x.TargetProtein),
+            loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.Protein), 1),
+            loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.Calories - x.TargetCalories)));
+
+        return new ProgressWeekSummaryResponse(from, to, training, nutrition);
+    }
+
     private static (DateOnly From, DateOnly To)? DateRange(DateOnly? from, DateOnly? to)
     {
         var end = to ?? DateOnly.FromDateTime(DateTime.UtcNow);

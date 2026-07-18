@@ -29,6 +29,40 @@
             <div><span>Plan</span><strong>@(_consistency?.CompletionPercent.ToString("0.#") ?? "0")%</strong></div>
         </section>
 
+        @if (_week is not null)
+        {
+            <section class="week-summary" aria-labelledby="week-summary-title">
+                <div class="week-summary-heading">
+                    <div><span class="card-kicker">Ostatnie 7 dni</span><MudText Typo="Typo.h6" id="week-summary-title">Twój tydzień w skrócie</MudText></div>
+                    <span>@_week.From.ToString("dd.MM")–@_week.To.ToString("dd.MM")</span>
+                </div>
+                <div class="week-summary-grid">
+                    <MudPaper Class="week-summary-card training-summary" Elevation="0">
+                        <div class="summary-card-top"><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><div><span>Trening</span><strong>@_week.Training.CompletedWorkouts / @_week.Training.PlannedWorkouts sesji</strong></div></div>
+                        <div class="summary-progress"><i style="width: @PercentWidth(TrainingPlanPercent)"></i></div>
+                        <dl>
+                            <div><dt>Czas treningów</dt><dd>@Duration(_week.Training.TotalMinutes)</dd></div>
+                            <div><dt>Serie robocze</dt><dd>@_week.Training.WorkingSets</dd></div>
+                            <div><dt>Realizacja serii</dt><dd>@_week.Training.SetCompletionPercent.ToString("0.#")%</dd></div>
+                            <div><dt>Objętość</dt><dd>@_week.Training.TotalVolumeKg.ToString("0") kg</dd></div>
+                        </dl>
+                        <p>@TrainingNote</p>
+                    </MudPaper>
+                    <MudPaper Class="week-summary-card nutrition-summary" Elevation="0">
+                        <div class="summary-card-top"><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><div><span>Dieta</span><strong>@_week.Nutrition.DaysOnCalories / @_week.Nutrition.LoggedDays dni w celu</strong></div></div>
+                        <div class="summary-progress"><i style="width: @PercentWidth(_week.Nutrition.CalorieAdherencePercent)"></i></div>
+                        <dl>
+                            <div><dt>Średnio kcal</dt><dd>@_week.Nutrition.AverageCalories.ToString("0")</dd></div>
+                            <div><dt>Średni cel</dt><dd>@_week.Nutrition.AverageTargetCalories.ToString("0")</dd></div>
+                            <div><dt>Bilans do celu</dt><dd>@Signed(_week.Nutrition.AverageCalorieDifference) kcal</dd></div>
+                            <div><dt>Białko w celu</dt><dd>@_week.Nutrition.DaysOnProtein / @_week.Nutrition.LoggedDays dni</dd></div>
+                        </dl>
+                        <p>@NutritionNote</p>
+                    </MudPaper>
+                </div>
+            </section>
+        }
+
         @if (_nutrition is not null)
         {
             <MudPaper Class="progress-card nutrition-calendar-card" Elevation="0">
@@ -141,6 +175,7 @@
     private WeightProgressResponse? _weight;
     private ConsistencyResponse? _consistency;
     private NutritionAdherenceResponse? _nutrition;
+    private ProgressWeekSummaryResponse? _week;
     private ExerciseProgressResponse? _exerciseProgress;
     private IReadOnlyList<ExerciseResponse> _exercises = [];
     private Guid? _selectedExercise;
@@ -152,6 +187,19 @@
     private DateOnly _calendarMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private int CalendarOffset => ((int)_calendarMonth.DayOfWeek + 6) % 7;
     private string MonthLabel => _calendarMonth.ToString("MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"));
+    private decimal TrainingPlanPercent => _week?.Training.PlannedWorkouts > 0
+        ? Math.Min(100, _week.Training.CompletedWorkouts * 100m / _week.Training.PlannedWorkouts)
+        : 0;
+    private string TrainingNote => _week!.Training.CompletedWorkouts == 0
+        ? "Zacznij od jednej ukończonej sesji — regularność buduje trend."
+        : _week.Training.VolumeChangePercent is null
+            ? "To pierwszy pełny tydzień do porównania objętości."
+            : $"Objętość {TrendWord(_week.Training.VolumeChangePercent.Value)} o {Math.Abs(_week.Training.VolumeChangePercent.Value):0.#}% względem poprzednich 7 dni.";
+    private string NutritionNote => _week!.Nutrition.LoggedDays == 0
+        ? "Zapisz posiłki, żeby zobaczyć realizację kalorii i białka."
+        : _week.Nutrition.LoggedDays < 7
+            ? $"Brakuje wpisów z {7 - _week.Nutrition.LoggedDays} dni — średnie obejmują tylko zapisane dni."
+            : "Pełny tydzień zapisany — porównanie jest miarodajne.";
 
     private List<ChartSeries> WeightSeries => [new() { Name = "Średnia 7 dni", Data = _weight!.Points.Select(x => (double)x.SevenDayAverageKg).ToArray() }];
     private string[] WeightLabels => _weight!.Points.Select(x => x.Date.ToString("dd.MM")).ToArray();
@@ -174,6 +222,7 @@
         _weight = await ProgressApi.GetWeight(From, _to);
         _consistency = await ProgressApi.GetConsistency(From, _to);
         _nutrition = await ProgressApi.GetNutritionAdherence(_calendarMonth);
+        _week = await ProgressApi.GetWeekSummary();
     }
 
     private async Task ChangeMonth(int offset)
@@ -202,6 +251,9 @@
     }
 
     private static string Signed(decimal? value) => value is null ? "—" : $"{(value > 0 ? "+" : string.Empty)}{value:0.##}";
+    private static string PercentWidth(decimal value) => $"{Math.Clamp(value, 0, 100):0.#}%";
+    private static string Duration(int minutes) => minutes < 60 ? $"{minutes} min" : $"{minutes / 60} h {minutes % 60} min";
+    private static string TrendWord(decimal value) => value > 0 ? "wzrosła" : value < 0 ? "spadła" : "nie zmieniła się";
     private static string DayClass(NutritionAdherencePoint day) => day.Date > DateOnly.FromDateTime(DateTime.Today)
         ? "future"
         : !day.HasMeals ? "empty" : day.IsWithinTarget ? "on-target" : "outside";

@@ -694,6 +694,25 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .progress-card-heading { margin-bottom: 14px; }
 .progress-card-heading .mud-typography-h6 { margin: 0 0 5px; }
 .progress-card-heading p { color: var(--muted); font-size: .82rem; line-height: 1.5; margin: 0; }
+.week-summary { margin-top: 18px; }
+.week-summary-heading { align-items: flex-end; display: flex; justify-content: space-between; margin: 0 2px 10px; }
+.week-summary-heading .mud-typography-h6 { margin: 1px 0 0; }
+.week-summary-heading > span { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .68rem; }
+.week-summary-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.week-summary-card { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; padding: 18px; }
+.summary-card-top { align-items: center; display: flex; gap: 10px; }
+.summary-card-top > .mud-icon-root { background: var(--recovery-soft); border-radius: 11px; color: var(--action); height: 40px; padding: 8px; width: 40px; }
+.summary-card-top div { display: flex; flex-direction: column; min-width: 0; }
+.summary-card-top span { color: var(--muted); font-size: .7rem; }
+.summary-card-top strong { font-family: "IBM Plex Mono", monospace; font-size: .92rem; }
+.summary-progress { background: var(--line); border-radius: 99px; height: 5px; margin: 15px 0; overflow: hidden; }
+.summary-progress i { background: var(--action); display: block; height: 100%; }
+.nutrition-summary .summary-progress i { background: var(--nutrition); }
+.week-summary-card dl { margin: 0; }
+.week-summary-card dl div { align-items: baseline; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; padding: 7px 0; }
+.week-summary-card dt { color: var(--muted); font-size: .72rem; }
+.week-summary-card dd { font-family: "IBM Plex Mono", monospace; font-size: .76rem; margin: 0; }
+.week-summary-card p { color: var(--muted); font-size: .7rem; line-height: 1.45; margin: 12px 0 0; }
 .chart-label { color: var(--muted); display: block; font-family: "IBM Plex Mono", monospace; font-size: .65rem; letter-spacing: .06em; margin: 18px 0 4px; text-transform: uppercase; }
 .progress-chart-stack { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 8px; }
 .progress-chart-stack > div { border-top: 1px solid var(--rule); min-width: 0; }
@@ -928,6 +947,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .exercise-live-heading { align-items: start; grid-template-columns: auto 1fr; }
     .exercise-set-count { grid-column: 2; justify-self: start; }
     .progress-chart-stack { grid-template-columns: 1fr; }
+    .week-summary-grid { grid-template-columns: 1fr; }
     .calendar-heading { align-items: stretch; flex-direction: column; }
     .calendar-score { align-items: flex-start; }
     .nutrition-calendar { gap: 5px; }
