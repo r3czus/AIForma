@@ -62,8 +62,15 @@
                         <div class="row-copy"><MudText Typo="Typo.subtitle1">@plan.Name</MudText><MudText Typo="Typo.caption">@plan.Days.Count dni · @plan.Goal</MudText></div>
                         <div class="plan-actions">
                             <MudButton Size="Size.Small" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditPlan(plan)">Edytuj</MudButton>
+                            <MudButton Size="Size.Small" StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="() => DuplicatePlan(plan)">Duplikuj</MudButton>
                             @if (plan.IsActive) { <MudChip T="string" Color="Color.Success" Size="Size.Small">Aktywny</MudChip> }
                             else { <MudButton Size="Size.Small" OnClick="() => Activate(plan.Id)">Aktywuj</MudButton> }
+                        </div>
+                        <div class="plan-day-preview">
+                            @foreach (var day in plan.Days.OrderBy(x => x.SequenceNumber))
+                            {
+                                <span><strong>@day.Name</strong> · @(day.DayOfWeek is null ? "rotacyjnie" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń</span>
+                            }
                         </div>
                     </MudPaper>
                 }
@@ -237,6 +244,16 @@
         foreach (var day in plan.Days.OrderBy(x => x.SequenceNumber))
             _plan.Days.Add(new DayDraftItem(day.Name, day.DayOfWeek, day.Exercises.Select(x => new PlannedDraftItem(x.ExerciseId, x.ExerciseName, x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds)).ToList()));
         _editingDayIndex = null; _editingExerciseIndex = null; _planStep = 4; _activeTab = 1;
+    }
+
+    private async Task DuplicatePlan(TrainingPlanResponse plan)
+    {
+        var request = new SaveTrainingPlanRequest($"{plan.Name} · kopia", plan.Goal, DateOnly.FromDateTime(DateTime.Today),
+            plan.Days.OrderBy(x => x.SequenceNumber).Select(day => new TrainingDayRequest(day.Name, day.DayOfWeek,
+                day.Exercises.Select(x => new PlannedExerciseRequest(x.ExerciseId, x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds)).ToList())).ToList());
+        await TrainingApi.SavePlan(request);
+        await Reload();
+        Snackbar.Add("Utworzono kopię planu do dalszej edycji.", Severity.Success);
     }
 
     private void EditDraftDay(int index)

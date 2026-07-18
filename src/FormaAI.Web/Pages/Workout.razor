@@ -84,6 +84,10 @@
                 @if (exercise.ExerciseId is Guid exerciseId && _history.TryGetValue(exerciseId, out var last) && last is not null)
                 {
                     <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">Ostatnio: @last.WeightKg kg × @last.Repetitions, RIR @(last.Rir?.ToString("0.#") ?? "—")</MudAlert>
+                    @if (last.Repetitions >= exercise.MaxReps)
+                    {
+                        <div class="progression-tip"><MudIcon Icon="@Icons.Material.Outlined.TrendingUp" /><span>Osiągnąłeś górę zakresu. Spróbuj dziś <strong>@SuggestedWeight(last.WeightKg) kg</strong>, jeśli technika była pewna.</span></div>
+                    }
                 }
 
                 @foreach (var set in exercise.Sets.OrderBy(x => x.SetNumber))
@@ -275,6 +279,7 @@
 
     private static string FormatTime(int seconds) => $"{seconds / 60:00}:{seconds % 60:00}";
     private static string FormatElapsed(TimeSpan elapsed) => $"{(int)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
+    private static decimal SuggestedWeight(decimal weight) => Math.Ceiling((weight + (weight < 30 ? 1.25m : 2.5m)) * 4m) / 4m;
 
     public ValueTask DisposeAsync()
     {
