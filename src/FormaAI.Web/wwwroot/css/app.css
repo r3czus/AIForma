@@ -458,6 +458,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .meal-slot-heading > div { display: flex; flex-direction: column; }
 .meal-slot-heading strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.12rem; }
 .meal-slot-heading span { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .62rem; margin-top: 2px; }
+.meal-slot-heading .meal-slot-macros { color: var(--ink); font-size: .66rem; margin-top: 5px; }
 .meal-slot-heading .mud-icon-button { background: var(--fuel); color: white; }
 .meal-slot .meal-row { padding-left: 16px; padding-right: 8px; }
 .meal-slot .meal-row:last-child { border-bottom: 0; }

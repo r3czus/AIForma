@@ -136,9 +136,16 @@
                         {
                             var meals = MealsFor(slot);
                             var calories = meals.Sum(x => x.Macro.CaloriesKcal);
+                            var protein = meals.Sum(x => x.Macro.ProteinG);
+                            var carbohydrates = meals.Sum(x => x.Macro.CarbohydratesG);
+                            var fat = meals.Sum(x => x.Macro.FatG);
                             <section class="meal-slot">
                                 <header class="meal-slot-heading">
-                                    <div><strong>@slot</strong><span>@meals.Count pozycji · @calories.ToString("0") kcal</span></div>
+                                    <div>
+                                        <strong>@slot</strong>
+                                        <span>@meals.Count pozycji · @calories.ToString("0") kcal</span>
+                                        <span class="meal-slot-macros">B @protein.ToString("0.#") g · W @carbohydrates.ToString("0.#") g · T @fat.ToString("0.#") g</span>
+                                    </div>
                                     <MudIconButton Icon="@Icons.Material.Outlined.Add" Color="Color.Primary" Href="/food" aria-label="@($"Dodaj do sekcji {slot}")" />
                                 </header>
                                 @if (meals.Count == 0)
@@ -152,19 +159,6 @@
                                             <MudText Typo="Typo.subtitle1">@DisplayMealName(meal.Name, slot)</MudText>
                                             <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => x.ProductName))</MudText>
                                         </div>
-                                        <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
-                                    </MudPaper>
-                                }
-                            </section>
-                        }
-                        @if (OtherMeals.Count > 0)
-                        {
-                            <section class="meal-slot">
-                                <header class="meal-slot-heading"><div><strong>Inne</strong><span>Wpisy spoza obecnych sekcji</span></div></header>
-                                @foreach (var meal in OtherMeals)
-                                {
-                                    <MudPaper Class="meal-row" Elevation="0">
-                                        <div class="row-copy"><MudText Typo="Typo.subtitle1">@meal.Name</MudText><MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => x.ProductName))</MudText></div>
                                         <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
                                     </MudPaper>
                                 }
@@ -211,8 +205,6 @@
         BodyGoal.MuscleGain => "Budowanie masy",
         _ => "Uzupełnij profil"
     };
-    private IReadOnlyList<MealResponse> OtherMeals => _day?.Meals.Where(x => !_mealSlots.Any(slot => BelongsTo(x.Name, slot))).ToList() ?? [];
-
     protected override async Task OnInitializedAsync()
     {
         _user = await Account.GetCurrentUser();
