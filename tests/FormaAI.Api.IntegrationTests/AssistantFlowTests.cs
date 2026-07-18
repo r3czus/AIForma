@@ -78,6 +78,36 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
         Assert.Single((await client.GetFromJsonAsync<List<TrainingPlanResponse>>("api/v1/training-plans"))!);
     }
 
+    [Fact]
+    public async Task ConversationAcceptsASecondUserMessage()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "assistant-conversation@example.test");
+        _factory.Model.Enqueue(new AssistantModelTurn("Jaki jest Twój cel?", null, 12, 6));
+        _factory.Model.Enqueue(new AssistantModelTurn("Dziękuję, przygotuję propozycję.", null, 14, 7));
+
+        var first = await Send<SendAssistantMessageRequest, AssistantMessageResponse>(client, HttpMethod.Post, "api/v1/assistant/messages", new(null, "Pomóż mi ułożyć plan", DateOnly.FromDateTime(DateTime.UtcNow)));
+        var second = await Send<SendAssistantMessageRequest, AssistantMessageResponse>(client, HttpMethod.Post, "api/v1/assistant/messages", new(first.ConversationId, "Chcę trenować trzy razy w tygodniu", DateOnly.FromDateTime(DateTime.UtcNow)));
+
+        Assert.Equal(first.ConversationId, second.ConversationId);
+        Assert.Equal("Dziękuję, przygotuję propozycję.", second.Reply);
+    }
+
+    [Fact]
+    public async Task AssistantCanRecoverFromOneRepeatedToolCall()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "assistant-repeat@example.test");
+        var arguments = JsonSerializer.SerializeToElement(new { query = "przysiad", limit = 5 });
+        _factory.Model.Enqueue(new AssistantModelTurn(null, new AssistantToolCall("search_exercises", arguments), 10, 5));
+        _factory.Model.Enqueue(new AssistantModelTurn(null, new AssistantToolCall("search_exercises", arguments), 10, 5));
+        _factory.Model.Enqueue(new AssistantModelTurn("Mam już potrzebne ćwiczenia i mogę ułożyć plan.", null, 12, 6));
+
+        var response = await Send<SendAssistantMessageRequest, AssistantMessageResponse>(client, HttpMethod.Post, "api/v1/assistant/messages", new(null, "Znajdź ćwiczenia do planu", DateOnly.FromDateTime(DateTime.UtcNow)));
+
+        Assert.Equal("Mam już potrzebne ćwiczenia i mogę ułożyć plan.", response.Reply);
+    }
+
     private static async Task Register(HttpClient client, string email) =>
         _ = await Send<RegisterRequest, CurrentUserResponse>(client, HttpMethod.Post, "api/account/register", new(email, "FormaAI!123", "UTC"));
 

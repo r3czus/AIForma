@@ -13,6 +13,7 @@
             <MudText Typo="Typo.h4">Trening</MudText>
             <p>Ułóż rytm tygodnia, a podczas sesji skup się już tylko na kolejnej serii.</p>
         </div>
+        <MudButton Href="/assistant?prompt=Chcę utworzyć nowy plan treningowy. Przeprowadź mnie przez krótką rozmowę, przygotuj kompletny plan do sprawdzenia i zapisz go dopiero po moim zatwierdzeniu." Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome" Class="module-heading-action">Wygeneruj plan z AI</MudButton>
     </header>
     @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję plan</span></div> }
     else
@@ -63,6 +64,10 @@
             <MudTabPanel Text="Nowy plan">
                 <section class="module-form training-form">
                     <div class="module-form-heading"><span class="card-kicker">Kreator planu</span><h2>@(_editingPlanId is null ? "Ułóż tydzień krok po kroku" : "Edytuj plan krok po kroku")</h2><p>Najpierw ustal cel, potem zbuduj każdy dzień i sprawdź całość przed zapisaniem.</p></div>
+                    @if (_editingPlanId is null)
+                    {
+                        <MudButton Href="/assistant?prompt=Pomóż mi stworzyć nowy plan treningowy. Zapytaj o cel, liczbę dni, dostępny sprzęt i ograniczenia, a potem pokaż gotowy plan do zatwierdzenia." Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome" Class="plan-ai-entry">Wygeneruj nowy plan z AI</MudButton>
+                    }
                     <div class="plan-stepper" aria-label="Etapy tworzenia planu">
                         @for (var step = 1; step <= 4; step++)
                         {

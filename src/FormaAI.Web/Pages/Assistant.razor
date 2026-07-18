@@ -2,6 +2,7 @@
 @using FormaAI.Contracts.Assistant
 @inject AccountClient Account
 @inject AssistantClient AssistantApi
+@inject TrainingClient TrainingApi
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
@@ -73,13 +74,32 @@
                     <MudText Typo="Typo.body2">@_trainingDraft.Plan.Goal</MudText>
                     @foreach (var day in _trainingDraft.Plan.Days)
                     {
-                        <MudText Typo="Typo.subtitle2" Class="mt-2">@day.Name @(day.DayOfWeek is null ? "" : $"· {day.DayOfWeek}")</MudText>
-                        <MudText Typo="Typo.caption">@day.Exercises.Count ćwiczeń · @day.Exercises.Sum(x => x.Sets) serii</MudText>
+                        <section class="training-draft-day">
+                            <div class="training-draft-day-heading">
+                                <MudText Typo="Typo.subtitle2">@day.Name @(day.DayOfWeek is null ? "" : $"· {DayName(day.DayOfWeek.Value)}")</MudText>
+                                <MudText Typo="Typo.caption">@day.Exercises.Count ćwiczeń · @day.Exercises.Sum(x => x.Sets) serii</MudText>
+                            </div>
+                            @foreach (var exercise in day.Exercises)
+                            {
+                                <div class="training-draft-exercise">
+                                    <strong>@ExerciseName(exercise.ExerciseId)</strong>
+                                    <span>@exercise.Sets × @exercise.MinReps–@exercise.MaxReps · RIR @exercise.TargetRir?.ToString("0.#") · przerwa @exercise.RestSeconds s</span>
+                                </div>
+                            }
+                        </section>
                     }
                     <div class="assistant-actions">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_sending" OnClick="ConfirmTrainingDraft">Zatwierdź plan</MudButton>
                         <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="_sending" OnClick="RejectTrainingDraft">Odrzuć</MudButton>
                     </div>
+                </MudPaper>
+            }
+            @if (_savedTrainingPlan is not null)
+            {
+                <MudPaper Class="assistant-saved-plan" Elevation="0">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                    <div><strong>Plan „@_savedTrainingPlan.Name” jest zapisany</strong><span>Znajdziesz go na liście planów. Możesz go tam jeszcze edytować albo aktywować.</span></div>
+                    <MudButton Href="/training" Variant="Variant.Outlined" Color="Color.Primary">Przejdź do planów</MudButton>
                 </MudPaper>
             }
             @if (_sending)
@@ -89,7 +109,7 @@
         </MudPaper>
 
         <div class="assistant-composer">
-            <MudTextField @bind-Value="_message" Placeholder="Napisz wiadomość…" Variant="Variant.Outlined" Lines="2" MaxLength="2000" Disabled="_sending" />
+            <MudTextField @bind-Value="_message" Placeholder="Napisz wiadomość…" Variant="Variant.Outlined" Lines="2" MaxLength="2000" Immediate="true" Disabled="_sending" />
             <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(_message) || _sending)" OnClick="Send" aria-label="Wyślij" />
         </div>
     }
@@ -100,9 +120,15 @@
     private Guid? _conversationId;
     private AssistantDraftResponse? _draft;
     private AssistantTrainingDraftResponse? _trainingDraft;
+    private TrainingPlanResponse? _savedTrainingPlan;
+    private IReadOnlyDictionary<Guid, string> _exerciseNames = new Dictionary<Guid, string>();
     private string _message = string.Empty;
     private bool _sending;
     private bool _checking = true;
+    private bool _startedFromPrompt;
+
+    [SupplyParameterFromQuery(Name = "prompt")]
+    public string? Prompt { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -112,6 +138,18 @@
             return;
         }
         _checking = false;
+        if (!string.IsNullOrWhiteSpace(Prompt))
+            _message = Prompt;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_checking || _startedFromPrompt || string.IsNullOrWhiteSpace(Prompt) || string.IsNullOrWhiteSpace(_message))
+            return;
+
+        _startedFromPrompt = true;
+        await Send();
+        StateHasChanged();
     }
 
     private async Task Send()
@@ -128,8 +166,14 @@
             _messages.Add(new ChatLine(false, response.Reply));
             _draft = response.Draft;
             _trainingDraft = response.TrainingPlanDraft;
+            if (_trainingDraft is not null && _exerciseNames.Count == 0)
+                _exerciseNames = (await TrainingApi.GetExercises()).ToDictionary(x => x.Id, x => x.Name);
         }
-        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Warning); }
+        catch (HttpRequestException ex)
+        {
+            _messages.Add(new ChatLine(false, ex.Message));
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
         finally { _sending = false; }
     }
 
@@ -163,8 +207,8 @@
         _sending = true;
         try
         {
-            await AssistantApi.ConfirmTrainingPlan(_trainingDraft.Id);
-            _messages.Add(new ChatLine(false, "Plan treningowy został zapisany. Możesz go aktywować w zakładce Trening."));
+            _savedTrainingPlan = await AssistantApi.ConfirmTrainingPlan(_trainingDraft.Id);
+            _messages.Add(new ChatLine(false, $"Plan „{_savedTrainingPlan.Name}” został zapisany. Możesz go teraz przejrzeć, edytować albo aktywować w zakładce Trening."));
             _trainingDraft = null;
             Snackbar.Add("Plan zapisany.", Severity.Success);
         }
@@ -182,4 +226,16 @@
     }
 
     private sealed record ChatLine(bool FromUser, string Text);
+
+    private string ExerciseName(Guid id) => _exerciseNames.TryGetValue(id, out var name) ? name : "Ćwiczenie z katalogu";
+    private static string DayName(DayOfWeek day) => day switch
+    {
+        DayOfWeek.Monday => "poniedziałek",
+        DayOfWeek.Tuesday => "wtorek",
+        DayOfWeek.Wednesday => "środa",
+        DayOfWeek.Thursday => "czwartek",
+        DayOfWeek.Friday => "piątek",
+        DayOfWeek.Saturday => "sobota",
+        _ => "niedziela"
+    };
 }
