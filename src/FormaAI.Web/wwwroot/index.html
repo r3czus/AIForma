@@ -35,6 +35,28 @@
         addEventListener('online', updateConnection);
         addEventListener('offline', updateConnection);
         updateConnection();
+
+        window.formaTimer = (() => {
+            let audio;
+            const ready = async () => {
+                audio ??= new (window.AudioContext || window.webkitAudioContext)();
+                if (audio.state === 'suspended') await audio.resume();
+            };
+            const done = async () => {
+                await ready();
+                [0, .18].forEach(delay => {
+                    const tone = audio.createOscillator();
+                    const volume = audio.createGain();
+                    tone.frequency.value = 880;
+                    volume.gain.setValueAtTime(.16, audio.currentTime + delay);
+                    volume.gain.exponentialRampToValueAtTime(.001, audio.currentTime + delay + .14);
+                    tone.connect(volume).connect(audio.destination);
+                    tone.start(audio.currentTime + delay);
+                    tone.stop(audio.currentTime + delay + .15);
+                });
+            };
+            return { ready, done };
+        })();
     </script>
 </body>
 

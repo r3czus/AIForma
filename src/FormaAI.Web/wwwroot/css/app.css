@@ -402,27 +402,35 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 
 .workout-empty { border-left-color: var(--rule-strong); }
 .workout-empty p { max-width: 520px; }
+.workout-preview { border-bottom: 1px solid var(--rule); border-top: 1px solid var(--rule); margin: -4px 0 18px; }
+.workout-preview > div { align-items: center; display: flex; gap: 14px; justify-content: space-between; padding: 10px 2px; }
+.workout-preview > div + div { border-top: 1px solid var(--rule); }
+.workout-preview span { font-size: .82rem; }
+.workout-preview strong { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .65rem; white-space: nowrap; }
+.workout-start { min-height: 48px; }
 
 .macro-card { border-radius: 22px; overflow: hidden; padding: 24px; }
 .macro-card .card-kicker { color: #b85c2d; }
 .macro-heading { align-items: center; margin-bottom: 18px; }
 .macro-heading a { color: var(--action); font-size: .8rem; font-weight: 700; text-decoration: none; }
-.calorie-score { align-items: baseline; display: flex; gap: 10px; }
-.calorie-score strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 4rem; line-height: 1; }
-.calorie-score span { color: var(--muted); font-size: .8rem; }
-.macro-progress { background: var(--rule); border-radius: 999px; height: 8px; margin: 14px 0 24px; overflow: hidden; }
-.macro-progress span { background: var(--fuel); border-radius: inherit; display: block; height: 100%; width: var(--progress); }
-.macro-grid { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); }
-.macro-grid > div { background: var(--fuel-soft); border-radius: 14px; display: flex; flex-direction: column; padding: 13px; }
-.macro-grid span { color: var(--muted); font-size: .68rem; }
-.macro-grid strong { font-size: .9rem; margin: 5px 0 10px; }
-.macro-grid small { color: var(--muted); font-size: .66rem; font-weight: 500; }
-.macro-grid i { background: rgba(239, 136, 78, .2); border-radius: 99px; display: block; height: 4px; overflow: hidden; position: relative; }
-.macro-grid i::after { background: var(--fuel); content: ""; height: 100%; left: 0; position: absolute; width: var(--progress); }
-.macro-remaining { align-items: center; border-top: 1px solid var(--rule); display: grid; gap: 5px 16px; grid-template-columns: 1fr auto; margin-top: 20px; padding-top: 16px; }
-.macro-remaining span { color: var(--muted); font-size: .72rem; }
-.macro-remaining strong { font-size: .9rem; text-align: right; }
-.macro-remaining small { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .65rem; grid-column: 1 / -1; }
+.macro-overview { align-items: center; display: grid; gap: 22px; grid-template-columns: 146px 1fr; margin: 8px 0 22px; }
+.calorie-ring { align-items: center; background: conic-gradient(var(--fuel) var(--progress), #f1ded2 0); border-radius: 50%; display: flex; height: 146px; justify-content: center; position: relative; width: 146px; }
+.calorie-ring::after { background: var(--surface); border-radius: 50%; content: ""; inset: 11px; position: absolute; }
+.calorie-ring > div { align-items: center; display: flex; flex-direction: column; position: relative; z-index: 1; }
+.calorie-ring span, .calorie-ring small { color: var(--muted); font-size: .64rem; }
+.calorie-ring strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 2.35rem; line-height: .95; }
+.calorie-score { display: flex; flex-direction: column; }
+.calorie-score strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 4.4rem; line-height: .9; margin: 5px 0; }
+.calorie-score span, .calorie-score small { color: var(--muted); font-size: .72rem; }
+.macro-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
+.macro-grid > div { background: var(--fuel-soft); border-radius: 14px; display: grid; gap: 4px; padding: 13px; }
+.macro-grid span, .macro-grid small { color: var(--muted); font-size: .65rem; }
+.macro-grid strong { font-size: .88rem; }
+.macro-grid i { background: rgba(239, 136, 78, .18); border-radius: 99px; display: block; height: 5px; margin-top: 6px; overflow: hidden; position: relative; }
+.macro-grid i::after { background: var(--fuel); border-radius: inherit; content: ""; height: 100%; left: 0; position: absolute; width: var(--progress); }
+.macro-grid .protein i::after { background: var(--action); }
+.macro-grid .protein i { background: var(--action-soft); }
+.macro-grid .carbs i::after { background: #8c62d8; }
 .macro-empty { align-items: center; display: flex; gap: 24px; justify-content: space-between; }
 .macro-empty p { margin-bottom: 0; max-width: 500px; }
 
@@ -607,32 +615,49 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .set-entry > :nth-child(3) { grid-column: 1 / -1; }
 .workout-mode { max-width: 760px !important; }
 .workout-heading {
-    align-items: flex-start;
+    align-items: center;
     background: rgba(242, 245, 241, .96);
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: auto 1fr auto;
     padding: 14px 0 12px;
     position: sticky;
     top: 72px;
     z-index: 20;
 }
-.workout-heading .mud-typography-h4 { margin-top: 7px; }
-.workout-progress-strip {
+.workout-heading .mud-typography-h4 { font-size: 2.5rem; margin-top: 4px; }
+.workout-back { background: var(--surface) !important; border: 1px solid var(--rule) !important; }
+.workout-console {
     align-items: center;
-    background: var(--ink);
-    border-radius: 18px 6px 18px 18px;
-    color: white;
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 24px 8px 24px 24px;
+    box-shadow: var(--shadow);
     display: grid;
-    gap: 5px 18px;
-    grid-template-columns: 1fr auto;
-    margin: 8px 0 22px;
-    padding: 18px 20px;
+    gap: 24px;
+    grid-template-columns: 1.2fr .8fr;
+    margin: 8px 0 18px;
+    overflow: hidden;
+    padding: 22px 24px;
 }
-.workout-progress-strip span { color: #b9c7bf; font-size: .72rem; }
-.workout-progress-strip strong { font-family: "IBM Plex Mono", monospace; font-size: 1.1rem; }
-.workout-progress-strip small { color: #9fb2ff; font-family: "IBM Plex Mono", monospace; font-size: .65rem; grid-column: 1 / -1; }
+.session-clock, .session-progress { display: flex; flex-direction: column; }
+.session-clock span, .session-progress span, .session-clock small { color: var(--muted); font-size: .68rem; }
+.session-clock strong { font-family: "IBM Plex Mono", monospace; font-size: clamp(2.2rem, 9vw, 4rem); letter-spacing: -.07em; line-height: 1.1; }
+.session-progress { border-left: 1px solid var(--rule); padding-left: 24px; }
+.session-progress strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 2.2rem; line-height: 1.1; }
+.session-progress i { background: var(--rule); border-radius: 99px; display: block; height: 7px; margin-top: 8px; overflow: hidden; }
+.session-progress b { background: var(--action); border-radius: inherit; display: block; height: 100%; width: var(--progress); }
+.rest-clock { align-items: center; background: var(--ink); border-radius: 16px; color: white; display: grid; gap: 12px; grid-template-columns: auto 1fr auto; margin: 0 0 18px; padding: 14px 16px; position: sticky; top: 160px; z-index: 15; }
+.rest-clock > .mud-icon-root { color: #9fb2ff; }
+.rest-clock div { display: flex; flex-direction: column; }
+.rest-clock span { color: #b9c7bf; font-size: .66rem; }
+.rest-clock strong { font-family: "IBM Plex Mono", monospace; font-size: 1.45rem; line-height: 1; }
+.rest-clock .mud-button-root { color: white; }
 .workout-exercise { border-left: 4px solid var(--action); border-radius: 5px 20px 20px 5px; margin-top: 16px; padding: 20px; }
 .workout-exercise .mud-typography-h6 { margin-bottom: 4px; }
+.exercise-live-heading { align-items: center; display: grid; gap: 14px; grid-template-columns: auto 1fr auto; }
+.exercise-order { align-items: center; background: var(--action); border-radius: 13px; color: white; display: flex; font-family: "IBM Plex Mono", monospace; font-size: .72rem; height: 42px; justify-content: center; transform: rotate(-3deg); width: 42px; }
+.exercise-set-count { background: var(--action-soft); border-radius: 999px; color: var(--action); font-family: "IBM Plex Mono", monospace; font-size: .7rem; padding: 7px 9px; }
 .saved-set { align-items: center; border-bottom: 1px solid var(--rule); display: grid; font-size: .85rem; gap: 8px; grid-template-columns: 1.2fr 1fr .7fr; padding: 11px 0; }
 .saved-set span:last-child { color: var(--muted); text-align: right; }
 .session-actions { display: grid; gap: 8px; margin-top: 24px; }
@@ -775,7 +800,15 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .dashboard-hero h1 { font-size: 3.6rem; }
     .day-pulse { grid-template-columns: 1fr; }
     .day-pulse > div { border-bottom: 1px solid var(--rule); border-right: 0; padding: 14px 18px; }
-    .macro-grid { grid-template-columns: 1fr; }
+    .macro-overview { gap: 16px; grid-template-columns: 116px 1fr; }
+    .calorie-ring { height: 116px; width: 116px; }
+    .calorie-ring::after { inset: 9px; }
+    .calorie-ring strong { font-size: 1.95rem; }
+    .calorie-score strong { font-size: 3.3rem; }
+    .macro-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .macro-grid > div { padding: 10px 8px; }
+    .macro-grid strong { font-size: .75rem; }
+    .macro-grid span, .macro-grid small { font-size: .57rem; overflow-wrap: anywhere; }
     .macro-empty { align-items: flex-start; flex-direction: column; }
     .macro-remaining { grid-template-columns: 1fr; }
     .macro-remaining strong { text-align: left; }
@@ -810,8 +843,13 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .exercise-index { grid-template-columns: 1fr; }
     .plan-row { align-items: flex-start; flex-direction: column; }
     .workout-heading { top: 72px; }
-    .workout-heading .mud-typography-h4 { font-size: 2.7rem; }
-    .workout-progress-strip { margin-top: 2px; }
+    .workout-heading .mud-typography-h4 { font-size: 2rem; }
+    .workout-console { gap: 16px; grid-template-columns: 1fr auto; padding: 18px 16px; }
+    .session-progress { min-width: 82px; padding-left: 16px; }
+    .session-clock strong { font-size: 2.55rem; }
+    .rest-clock { top: 142px; }
+    .exercise-live-heading { align-items: start; grid-template-columns: auto 1fr; }
+    .exercise-set-count { grid-column: 2; justify-self: start; }
     .progress-chart-stack { grid-template-columns: 1fr; }
     .assistant-heading { align-items: flex-start; }
     .assistant-availability { align-self: flex-start; }
@@ -825,8 +863,8 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .card-heading, .section-heading { align-items: flex-start; flex-direction: column; }
     .set-grid, .set-entry, .metric-row { grid-template-columns: 1fr; }
     .set-entry > :nth-child(3) { grid-column: auto; }
-    .saved-set { grid-template-columns: 1fr; }
-    .saved-set span:last-child { text-align: left; }
+    .saved-set { font-size: .72rem; grid-template-columns: 1.2fr 1fr .65fr; }
+    .saved-set span:last-child { text-align: right; }
 }
 
 @media (prefers-reduced-motion: reduce) {

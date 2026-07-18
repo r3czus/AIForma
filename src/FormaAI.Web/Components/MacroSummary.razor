@@ -16,26 +16,32 @@
             <div><span class="card-kicker">Dzienne paliwo</span><h2>Bilans energii</h2></div>
             <a href="/food">Otwórz dziennik</a>
         </div>
-        <div class="calorie-score">
-            <strong>@Day.Consumed.CaloriesKcal.ToString("0")</strong>
-            <span>z @Day.Target.CaloriesKcal.ToString("0") kcal</span>
+        <div class="macro-overview">
+            <div class="calorie-ring" style="@($"--progress: {Percent(Day.Consumed.CaloriesKcal, Day.Target.CaloriesKcal)}%")">
+                <div>
+                    <span>@RemainingCaption</span>
+                    <strong>@Math.Abs(Day.Remaining!.CaloriesKcal).ToString("0")</strong>
+                    <small>kcal</small>
+                </div>
+            </div>
+            <div class="calorie-score">
+                <span>Spożyte dzisiaj</span>
+                <strong>@Day.Consumed.CaloriesKcal.ToString("0")</strong>
+                <small>cel @Day.Target.CaloriesKcal.ToString("0") kcal</small>
+            </div>
         </div>
-        <div class="macro-progress" style="@($"--progress: {Percent(Day.Consumed.CaloriesKcal, Day.Target.CaloriesKcal)}%")"><span></span></div>
         <div class="macro-grid">
-            <div style="@($"--progress: {Percent(Day.Consumed.ProteinG, Day.Target.ProteinG)}%")"><span>Białko</span><strong>@Day.Consumed.ProteinG.ToString("0.#")<small> / @Day.Target.ProteinG.ToString("0.#") g</small></strong><i></i></div>
-            <div style="@($"--progress: {Percent(Day.Consumed.FatG, Day.Target.FatG)}%")"><span>Tłuszcze</span><strong>@Day.Consumed.FatG.ToString("0.#")<small> / @Day.Target.FatG.ToString("0.#") g</small></strong><i></i></div>
-            <div style="@($"--progress: {Percent(Day.Consumed.CarbohydratesG, Day.Target.CarbohydratesG)}%")"><span>Węglowodany</span><strong>@Day.Consumed.CarbohydratesG.ToString("0.#")<small> / @Day.Target.CarbohydratesG.ToString("0.#") g</small></strong><i></i></div>
-        </div>
-        <div class="macro-remaining">
-            <span>Pozostało na dziś</span>
-            <strong>@Day.Remaining!.CaloriesKcal.ToString("0") kcal</strong>
-            <small>@Day.Remaining.ProteinG.ToString("0.#") B · @Day.Remaining.FatG.ToString("0.#") T · @Day.Remaining.CarbohydratesG.ToString("0.#") W</small>
+            <div class="protein" style="@($"--progress: {Percent(Day.Consumed.ProteinG, Day.Target.ProteinG)}%")"><span>Białko</span><strong>@Day.Consumed.ProteinG.ToString("0.#") g</strong><small>z @Day.Target.ProteinG.ToString("0.#") g</small><i></i></div>
+            <div class="fat" style="@($"--progress: {Percent(Day.Consumed.FatG, Day.Target.FatG)}%")"><span>Tłuszcze</span><strong>@Day.Consumed.FatG.ToString("0.#") g</strong><small>z @Day.Target.FatG.ToString("0.#") g</small><i></i></div>
+            <div class="carbs" style="@($"--progress: {Percent(Day.Consumed.CarbohydratesG, Day.Target.CarbohydratesG)}%")"><span>Węglowodany</span><strong>@Day.Consumed.CarbohydratesG.ToString("0.#") g</strong><small>z @Day.Target.CarbohydratesG.ToString("0.#") g</small><i></i></div>
         </div>
     }
 </MudPaper>
 
 @code {
     [Parameter, EditorRequired] public NutritionDayResponse Day { get; set; } = null!;
+
+    private string RemainingCaption => Day.Remaining!.CaloriesKcal < 0 ? "ponad cel" : "pozostało";
 
     private static int Percent(decimal value, decimal target) => target <= 0
         ? 0

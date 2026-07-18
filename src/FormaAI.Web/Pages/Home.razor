@@ -78,9 +78,18 @@
                                 <span class="card-kicker">Dzisiejszy trening · @_todayWorkout.PlanName</span>
                                 <h2>@_todayWorkout.DayName</h2>
                             </div>
-                            <span class="data-chip">@_todayWorkout.Exercises.Count ćwiczeń</span>
+                            <span class="data-chip">około @EstimateMinutes(_todayWorkout) min</span>
                         </div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_todayWorkout.AlreadyCompleted" OnClick="StartWorkout">
+                        <div class="workout-preview">
+                            @foreach (var exercise in _todayWorkout.Exercises.Take(4))
+                            {
+                                <div>
+                                    <span>@exercise.ExerciseName</span>
+                                    <strong>@exercise.Sets × @exercise.MinReps–@exercise.MaxReps</strong>
+                                </div>
+                            }
+                        </div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.PlayArrow" Disabled="_todayWorkout.AlreadyCompleted" OnClick="StartWorkout" Class="workout-start">
                             @(_todayWorkout.AlreadyCompleted ? "Trening wykonany" : "Rozpocznij trening")
                         </MudButton>
                     </MudPaper>
@@ -176,6 +185,8 @@
     private int _tab;
     private string TrainingStatus => _todayWorkout is null ? "Regeneracja" : _todayWorkout.AlreadyCompleted ? "Wykonany" : _todayWorkout.DayName;
     private string EnergyStatus => _day?.Target is null ? "Ustaw cel" : $"{_day.Consumed.CaloriesKcal:0} / {_day.Target.CaloriesKcal:0} kcal";
+    private static int EstimateMinutes(TodayWorkoutResponse workout) => Math.Max(20,
+        (int)Math.Ceiling(workout.Exercises.Sum(x => x.Sets * ((x.RestSeconds ?? 90) + 45)) / 60d));
     private string GoalStatus => _profile?.Goal switch
     {
         BodyGoal.Reduction => "Redukcja",

@@ -3,6 +3,7 @@
 @inject TrainingClient TrainingApi
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
 <PageTitle>Aktywny trening · FormaAI</PageTitle>
 
@@ -13,33 +14,53 @@
     }
     else
     {
-        <div class="workout-heading">
+        <header class="workout-heading">
+            <MudIconButton Href="/training" Icon="@Icons.Material.Filled.ArrowBack" Class="workout-back" aria-label="Wróć do planu" />
             <div>
                 <span class="page-kicker">Sesja na żywo</span>
                 <MudText Typo="Typo.h4">@_session.Name</MudText>
             </div>
-            @if (_restSeconds > 0)
-            {
-                <MudChip T="string" Color="Color.Primary" Icon="@Icons.Material.Filled.Timer">@FormatTime(_restSeconds)</MudChip>
-            }
-        </div>
+            <span class="data-chip">@CompletedSets / @PlannedSets serii</span>
+        </header>
 
-        <section class="workout-progress-strip" aria-label="Postęp sesji">
-            <span>Zapisane serie</span>
-            <strong>@_session.Exercises.Sum(x => x.Sets.Count) / @_session.Exercises.Sum(x => x.PlannedSets)</strong>
-            <small>Trening trwa od @_session.StartedAtUtc.ToLocalTime().ToString("HH:mm")</small>
+        <section class="workout-console" aria-label="Czas i postęp treningu">
+            <div class="session-clock">
+                <span>Czas treningu</span>
+                <strong>@FormatElapsed(_elapsed)</strong>
+                <small>start @_session.StartedAtUtc.ToLocalTime().ToString("HH:mm")</small>
+            </div>
+            <div class="session-progress">
+                <span>Postęp sesji</span>
+                <strong>@SessionPercent%</strong>
+                <i style="@($"--progress: {SessionPercent}%")"><b></b></i>
+            </div>
         </section>
+
+        @if (_restSeconds > 0)
+        {
+            <section class="rest-clock" aria-live="polite">
+                <MudIcon Icon="@Icons.Material.Outlined.Timer" />
+                <div><span>Przerwa</span><strong>@FormatTime(_restSeconds)</strong></div>
+                <MudButton Variant="Variant.Text" OnClick="SkipRest">Pomiń</MudButton>
+            </section>
+        }
 
         @foreach (var exercise in _session.Exercises.OrderBy(x => x.Order))
         {
             var form = _forms[exercise.Id];
             <MudPaper Class="workout-exercise" Elevation="0">
-                <span class="card-kicker">Plan serii</span>
-                <MudText Typo="Typo.h6">@exercise.ExerciseName</MudText>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    Plan: @exercise.PlannedSets × @exercise.MinReps–@exercise.MaxReps
-                    @if (exercise.TargetRir is not null) { <span> · RIR @exercise.TargetRir</span> }
-                </MudText>
+                <div class="exercise-live-heading">
+                    <span class="exercise-order">@exercise.Order.ToString("00")</span>
+                    <div>
+                        <span class="card-kicker">Plan serii</span>
+                        <MudText Typo="Typo.h6">@exercise.ExerciseName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @exercise.PlannedSets × @exercise.MinReps–@exercise.MaxReps
+                            @if (exercise.TargetRir is not null) { <span> · RIR @exercise.TargetRir</span> }
+                        </MudText>
+                    </div>
+                    <strong class="exercise-set-count">@exercise.Sets.Count/@exercise.PlannedSets</strong>
+                </div>
 
                 @if (exercise.ExerciseId is Guid exerciseId && _history.TryGetValue(exerciseId, out var last) && last is not null)
                 {
@@ -78,8 +99,12 @@
     private WorkoutSessionResponse? _session;
     private readonly Dictionary<Guid, SetForm> _forms = [];
     private readonly Dictionary<Guid, ExerciseHistoryEntry?> _history = [];
-    private CancellationTokenSource? _timerCancellation;
+    private CancellationTokenSource? _clockCancellation;
     private int _restSeconds;
+    private TimeSpan _elapsed;
+    private int CompletedSets => _session?.Exercises.Sum(x => x.Sets.Count) ?? 0;
+    private int PlannedSets => _session?.Exercises.Sum(x => x.PlannedSets) ?? 0;
+    private int SessionPercent => PlannedSets == 0 ? 0 : Math.Min(100, (int)Math.Round(CompletedSets * 100d / PlannedSets));
 
     protected override async Task OnParametersSetAsync()
     {
@@ -90,12 +115,19 @@
             if (exercise.ExerciseId is Guid exerciseId && !_history.ContainsKey(exerciseId))
                 _history[exerciseId] = (await TrainingApi.GetHistory(exerciseId)).FirstOrDefault();
         }
+        if (_clockCancellation is null)
+        {
+            _clockCancellation = new CancellationTokenSource();
+            _elapsed = DateTime.UtcNow - _session.StartedAtUtc;
+            _ = RunClock(_clockCancellation.Token);
+        }
     }
 
     private async Task SaveSet(WorkoutExerciseResponse exercise, SetForm form)
     {
         try
         {
+            await JS.InvokeVoidAsync("formaTimer.ready");
             var setNumber = exercise.Sets.Count == 0 ? 1 : exercise.Sets.Max(x => x.SetNumber) + 1;
             await TrainingApi.SaveSet(Id, new SaveSetRequest(exercise.Id, setNumber, form.WeightKg, form.Repetitions, form.Rir, form.IsWarmup ? SetType.Warmup : SetType.Working));
             await Reload();
@@ -112,26 +144,26 @@
 
     private void StartRestTimer(int seconds)
     {
-        _timerCancellation?.Cancel();
-        _timerCancellation?.Dispose();
-        _timerCancellation = new CancellationTokenSource();
         _restSeconds = seconds;
-        _ = CountDown(_timerCancellation.Token);
     }
 
-    private async Task CountDown(CancellationToken cancellationToken)
+    private async Task RunClock(CancellationToken cancellationToken)
     {
         try
         {
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-            while (_restSeconds > 0 && await timer.WaitForNextTickAsync(cancellationToken))
+            while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                _restSeconds--;
+                _elapsed = DateTime.UtcNow - _session!.StartedAtUtc;
+                if (_restSeconds > 0 && --_restSeconds == 0)
+                    await JS.InvokeVoidAsync("formaTimer.done");
                 await InvokeAsync(StateHasChanged);
             }
         }
         catch (OperationCanceledException) { }
     }
+
+    private void SkipRest() => _restSeconds = 0;
 
     private async Task Complete()
     {
@@ -147,11 +179,12 @@
     }
 
     private static string FormatTime(int seconds) => $"{seconds / 60:00}:{seconds % 60:00}";
+    private static string FormatElapsed(TimeSpan elapsed) => $"{(int)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
 
     public ValueTask DisposeAsync()
     {
-        _timerCancellation?.Cancel();
-        _timerCancellation?.Dispose();
+        _clockCancellation?.Cancel();
+        _clockCancellation?.Dispose();
         return ValueTask.CompletedTask;
     }
 
