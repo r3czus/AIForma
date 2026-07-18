@@ -60,10 +60,10 @@
                         <div class="meal-add-section-title"><span>Ostatnie w tej sekcji</span><small>Dodaj ponownie jednym dotknięciem</small></div>
                         @if (_recentMeals.Count > 0)
                         {
-                            <div class="recent-meal-grid">
+                            <div class="recent-meal-list">
                                 @foreach (var recent in _recentMeals.Take(6))
                                 {
-                                    <button type="button" @onclick="() => CopyMeal(recent)"><strong>@RecentName(recent.Name)</strong><span>@recent.Macro.CaloriesKcal.ToString("0") kcal · B @recent.Macro.ProteinG.ToString("0") g</span></button>
+                                    <button type="button" @onclick="() => CopyMeal(recent)"><span><strong>@RecentName(recent.Name)</strong><small>B @recent.Macro.ProteinG.ToString("0") g · T @recent.Macro.FatG.ToString("0") g · W @recent.Macro.CarbohydratesG.ToString("0") g</small></span><strong>@recent.Macro.CaloriesKcal.ToString("0") kcal</strong><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></button>
                                 }
                             </div>
                         }
@@ -77,10 +77,10 @@
                         @if (_catalogScope == CatalogScope.Own && _recentMeals.Count > 0)
                         {
                             <div class="meal-add-section-title"><span>Twoje gotowe dania</span><small>Zapisane wcześniej</small></div>
-                            <div class="recent-meal-grid compact-list">
+                            <div class="recent-meal-list compact-list">
                                 @foreach (var recent in _recentMeals.Take(4))
                                 {
-                                    <button type="button" @onclick="() => CopyMeal(recent)"><strong>@RecentName(recent.Name)</strong><span>@recent.Macro.CaloriesKcal.ToString("0") kcal</span></button>
+                                    <button type="button" @onclick="() => CopyMeal(recent)"><span><strong>@RecentName(recent.Name)</strong><small>B @recent.Macro.ProteinG.ToString("0") g · T @recent.Macro.FatG.ToString("0") g · W @recent.Macro.CarbohydratesG.ToString("0") g</small></span><strong>@recent.Macro.CaloriesKcal.ToString("0") kcal</strong><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></button>
                                 }
                             </div>
                         }
@@ -92,13 +92,11 @@
                                 {
                                     var portion = DefaultPortion(product);
                                     <div class="meal-product-row @(IsSelected(product.Id) ? "selected" : null)">
-                                        <label>
-                                            <input type="checkbox" checked="@IsSelected(product.Id)" @onchange="() => ToggleProduct(product)" />
+                                        <input type="checkbox" checked="@IsSelected(product.Id)" @onchange="() => ToggleProduct(product)" aria-label="Dodaj @product.Name do posiłku" />
+                                        <button type="button" class="meal-product-open" @onclick="() => OpenProduct(product)">
                                             <span><strong>@product.Name</strong><small>@(string.IsNullOrWhiteSpace(product.Brand) ? "Produkt" : product.Brand)</small></span>
                                             <span><strong>@PortionCalories(product, portion).ToString("0") kcal</strong><small>@portion.ToString("0.#") g</small></span>
-                                        </label>
-                                        <button type="button" class="favorite-product" @onclick="() => ToggleFavorite(product.Id)" aria-label="@(IsFavorite(product.Id) ? "Usuń z ulubionych" : "Dodaj do ulubionych")">
-                                            <MudIcon Icon="@(IsFavorite(product.Id) ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" />
+                                            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
                                         </button>
                                     </div>
                                 }
@@ -141,6 +139,42 @@
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@(_saving || _meal.Items.Count == 0)" OnClick="SaveMeal" Class="meal-add-submit">
                     @(_saving ? "Zapisuję…" : _editingMealId is null ? "Dodaj posiłek" : "Zapisz zmiany")
                 </MudButton>
+
+                @if (_productDetails is not null)
+                {
+                    var product = _productDetails;
+                    <div class="product-detail-backdrop" role="presentation">
+                        <section class="product-detail-panel" role="dialog" aria-modal="true" aria-label="Szczegóły produktu @product.Name">
+                            <header>
+                                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="CloseProduct" aria-label="Wróć do listy produktów" />
+                                <div><strong>@product.Name</strong><span>@(string.IsNullOrWhiteSpace(product.Brand) ? "Produkt własny" : product.Brand)</span></div>
+                                <button type="button" class="product-detail-favorite @(IsFavorite(product.Id) ? "selected" : null)" @onclick="() => ToggleFavorite(product.Id)" aria-label="@(IsFavorite(product.Id) ? "Usuń z ulubionych" : "Dodaj do ulubionych")"><MudIcon Icon="@(IsFavorite(product.Id) ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" /></button>
+                            </header>
+
+                            <div class="product-portion-list">
+                                @foreach (var option in ProductPortions(product))
+                                {
+                                    <label class="@(IsPortionSelected(product.Id, option.AmountGrams) ? "selected" : null)">
+                                        <input type="checkbox" checked="@IsPortionSelected(product.Id, option.AmountGrams)" @onchange="() => SelectPortion(product, option.AmountGrams)" />
+                                        <span>@option.Name</span><strong>@option.AmountGrams.ToString("0.#") g</strong><span>@PortionCalories(product, option.AmountGrams).ToString("0") kcal</span>
+                                    </label>
+                                }
+                            </div>
+
+                            <div class="product-custom-portion">
+                                <MudNumericField @bind-Value="_detailAmount" Min="1m" Label="Własna ilość" Adornment="Adornment.End" AdornmentText="g" HideSpinButtons="true" />
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => SelectPortion(product, _detailAmount)">Dodaj tę porcję</MudButton>
+                            </div>
+
+                            <div class="product-detail-energy"><span>Dla @_detailAmount.ToString("0.#") g</span><strong>@PortionCalories(product, _detailAmount).ToString("0") kcal</strong></div>
+                            <div class="product-macro-rings">
+                                <div style="--macro-progress: @MacroProgress(product.ProteinPer100, _detailAmount)%"><i><strong>@MacroAmount(product.ProteinPer100, _detailAmount).ToString("0.#")</strong><small>g</small></i><span>Białko</span></div>
+                                <div class="fat" style="--macro-progress: @MacroProgress(product.FatPer100, _detailAmount)%"><i><strong>@MacroAmount(product.FatPer100, _detailAmount).ToString("0.#")</strong><small>g</small></i><span>Tłuszcze</span></div>
+                                <div class="carbs" style="--macro-progress: @MacroProgress(product.CarbohydratesPer100, _detailAmount)%"><i><strong>@MacroAmount(product.CarbohydratesPer100, _detailAmount).ToString("0.#")</strong><small>g</small></i><span>Węglowodany</span></div>
+                            </div>
+                        </section>
+                    </div>
+                }
             }
             else
             {
@@ -209,6 +243,8 @@
     private readonly MealForm _meal = new();
     private readonly ProductForm _product = new();
     private string _productSearch = string.Empty;
+    private ProductResponse? _productDetails;
+    private decimal _detailAmount = 100;
     private MealEntryMode _entryMode;
     private CatalogScope _catalogScope;
     private string _mealDescription = string.Empty;
@@ -277,6 +313,34 @@
         var selected = _meal.Items.FirstOrDefault(x => x.ProductId == product.Id);
         if (selected is not null) _meal.Items.Remove(selected);
         else _meal.Items.Add(new MealDraftItem(product.Id, product.Name, DefaultPortion(product)));
+    }
+
+    private void OpenProduct(ProductResponse product)
+    {
+        _productDetails = product;
+        _detailAmount = _meal.Items.FirstOrDefault(x => x.ProductId == product.Id)?.AmountGrams ?? DefaultPortion(product);
+    }
+
+    private void CloseProduct() => _productDetails = null;
+
+    private void SelectPortion(ProductResponse product, decimal amount)
+    {
+        _detailAmount = amount;
+        var selected = _meal.Items.FirstOrDefault(x => x.ProductId == product.Id);
+        if (selected is null) _meal.Items.Add(new MealDraftItem(product.Id, product.Name, amount));
+        else selected.AmountGrams = amount;
+    }
+
+    private bool IsPortionSelected(Guid id, decimal amount) => _meal.Items.Any(x => x.ProductId == id && x.AmountGrams == amount);
+    private static decimal MacroAmount(decimal per100, decimal amount) => per100 * amount / 100m;
+    private static decimal MacroProgress(decimal per100, decimal amount) => Math.Min(100, MacroAmount(per100, amount) * 2);
+
+    private static IReadOnlyList<ProductPortion> ProductPortions(ProductResponse product)
+    {
+        var portions = new List<ProductPortion> { new(DefaultPortion(product), product.DefaultServingUnit == ServingUnit.Piece ? "1 sztuka" : "Domyślna porcja") };
+        foreach (var amount in new[] { 50m, 100m, 200m })
+            if (portions.All(x => x.AmountGrams != amount)) portions.Add(new ProductPortion(amount, $"{amount:0} g"));
+        return portions;
     }
 
     private bool IsSelected(Guid id) => _meal.Items.Any(x => x.ProductId == id);
@@ -404,6 +468,7 @@
         public string Name { get; } = name;
         public decimal AmountGrams { get; set; } = amountGrams;
     }
+    private sealed record ProductPortion(decimal AmountGrams, string Name);
     private enum MealEntryMode { Manual, Photo, Text }
     private enum CatalogScope { Search, Own, Favorites, Pantry }
     private sealed class AiMealForm(string name, string? note, List<AiFoodForm> items) { public string Name { get; set; } = name; public string? Note { get; } = note; public List<AiFoodForm> Items { get; } = items; }
