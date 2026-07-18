@@ -568,6 +568,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .product-macro-rings i small { color: var(--muted); font-size: .62rem; margin-left: 2px; }
 .product-macro-rings .fat i { background: conic-gradient(#d5b748 var(--macro-progress), #e7ece9 0); }
 .product-macro-rings .carbs i { background: conic-gradient(#8c62d8 var(--macro-progress), #e7ece9 0); }
+.product-detail-done { margin-top: 22px; }
 .product-macro-rings > div > span { color: var(--muted); font-size: .72rem; }
 .portion-shortcuts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .workout-finish-summary, .workout-session-tools { background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; margin: 16px 0; padding: 20px; }
