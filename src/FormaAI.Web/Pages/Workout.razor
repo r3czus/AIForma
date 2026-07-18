@@ -25,117 +25,152 @@
 
         @if (_completed)
         {
-            <MudPaper Class="workout-finish-summary" Elevation="0">
-                <span class="page-kicker">Trening zakończony</span>
-                <MudText Typo="Typo.h4">Dobra robota</MudText>
-                <div class="metric-row">
-                    <div><span>Czas</span><strong>@FormatElapsed(_elapsed)</strong></div>
-                    <div><span>Serie</span><strong>@CompletedSets</strong></div>
-                    <div><span>Objętość</span><strong>@SessionVolume.ToString("0") kg</strong></div>
-                    <div><span>Ćwiczenia</span><strong>@_session.Exercises.Count</strong></div>
+            <section class="workout-finish-summary">
+                <div class="finish-title">
+                    <div><span class="page-kicker">Trening zakończony</span><MudText Typo="Typo.h3">Sesja zapisana</MudText><p>@CompletionCopy</p></div>
+                    <span class="finish-score">@SessionPercent%</span>
                 </div>
-                @if (_newRecords.Count > 0) { <MudAlert Severity="Severity.Success" Class="mt-3">Nowy najlepszy wynik: @string.Join(", ", _newRecords)</MudAlert> }
-                <MudButton Href="/progress" Variant="Variant.Outlined" FullWidth="true" Class="mt-3">Zobacz progres</MudButton>
-                <MudButton Href="/training" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-2">Wróć do treningów</MudButton>
-            </MudPaper>
-        }
-        else
-        {
 
-        <section class="workout-console" aria-label="Czas i postęp treningu">
-            <div class="session-clock">
-                <span>Czas treningu</span>
-                <strong>@FormatElapsed(_elapsed)</strong>
-                <small>start @_session.StartedAtUtc.ToLocalTime().ToString("HH:mm")</small>
-            </div>
-            <div class="session-progress">
-                <span>Postęp sesji</span>
-                <strong>@SessionPercent%</strong>
-                <i style="@($"--progress: {SessionPercent}%")"><b></b></i>
-            </div>
-        </section>
+                <div class="metric-row workout-summary-metrics">
+                    <div><span>Czas</span><strong>@FormatElapsed(_elapsed)</strong></div>
+                    <div><span>Serie robocze</span><strong>@WorkingSets</strong></div>
+                    <div><span>Objętość</span><strong>@SessionVolume.ToString("0") kg</strong></div>
+                    <div><span>Powtórzenia</span><strong>@TotalRepetitions</strong></div>
+                </div>
 
-        @if (_restSeconds > 0)
-        {
-            <section class="rest-clock" aria-live="polite">
-                <MudIcon Icon="@Icons.Material.Outlined.Timer" />
-                <div><span>Przerwa</span><strong>@FormatTime(_restSeconds)</strong></div>
-                <MudButton Variant="Variant.Text" OnClick="SkipRest">Pomiń</MudButton>
+                @if (_newRecords.Count > 0)
+                {
+                    <MudAlert Severity="Severity.Success" Class="mt-3">Nowy najlepszy wynik: @string.Join(", ", _newRecords)</MudAlert>
+                }
+
+                <div class="workout-result-list">
+                    @foreach (var exercise in OrderedExercises)
+                    {
+                        <article>
+                            <div><strong>@exercise.ExerciseName</strong><span>@exercise.Sets.Count z @exercise.PlannedSets serii · @ExerciseVolume(exercise).ToString("0") kg objętości</span></div>
+                            <span>e1RM <strong>@BestEstimatedOneRepMax(exercise).ToString("0.#") kg</strong></span>
+                        </article>
+                    }
+                </div>
+
+                <div class="finish-actions">
+                    <MudButton Href="/progress" Variant="Variant.Outlined" FullWidth="true">Zobacz progres</MudButton>
+                    <MudButton Href="/training" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Wróć do treningów</MudButton>
+                </div>
             </section>
         }
-
-        @foreach (var exercise in _session.Exercises.OrderBy(x => x.Order))
+        else if (ActiveExercise is { } exercise)
         {
             var form = _forms[exercise.Id];
-            <MudPaper Class="workout-exercise" Elevation="0">
+
+            <section class="workout-console" aria-label="Czas i postęp treningu">
+                <div class="session-clock"><span>Czas treningu</span><strong>@FormatElapsed(_elapsed)</strong><small>start @_session.StartedAtUtc.ToLocalTime().ToString("HH:mm")</small></div>
+                <div class="session-progress"><span>Postęp sesji</span><strong>@SessionPercent%</strong><i style="@($"--progress: {SessionPercent}%")"><b></b></i></div>
+            </section>
+
+            <nav class="exercise-switcher" aria-label="Ćwiczenia w sesji">
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Disabled="@(_activeExerciseIndex == 0)" OnClick="PreviousExercise" aria-label="Poprzednie ćwiczenie" />
+                <div>
+                    @for (var index = 0; index < OrderedExercises.Count; index++)
+                    {
+                        var navIndex = index;
+                        var item = OrderedExercises[index];
+                        <button type="button" class="@(index == _activeExerciseIndex ? "active" : null) @(item.Sets.Count >= item.PlannedSets ? "done" : null)" @onclick="() => SelectExercise(navIndex)" aria-label="@item.ExerciseName">
+                            <span>@(index + 1)</span><small>@item.ExerciseName</small>
+                        </button>
+                    }
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_activeExerciseIndex >= OrderedExercises.Count - 1)" OnClick="NextExercise" aria-label="Następne ćwiczenie" />
+            </nav>
+
+            @if (_timerMode != TimerMode.None)
+            {
+                <section class="workout-timer @(_timerMode == TimerMode.Interval ? "interval" : null)" aria-live="polite">
+                    <div><span>@TimerLabel</span><strong>@FormatTime(_timerSeconds)</strong></div>
+                    <MudIconButton Icon="@(_timerRunning ? Icons.Material.Outlined.Pause : Icons.Material.Outlined.PlayArrow)" OnClick="ToggleTimer" aria-label="@(_timerRunning ? "Wstrzymaj timer" : "Wznów timer")" />
+                    <MudIconButton Icon="@Icons.Material.Outlined.RestartAlt" OnClick="ResetTimer" aria-label="Resetuj timer" />
+                    <MudButton Variant="Variant.Text" OnClick="CloseTimer">Zamknij</MudButton>
+                </section>
+            }
+
+            <article class="workout-exercise workout-exercise-focus">
                 <div class="exercise-live-heading">
-                    <span class="exercise-order">@exercise.Order.ToString("00")</span>
-                    <div>
-                        <span class="card-kicker">Plan serii</span>
-                        <MudText Typo="Typo.h6">@exercise.ExerciseName</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            @exercise.PlannedSets × @exercise.MinReps–@exercise.MaxReps
-                            @if (exercise.TargetRir is not null) { <span> · RIR @exercise.TargetRir</span> }
-                        </MudText>
-                    </div>
+                    <span class="exercise-order">@(_activeExerciseIndex + 1)</span>
+                    <div><span class="card-kicker">Ćwiczenie @(_activeExerciseIndex + 1) z @OrderedExercises.Count</span><MudText Typo="Typo.h4">@exercise.ExerciseName</MudText><MudText Typo="Typo.caption">@exercise.PlannedSets × @exercise.MinReps–@exercise.MaxReps @if (exercise.TargetRir is not null) { <span>· RIR @exercise.TargetRir</span> }</MudText></div>
                     <strong class="exercise-set-count">@exercise.Sets.Count/@exercise.PlannedSets</strong>
+                </div>
+
+                <div class="exercise-timer-actions">
+                    <button type="button" @onclick="() => StartRestTimer(exercise.RestSeconds ?? 90)"><MudIcon Icon="@Icons.Material.Outlined.Timer" /><span>Przerwa</span><strong>@FormatTime(exercise.RestSeconds ?? 90)</strong></button>
+                    <button type="button" @onclick="StartInterval"><MudIcon Icon="@Icons.Material.Outlined.Timelapse" /><span>Interwał</span><strong>stoper</strong></button>
                 </div>
 
                 @if (exercise.ExerciseId is Guid exerciseId && _history.TryGetValue(exerciseId, out var last) && last is not null)
                 {
-                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">Ostatnio: @last.WeightKg kg × @last.Repetitions, RIR @(last.Rir?.ToString("0.#") ?? "—")</MudAlert>
+                    <div class="last-performance"><span>Ostatnio</span><strong>@last.WeightKg kg × @last.Repetitions</strong><small>RIR @(last.Rir?.ToString("0.#") ?? "—")</small></div>
                     @if (last.Repetitions >= exercise.MaxReps)
                     {
-                        <div class="progression-tip"><MudIcon Icon="@Icons.Material.Outlined.TrendingUp" /><span>Osiągnąłeś górę zakresu. Spróbuj dziś <strong>@SuggestedWeight(last.WeightKg) kg</strong>, jeśli technika była pewna.</span></div>
+                        <div class="progression-tip"><MudIcon Icon="@Icons.Material.Outlined.TrendingUp" /><span>Górny zakres osiągnięty. Jeśli technika była pewna, spróbuj <strong>@SuggestedWeight(last.WeightKg) kg</strong>.</span></div>
                     }
                 }
 
-                @foreach (var set in exercise.Sets.OrderBy(x => x.SetNumber))
-                {
-                    <div class="saved-set">
-                        <span>@set.SetNumber. @(set.SetType == SetType.Warmup ? "Rozgrzewka" : "Seria robocza")</span>
-                        <strong>@set.WeightKg kg × @set.Repetitions</strong>
-                        <span>RIR @(set.Rir?.ToString("0.#") ?? "—")</span>
-                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditSet(exercise, set)" aria-label="Edytuj serię" />
+                <div class="set-log" role="table" aria-label="Zalogowane serie">
+                    <div class="set-log-header" role="row"><span>Seria</span><span>kg</span><span>Powt.</span><span>RIR</span><span></span></div>
+                    @foreach (var set in exercise.Sets.OrderBy(x => x.SetNumber))
+                    {
+                        <button type="button" class="saved-set" @onclick="() => EditSet(exercise, set)" role="row">
+                            <span>@set.SetNumber@(set.SetType == SetType.Warmup ? "R" : null)</span><strong>@set.WeightKg</strong><strong>@set.Repetitions</strong><span>@(set.Rir?.ToString("0.#") ?? "—")</span><MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                        </button>
+                    }
+                    <div class="set-entry-row" role="row">
+                        <span>@(form.SetNumber ?? exercise.Sets.Count + 1)</span>
+                        <MudNumericField @bind-Value="form.WeightKg" aria-label="Ciężar w kilogramach" Min="0m" HideSpinButtons="true" />
+                        <MudNumericField @bind-Value="form.Repetitions" aria-label="Liczba powtórzeń" Min="1" HideSpinButtons="true" />
+                        <MudNumericField @bind-Value="form.Rir" aria-label="Powtórzenia w zapasie" Min="0m" Max="10m" HideSpinButtons="true" />
+                        <MudIcon Icon="@Icons.Material.Outlined.RadioButtonUnchecked" />
                     </div>
-                }
-
-                <div class="set-entry">
-                    <MudNumericField @bind-Value="form.WeightKg" Label="Ciężar (kg)" Min="0m" />
-                    <MudNumericField @bind-Value="form.Repetitions" Label="Powtórzenia" Min="1" />
-                    <MudNumericField @bind-Value="form.Rir" Label="RIR" Min="0m" Max="10m" />
                 </div>
-                <MudTextField @bind-Value="form.Notes" Label="Notatka do serii (opcjonalnie)" MaxLength="300" />
-                <MudCheckBox @bind-Value="form.IsWarmup" Label="Seria rozgrzewkowa" />
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="() => SaveSet(exercise, form)">@(form.SetId is null ? "Zapisz serię" : "Zapisz poprawioną serię")</MudButton>
 
-                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => BeginSwap(exercise)" Disabled="@(exercise.Sets.Count > 0)">Zamień ćwiczenie</MudButton>
-                @if (_swapTargetId == exercise.Id)
-                {
-                    <div class="workout-inline-editor">
-                        <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Nowe ćwiczenie">
-                            @foreach (var option in _catalog.Where(x => x.Id != exercise.ExerciseId)) { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem> }
-                        </MudSelect>
-                        <MudButton Variant="Variant.Filled" Disabled="@(_selectedExerciseId is null)" OnClick="() => ReplaceExercise(exercise)">Zapisz zamianę</MudButton>
-                    </div>
-                }
-            </MudPaper>
-        }
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" OnClick="() => SaveSet(exercise, form)" Class="log-set-button">
+                    @(form.SetId is null ? "Zaloguj serię" : "Zapisz poprawioną serię")
+                </MudButton>
 
-        <MudPaper Class="workout-session-tools" Elevation="0">
-            <MudText Typo="Typo.h6">Dodaj ćwiczenie do tej sesji</MudText>
-            <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Ćwiczenie">
-                @foreach (var option in _catalog) { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem> }
-            </MudSelect>
-            <MudButton Variant="Variant.Outlined" FullWidth="true" Disabled="@(_selectedExerciseId is null)" OnClick="AddExercise">Dodaj ćwiczenie</MudButton>
-            <MudTextField @bind-Value="_sessionNotes" Label="Notatka do treningu" Lines="3" MaxLength="1000" Class="mt-4" />
-            <MudButton Variant="Variant.Text" FullWidth="true" OnClick="SaveNotes">Zapisz notatkę</MudButton>
-        </MudPaper>
+                <details class="set-details">
+                    <summary>Notatka i typ serii</summary>
+                    <MudTextField @bind-Value="form.Notes" Label="Notatka do serii" MaxLength="300" />
+                    <MudCheckBox @bind-Value="form.IsWarmup" Label="Seria rozgrzewkowa" />
+                </details>
 
-        <div class="session-actions">
-            <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ trening</MudButton>
-            <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
-        </div>
+                <div class="exercise-page-actions">
+                    <MudButton Variant="Variant.Outlined" Disabled="@(_activeExerciseIndex == 0)" OnClick="PreviousExercise">Poprzednie</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_activeExerciseIndex >= OrderedExercises.Count - 1)" OnClick="NextExercise">Następne ćwiczenie</MudButton>
+                </div>
+
+                <details class="workout-options">
+                    <summary>Opcje ćwiczenia i sesji</summary>
+                    <MudButton Variant="Variant.Text" OnClick="() => BeginSwap(exercise)" Disabled="@(exercise.Sets.Count > 0)">Zamień ćwiczenie</MudButton>
+                    @if (_swapTargetId == exercise.Id)
+                    {
+                        <div class="workout-inline-editor">
+                            <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Nowe ćwiczenie">
+                                @foreach (var option in _catalog.Where(x => x.Id != exercise.ExerciseId)) { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem> }
+                            </MudSelect>
+                            <MudButton Variant="Variant.Filled" Disabled="@(_selectedExerciseId is null)" OnClick="() => ReplaceExercise(exercise)">Zapisz zamianę</MudButton>
+                        </div>
+                    }
+                    <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Dodaj inne ćwiczenie">
+                        @foreach (var option in _catalog) { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem> }
+                    </MudSelect>
+                    <MudButton Variant="Variant.Outlined" FullWidth="true" Disabled="@(_selectedExerciseId is null)" OnClick="AddExercise">Dodaj do sesji</MudButton>
+                    <MudTextField @bind-Value="_sessionNotes" Label="Notatka do treningu" Lines="3" MaxLength="1000" />
+                    <MudButton Variant="Variant.Text" FullWidth="true" OnClick="SaveNotes">Zapisz notatkę</MudButton>
+                </details>
+            </article>
+
+            <div class="session-actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ i zobacz podsumowanie</MudButton>
+                <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
+            </div>
         }
     }
 </MudContainer>
@@ -152,25 +187,39 @@
     private Guid? _selectedExerciseId;
     private string? _sessionNotes;
     private bool _completed;
+    private int _activeExerciseIndex;
     private CancellationTokenSource? _clockCancellation;
-    private int _restSeconds;
+    private TimerMode _timerMode;
+    private int _timerSeconds;
+    private int _timerStartSeconds;
+    private bool _timerRunning;
     private TimeSpan _elapsed;
+
+    private IReadOnlyList<WorkoutExerciseResponse> OrderedExercises => _session?.Exercises.OrderBy(x => x.Order).ToList() ?? [];
+    private WorkoutExerciseResponse? ActiveExercise => OrderedExercises.ElementAtOrDefault(_activeExerciseIndex);
     private int CompletedSets => _session?.Exercises.Sum(x => x.Sets.Count) ?? 0;
     private int PlannedSets => _session?.Exercises.Sum(x => x.PlannedSets) ?? 0;
+    private int WorkingSets => _session?.Exercises.SelectMany(x => x.Sets).Count(x => x.SetType == SetType.Working) ?? 0;
+    private int TotalRepetitions => _session?.Exercises.SelectMany(x => x.Sets).Sum(x => x.Repetitions) ?? 0;
     private int SessionPercent => PlannedSets == 0 ? 0 : Math.Min(100, (int)Math.Round(CompletedSets * 100d / PlannedSets));
     private decimal SessionVolume => _session?.Exercises.SelectMany(x => x.Sets).Where(x => x.SetType == SetType.Working).Sum(x => x.WeightKg * x.Repetitions) ?? 0;
+    private string TimerLabel => _timerMode == TimerMode.Rest ? "Przerwa między seriami" : "Interwał";
+    private string CompletionCopy => SessionPercent >= 100 ? "Wykonałeś cały plan sesji." : $"Wykonałeś {CompletedSets} z {PlannedSets} zaplanowanych serii.";
 
     protected override async Task OnParametersSetAsync()
     {
         await Reload();
+        _completed = _session!.Status == SessionStatus.Completed;
+        _elapsed = (_session.FinishedAtUtc ?? DateTime.UtcNow) - _session.StartedAtUtc;
         _catalog = await TrainingApi.GetExercises();
-        foreach (var exercise in _session!.Exercises)
+
+        foreach (var exercise in _session.Exercises)
         {
             _forms.TryAdd(exercise.Id, new SetForm());
             if (exercise.ExerciseId is Guid exerciseId && !_history.ContainsKey(exerciseId))
             {
                 _history[exerciseId] = (await TrainingApi.GetHistory(exerciseId)).FirstOrDefault();
-                if (_history[exerciseId] is { } last)
+                if (_history[exerciseId] is { } last && exercise.Sets.Count == 0)
                 {
                     _forms[exercise.Id].WeightKg = last.WeightKg;
                     _forms[exercise.Id].Repetitions = last.Repetitions;
@@ -178,10 +227,11 @@
                 }
             }
         }
-        if (_clockCancellation is null)
+
+        _activeExerciseIndex = Math.Clamp(_activeExerciseIndex, 0, Math.Max(0, OrderedExercises.Count - 1));
+        if (!_completed && _clockCancellation is null)
         {
             _clockCancellation = new CancellationTokenSource();
-            _elapsed = DateTime.UtcNow - _session.StartedAtUtc;
             _ = RunClock(_clockCancellation.Token);
         }
     }
@@ -193,13 +243,17 @@
             await JS.InvokeVoidAsync("formaTimer.ready");
             var setNumber = form.SetNumber ?? (exercise.Sets.Count == 0 ? 1 : exercise.Sets.Max(x => x.SetNumber) + 1);
             var request = new SaveSetRequest(exercise.Id, setNumber, form.WeightKg, form.Repetitions, form.Rir, form.IsWarmup ? SetType.Warmup : SetType.Working, form.Notes);
-            if (form.SetId is Guid setId) await TrainingApi.UpdateSet(Id, setId, request);
-            else await TrainingApi.SaveSet(Id, request);
+            if (form.SetId is Guid setId) await TrainingApi.UpdateSet(Id, setId, request); else await TrainingApi.SaveSet(Id, request);
+
             if (!form.IsWarmup && exercise.ExerciseId is Guid exerciseId && (!_history.TryGetValue(exerciseId, out var last) || last is null || form.WeightKg > last.WeightKg))
                 if (!_newRecords.Contains(exercise.ExerciseName)) _newRecords.Add(exercise.ExerciseName);
+
             await Reload();
-            form.SetId = null; form.SetNumber = null; form.Notes = null; form.IsWarmup = false;
-            StartRestTimer(exercise.RestSeconds ?? 0);
+            form.SetId = null;
+            form.SetNumber = null;
+            form.Notes = null;
+            form.IsWarmup = false;
+            StartRestTimer(exercise.RestSeconds ?? 90);
         }
         catch (HttpRequestException)
         {
@@ -210,17 +264,26 @@
     private void EditSet(WorkoutExerciseResponse exercise, CompletedSetResponse set)
     {
         var form = _forms[exercise.Id];
-        form.SetId = set.Id; form.SetNumber = set.SetNumber; form.WeightKg = set.WeightKg; form.Repetitions = set.Repetitions;
-        form.Rir = set.Rir; form.IsWarmup = set.SetType == SetType.Warmup; form.Notes = set.Notes;
+        form.SetId = set.Id;
+        form.SetNumber = set.SetNumber;
+        form.WeightKg = set.WeightKg;
+        form.Repetitions = set.Repetitions;
+        form.Rir = set.Rir;
+        form.IsWarmup = set.SetType == SetType.Warmup;
+        form.Notes = set.Notes;
     }
 
+    private void SelectExercise(int index) => _activeExerciseIndex = Math.Clamp(index, 0, Math.Max(0, OrderedExercises.Count - 1));
+    private void PreviousExercise() => SelectExercise(_activeExerciseIndex - 1);
+    private void NextExercise() => SelectExercise(_activeExerciseIndex + 1);
     private void BeginSwap(WorkoutExerciseResponse exercise) { _swapTargetId = exercise.Id; _selectedExerciseId = null; }
 
     private async Task ReplaceExercise(WorkoutExerciseResponse exercise)
     {
         if (_selectedExerciseId is null) return;
         await TrainingApi.ReplaceExercise(Id, exercise.Id, _selectedExerciseId.Value);
-        _swapTargetId = null; _selectedExerciseId = null;
+        _swapTargetId = null;
+        _selectedExerciseId = null;
         await Reload();
     }
 
@@ -230,7 +293,8 @@
         await TrainingApi.AddExercise(Id, new AddWorkoutExerciseRequest(_selectedExerciseId.Value));
         _selectedExerciseId = null;
         await Reload();
-        foreach (var exercise in _session!.Exercises) _forms.TryAdd(exercise.Id, new SetForm());
+        foreach (var item in _session!.Exercises) _forms.TryAdd(item.Id, new SetForm());
+        _activeExerciseIndex = OrderedExercises.Count - 1;
     }
 
     private async Task SaveNotes()
@@ -243,8 +307,23 @@
 
     private void StartRestTimer(int seconds)
     {
-        _restSeconds = seconds;
+        _timerMode = TimerMode.Rest;
+        _timerStartSeconds = Math.Max(1, seconds);
+        _timerSeconds = _timerStartSeconds;
+        _timerRunning = true;
     }
+
+    private void StartInterval()
+    {
+        _timerMode = TimerMode.Interval;
+        _timerStartSeconds = 0;
+        _timerSeconds = 0;
+        _timerRunning = true;
+    }
+
+    private void ToggleTimer() => _timerRunning = !_timerRunning;
+    private void ResetTimer() { _timerSeconds = _timerMode == TimerMode.Rest ? _timerStartSeconds : 0; _timerRunning = true; }
+    private void CloseTimer() { _timerMode = TimerMode.None; _timerRunning = false; _timerSeconds = 0; }
 
     private async Task RunClock(CancellationToken cancellationToken)
     {
@@ -254,21 +333,30 @@
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
                 _elapsed = DateTime.UtcNow - _session!.StartedAtUtc;
-                if (_restSeconds > 0 && --_restSeconds == 0)
-                    await JS.InvokeVoidAsync("formaTimer.done");
+                if (_timerRunning && _timerMode == TimerMode.Rest && _timerSeconds > 0)
+                {
+                    if (--_timerSeconds == 0)
+                    {
+                        _timerRunning = false;
+                        await JS.InvokeVoidAsync("formaTimer.done");
+                    }
+                }
+                else if (_timerRunning && _timerMode == TimerMode.Interval)
+                {
+                    _timerSeconds++;
+                }
                 await InvokeAsync(StateHasChanged);
             }
         }
         catch (OperationCanceledException) { }
     }
 
-    private void SkipRest() => _restSeconds = 0;
-
     private async Task Complete()
     {
         await TrainingApi.Complete(Id);
         _clockCancellation?.Cancel();
         _completed = true;
+        _timerRunning = false;
     }
 
     private async Task Abandon()
@@ -277,6 +365,8 @@
         Navigation.NavigateTo("/training");
     }
 
+    private static decimal ExerciseVolume(WorkoutExerciseResponse exercise) => exercise.Sets.Where(x => x.SetType == SetType.Working).Sum(x => x.WeightKg * x.Repetitions);
+    private static decimal BestEstimatedOneRepMax(WorkoutExerciseResponse exercise) => exercise.Sets.Where(x => x.SetType == SetType.Working).Select(x => x.WeightKg * (1 + x.Repetitions / 30m)).DefaultIfEmpty().Max();
     private static string FormatTime(int seconds) => $"{seconds / 60:00}:{seconds % 60:00}";
     private static string FormatElapsed(TimeSpan elapsed) => $"{(int)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
     private static decimal SuggestedWeight(decimal weight) => Math.Ceiling((weight + (weight < 30 ? 1.25m : 2.5m)) * 4m) / 4m;
@@ -287,6 +377,8 @@
         _clockCancellation?.Dispose();
         return ValueTask.CompletedTask;
     }
+
+    private enum TimerMode { None, Rest, Interval }
 
     private sealed class SetForm
     {
