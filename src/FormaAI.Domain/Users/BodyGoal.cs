@@ -6,3 +6,17 @@ public enum BodyGoal
     Maintenance,
     MuscleGain
 }
+
+public enum BiologicalSex
+{
+    Female,
+    Male
+}
+
+public enum ActivityLevel
+{
+    Low,
+    Light,
+    Moderate,
+    High
+}

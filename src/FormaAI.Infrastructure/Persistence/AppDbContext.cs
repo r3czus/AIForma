@@ -49,6 +49,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             profile.Property(x => x.TimeZoneId).HasMaxLength(100).IsRequired();
             profile.Property(x => x.HeightCm).HasPrecision(5, 1);
             profile.Property(x => x.StartingWeightKg).HasPrecision(6, 2);
+            profile.Property(x => x.TargetWeightKg).HasPrecision(6, 2);
             profile.HasIndex(x => x.UserId).IsUnique();
         });
 
@@ -180,6 +181,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             measurement.Property(x => x.UserId).HasMaxLength(450).IsRequired();
             measurement.Property(x => x.WeightKg).HasPrecision(6, 2);
             measurement.Property(x => x.WaistCm).HasPrecision(6, 2);
+            measurement.Property(x => x.ChestCm).HasPrecision(6, 2);
+            measurement.Property(x => x.HipsCm).HasPrecision(6, 2);
+            measurement.Property(x => x.ArmCm).HasPrecision(6, 2);
+            measurement.Property(x => x.ThighCm).HasPrecision(6, 2);
             measurement.Property(x => x.Notes).HasMaxLength(500);
             measurement.HasIndex(x => new { x.UserId, x.LocalDate });
         });

@@ -4,7 +4,8 @@ public sealed class BodyMeasurement
 {
     private BodyMeasurement() { }
 
-    public BodyMeasurement(string userId, DateOnly localDate, decimal weightKg, decimal? waistCm, string? notes)
+    public BodyMeasurement(string userId, DateOnly localDate, decimal weightKg, decimal? waistCm, string? notes,
+        decimal? chestCm = null, decimal? hipsCm = null, decimal? armCm = null, decimal? thighCm = null)
     {
         Id = Guid.NewGuid();
         UserId = userId;
@@ -12,6 +13,10 @@ public sealed class BodyMeasurement
         LocalDate = localDate;
         WeightKg = weightKg;
         WaistCm = waistCm;
+        ChestCm = chestCm;
+        HipsCm = hipsCm;
+        ArmCm = armCm;
+        ThighCm = thighCm;
         Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
     }
 
@@ -21,5 +26,9 @@ public sealed class BodyMeasurement
     public DateOnly LocalDate { get; private set; }
     public decimal WeightKg { get; private set; }
     public decimal? WaistCm { get; private set; }
+    public decimal? ChestCm { get; private set; }
+    public decimal? HipsCm { get; private set; }
+    public decimal? ArmCm { get; private set; }
+    public decimal? ThighCm { get; private set; }
     public string? Notes { get; private set; }
 }

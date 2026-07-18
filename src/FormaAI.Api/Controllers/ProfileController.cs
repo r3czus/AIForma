@@ -30,7 +30,12 @@ public sealed class ProfileController(
             profile.HeightCm,
             profile.StartingWeightKg,
             profile.Goal,
-            profile.PlannedTrainingsPerWeek);
+            profile.PlannedTrainingsPerWeek,
+            profile.BirthDate,
+            profile.Sex,
+            profile.ActivityLevel,
+            profile.TargetWeightKg,
+            profile.CalorieToleranceKcal);
     }
 
     [HttpPut]
@@ -50,7 +55,12 @@ public sealed class ProfileController(
             request.HeightCm,
             request.StartingWeightKg,
             request.Goal,
-            request.PlannedTrainingsPerWeek);
+            request.PlannedTrainingsPerWeek,
+            request.BirthDate,
+            request.Sex,
+            request.ActivityLevel,
+            request.TargetWeightKg,
+            request.CalorieToleranceKcal);
         await db.SaveChangesAsync();
 
         var email = (await users.FindByIdAsync(userId))!.Email!;
@@ -61,7 +71,12 @@ public sealed class ProfileController(
             profile.HeightCm,
             profile.StartingWeightKg,
             profile.Goal,
-            profile.PlannedTrainingsPerWeek);
+            profile.PlannedTrainingsPerWeek,
+            profile.BirthDate,
+            profile.Sex,
+            profile.ActivityLevel,
+            profile.TargetWeightKg,
+            profile.CalorieToleranceKcal);
     }
 
     private static bool IsKnownTimeZone(string id)

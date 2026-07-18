@@ -19,7 +19,8 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
     [ValidateAntiForgeryToken]
     public async Task<ActionResult<BodyMeasurementResponse>> AddMeasurement(SaveBodyMeasurementRequest request)
     {
-        var measurement = new BodyMeasurement(UserId(), request.LocalDate, request.WeightKg, request.WaistCm, request.Notes);
+        var measurement = new BodyMeasurement(UserId(), request.LocalDate, request.WeightKg, request.WaistCm, request.Notes,
+            request.ChestCm, request.HipsCm, request.ArmCm, request.ThighCm);
         db.BodyMeasurements.Add(measurement);
         await db.SaveChangesAsync();
         return Created($"api/v1/body-measurements/{measurement.Id}", MeasurementResponse(measurement));
@@ -87,6 +88,37 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         return new ConsistencyResponse(dates.Count, planned, percent, weeks);
     }
 
+    [HttpGet("progress/nutrition-adherence")]
+    public async Task<ActionResult<NutritionAdherenceResponse>> NutritionAdherence([FromQuery] DateOnly? month)
+    {
+        var selected = month ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var start = new DateOnly(selected.Year, selected.Month, 1);
+        var end = start.AddMonths(1).AddDays(-1);
+        var userId = UserId();
+        var meals = await db.Meals.Include(x => x.Items)
+            .Where(x => x.UserId == userId && x.LocalDate >= start && x.LocalDate <= end)
+            .ToListAsync();
+        var targets = await db.NutritionTargets
+            .Where(x => x.UserId == userId && x.EffectiveFrom <= end)
+            .OrderBy(x => x.EffectiveFrom)
+            .ToListAsync();
+        var tolerance = await db.UserProfiles.Where(x => x.UserId == userId)
+            .Select(x => x.CalorieToleranceKcal).SingleAsync();
+
+        var days = Enumerable.Range(0, end.Day)
+            .Select(offset => start.AddDays(offset))
+            .Select(date =>
+            {
+                var target = targets.LastOrDefault(x => x.EffectiveFrom <= date);
+                var logged = meals.Where(x => x.LocalDate == date).ToList();
+                var consumed = logged.SelectMany(x => x.Items).Sum(x => x.CaloriesKcal);
+                var within = logged.Count > 0 && target is not null && Math.Abs(consumed - target.CaloriesKcal) <= tolerance;
+                return new NutritionAdherencePoint(date, target?.CaloriesKcal, consumed, logged.Count > 0, within);
+            }).ToList();
+
+        return new NutritionAdherenceResponse(start, tolerance, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);
+    }
+
     private static (DateOnly From, DateOnly To)? DateRange(DateOnly? from, DateOnly? to)
     {
         var end = to ?? DateOnly.FromDateTime(DateTime.UtcNow);
@@ -101,5 +133,6 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
     }
 
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-    private static BodyMeasurementResponse MeasurementResponse(BodyMeasurement x) => new(x.Id, x.LocalDate, x.WeightKg, x.WaistCm, x.Notes);
+    private static BodyMeasurementResponse MeasurementResponse(BodyMeasurement x) => new(x.Id, x.LocalDate, x.WeightKg, x.WaistCm, x.Notes,
+        x.ChestCm, x.HipsCm, x.ArmCm, x.ThighCm);
 }
