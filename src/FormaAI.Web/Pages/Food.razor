@@ -129,7 +129,7 @@
                         }
                         else
                         {
-                            <MudTextField @bind-Value="_mealDescription" Label="Co zjadłeś?" Lines="4" MaxLength="1000" Placeholder="Np. dwa jajka sadzone, dwie kromki chleba z masłem i pomidor" />
+                            <MudTextField @bind-Value="_mealDescription" Immediate="true" Label="Co zjadłeś?" Lines="4" MaxLength="1000" Placeholder="Np. dwa jajka sadzone, dwie kromki chleba z masłem i pomidor" />
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(_aiBusy || string.IsNullOrWhiteSpace(_mealDescription))" OnClick="AnalyzeText" StartIcon="@Icons.Material.Outlined.AutoAwesome">
                                 @(_aiBusy ? "AI analizuje opis…" : "Policz z opisu")
                             </MudButton>
