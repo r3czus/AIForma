@@ -29,6 +29,15 @@
             <div><span>Cel</span><strong>@(_day?.Target is null ? "Do ustawienia" : $"{_day.Target.CaloriesKcal:0} kcal")</strong></div>
         </section>
 
+        <section class="journal-day-switch" aria-label="Wybór dnia dziennika">
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="() => ChangeDay(-1)" aria-label="Poprzedni dzień" />
+            <button type="button" @onclick="GoToday">
+                <span>@DayCaption</span>
+                <strong>@_date.ToString("dddd, d MMMM", PolishCulture)</strong>
+            </button>
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_date >= Today)" OnClick="() => ChangeDay(1)" aria-label="Następny dzień" />
+        </section>
+
         <MudTabs Rounded="true" Class="module-tabs" PanelClass="food-panel" @bind-ActivePanelIndex="_activePanel">
             <MudTabPanel Text="Dziennik">
                 @if (_day is not null)
@@ -38,9 +47,12 @@
                     {
                         var meals = MealsFor(slot);
                         var calories = meals.Sum(x => x.Macro.CaloriesKcal);
+                        var protein = meals.Sum(x => x.Macro.ProteinG);
+                        var carbs = meals.Sum(x => x.Macro.CarbohydratesG);
+                        var fat = meals.Sum(x => x.Macro.FatG);
                         <section class="meal-slot">
                             <header class="meal-slot-heading">
-                                <div><strong>@slot</strong><span>@meals.Count pozycji · @calories.ToString("0") kcal</span></div>
+                                <div><strong>@slot</strong><span>@meals.Count pozycji · @calories.ToString("0") kcal</span><span class="meal-slot-macros">B @protein.ToString("0.#") g · W @carbs.ToString("0.#") g · T @fat.ToString("0.#") g</span></div>
                                 <MudIconButton Icon="@Icons.Material.Outlined.Add" Color="Color.Primary" OnClick="() => StartMeal(slot)" aria-label="@($"Dodaj do sekcji {slot}")" />
                             </header>
                             @if (meals.Count == 0)
@@ -56,21 +68,15 @@
                                     </div>
                                     <div class="meal-actions">
                                         <MudText Typo="Typo.body2">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
+                                        <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small" OnClick="() => CopyMeal(meal)" aria-label="Kopiuj posiłek" />
+                                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditMeal(meal, slot)" aria-label="Edytuj posiłek" />
                                         <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" />
                                     </div>
                                 </MudPaper>
                             }
                         </section>
                     }
-                    @if (OtherMeals.Count > 0)
-                    {
-                        <section class="meal-slot legacy-meals"><header class="meal-slot-heading"><div><strong>Inne</strong><span>Wpisy spoza obecnych sekcji</span></div></header>
-                            @foreach (var meal in OtherMeals)
-                            {
-                                <MudPaper Class="meal-row" Elevation="0"><div class="row-copy"><MudText Typo="Typo.subtitle1">@meal.Name</MudText><MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => $"{x.ProductName} {x.AmountGrams:0.#} g"))</MudText></div><div class="meal-actions"><MudText Typo="Typo.body2">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" /></div></MudPaper>
-                            }
-                        </section>
-                    }
+                    <MudButton Variant="Variant.Outlined" FullWidth="true" StartIcon="@Icons.Material.Outlined.Restore" OnClick="CopyPreviousDay" Class="mt-3">Kopiuj posiłki z poprzedniego dnia</MudButton>
                 }
             </MudTabPanel>
 
@@ -92,14 +98,20 @@
 
                     @if (_entryMode == MealEntryMode.Manual)
                     {
+                    @if (_editingMealId is not null) { <MudAlert Severity="Severity.Info" Dense="true">Edytujesz zapisany posiłek. Zapis zastąpi poprzednią wersję.</MudAlert> }
                     <MudTextField @bind-Value="_meal.Name" Label="Nazwa dania (opcjonalnie)" />
-                    <MudSelect T="Guid?" @bind-Value="_meal.ProductId" Label="Produkt">
+                    <MudSelect T="Guid?" Value="_meal.ProductId" ValueChanged="SelectProduct" Label="Produkt">
                         @foreach (var product in _products)
                         {
                             <MudSelectItem T="Guid?" Value="@((Guid?)product.Id)">@product.Name</MudSelectItem>
                         }
                     </MudSelect>
                     <MudNumericField @bind-Value="_meal.AmountGrams" Label="Ilość (g)" Min="0.01m" />
+                    <div class="portion-shortcuts">
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => ScalePortion(.5m)">½ porcji</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => ScalePortion(1m)">1 porcja</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => ScalePortion(2m)">2 porcje</MudButton>
+                    </div>
                     <MudButton Variant="Variant.Outlined" OnClick="AddItem" Class="mt-2">Dodaj pozycję</MudButton>
 
                     @if (_meal.Items.Count > 0)
@@ -114,7 +126,10 @@
 
                     <MudCheckBox @bind-Value="_meal.DeductFromPantry" Label="Odejmij składniki ze spiżarni" />
 
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(_meal.Items.Count == 0)" OnClick="SaveMeal" Class="mt-4">Zapisz posiłek</MudButton>
+                    <div class="builder-actions end mt-4">
+                        @if (_editingMealId is not null) { <MudButton Variant="Variant.Text" OnClick="CancelMealEdit">Anuluj edycję</MudButton> }
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_meal.Items.Count == 0)" OnClick="SaveMeal">@(_editingMealId is null ? "Zapisz posiłek" : "Zapisz zmiany")</MudButton>
+                    </div>
                     }
                     else
                     {
@@ -222,7 +237,9 @@
 </MudContainer>
 
 @code {
-    private readonly DateOnly _date = DateOnly.FromDateTime(DateTime.Now);
+    private static readonly System.Globalization.CultureInfo PolishCulture = new("pl-PL");
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+    private DateOnly _date = Today;
     private readonly TargetForm _target = new();
     private readonly ProductForm _product = new();
     private readonly MealForm _meal = new();
@@ -238,10 +255,12 @@
     private MealEntryMode _entryMode;
     private AiMealForm? _aiDraft;
     private int _activePanel;
+    private Guid? _editingMealId;
+    private decimal _basePortion = 100;
     private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
     private string _selectedMealSlot = "Śniadanie";
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
-    private IReadOnlyList<MealResponse> OtherMeals => _day?.Meals.Where(x => !_mealSlots.Any(slot => BelongsTo(x.Name, slot))).ToList() ?? [];
+    private string DayCaption => _date == Today ? "Dzisiaj" : _date == Today.AddDays(-1) ? "Wczoraj" : "Wybrany dzień";
 
     protected override async Task OnInitializedAsync()
     {
@@ -271,6 +290,22 @@
         }
     }
 
+    private async Task ChangeDay(int offset)
+    {
+        var next = _date.AddDays(offset);
+        if (next > Today) return;
+        _date = next;
+        CancelMealEdit();
+        await Reload();
+    }
+
+    private async Task GoToday()
+    {
+        _date = Today;
+        CancelMealEdit();
+        await Reload();
+    }
+
     private void AddItem()
     {
         var product = _products.FirstOrDefault(x => x.Id == _meal.ProductId);
@@ -280,6 +315,18 @@
         _meal.AmountGrams = 100;
     }
 
+    private void SelectProduct(Guid? id)
+    {
+        _meal.ProductId = id;
+        var product = _products.FirstOrDefault(x => x.Id == id);
+        _basePortion = product?.DefaultServingAmount ?? 100;
+        if (product?.DefaultServingUnit == ServingUnit.Piece && product.GramsPerPiece is not null)
+            _basePortion = product.GramsPerPiece.Value;
+        _meal.AmountGrams = _basePortion;
+    }
+
+    private void ScalePortion(decimal multiplier) => _meal.AmountGrams = Math.Max(.01m, _basePortion * multiplier);
+
     private void SelectMode(MealEntryMode mode)
     {
         _entryMode = mode;
@@ -288,11 +335,57 @@
 
     private void StartMeal(string slot)
     {
+        CancelMealEdit();
         _selectedMealSlot = slot;
         _meal.Name = string.Empty;
         _entryMode = MealEntryMode.Manual;
         _aiDraft = null;
         _activePanel = 1;
+    }
+
+    private void EditMeal(MealResponse meal, string slot)
+    {
+        _editingMealId = meal.Id;
+        _selectedMealSlot = slot;
+        _meal.Name = DisplayMealName(meal.Name, slot);
+        _meal.Items.Clear();
+        _meal.Items.AddRange(meal.Items.Where(x => x.ProductId is not null).Select(x => new MealDraftItem(x.ProductId!.Value, x.ProductName, x.AmountGrams)));
+        _entryMode = MealEntryMode.Manual;
+        _activePanel = 1;
+    }
+
+    private void CancelMealEdit()
+    {
+        _editingMealId = null;
+        _meal.Name = string.Empty;
+        _meal.Items.Clear();
+    }
+
+    private async Task CopyMeal(MealResponse meal)
+    {
+        var items = meal.Items.Where(x => x.ProductId is not null).Select(x => new MealItemRequest(x.ProductId!.Value, x.AmountGrams, x.IsEstimated)).ToList();
+        if (items.Count == 0) { Snackbar.Add("Tego wpisu nie można skopiować automatycznie.", Severity.Info); return; }
+        await Run(async () =>
+        {
+            await Nutrition.SaveMeal(new SaveMealRequest(meal.Name, EntryTime(), items));
+            await Reload();
+            Snackbar.Add("Posiłek skopiowany.", Severity.Success);
+        });
+    }
+
+    private async Task CopyPreviousDay()
+    {
+        var previous = await Nutrition.GetDay(_date.AddDays(-1));
+        var copied = 0;
+        foreach (var meal in previous.Meals)
+        {
+            var items = meal.Items.Where(x => x.ProductId is not null).Select(x => new MealItemRequest(x.ProductId!.Value, x.AmountGrams, x.IsEstimated)).ToList();
+            if (items.Count == 0) continue;
+            await Nutrition.SaveMeal(new SaveMealRequest(meal.Name, EntryTime(), items));
+            copied++;
+        }
+        await Reload();
+        Snackbar.Add(copied == 0 ? "Poprzedniego dnia nie było posiłków do skopiowania." : $"Skopiowano {copied} posiłków.", copied == 0 ? Severity.Info : Severity.Success);
     }
 
     private async Task AnalyzePhoto(InputFileChangeEventArgs args)
@@ -345,7 +438,7 @@
         {
             await Nutrition.SaveEstimatedMeal(new SaveEstimatedMealRequest(
                 MealName(_aiDraft.Name),
-                DateTimeOffset.Now,
+                EntryTime(),
                 _aiDraft.Items.Select(x => new SaveEstimatedMealItemRequest(x.Name, x.AmountGrams, x.CaloriesPer100, x.ProteinPer100, x.FatPer100, x.CarbohydratesPer100)).ToList()));
             _aiDraft = null;
             _mealDescription = string.Empty;
@@ -358,11 +451,14 @@
 
     private async Task SaveMeal() => await Run(async () =>
     {
-        await Nutrition.SaveMeal(new SaveMealRequest(
+        var request = new SaveMealRequest(
             MealName(_meal.Name),
-            DateTimeOffset.Now,
+            EntryTime(),
             _meal.Items.Select(x => new MealItemRequest(x.ProductId, x.AmountGrams, false)).ToList(),
-            _meal.DeductFromPantry));
+            _meal.DeductFromPantry);
+        if (_editingMealId is Guid id) await Nutrition.UpdateMeal(id, request);
+        else await Nutrition.SaveMeal(request);
+        _editingMealId = null;
         _meal.Items.Clear();
         _meal.Name = string.Empty;
         await Reload();
@@ -411,6 +507,11 @@
     private static bool BelongsTo(string mealName, string slot) => mealName.Equals(slot, StringComparison.OrdinalIgnoreCase) || mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase);
     private static string DisplayMealName(string mealName, string slot) => mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase) ? mealName[(slot.Length + 3)..] : mealName;
     private string MealName(string? name) => string.IsNullOrWhiteSpace(name) ? _selectedMealSlot : $"{_selectedMealSlot} · {name.Trim()}";
+    private DateTimeOffset EntryTime()
+    {
+        var local = _date.ToDateTime(TimeOnly.FromDateTime(DateTime.Now));
+        return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local));
+    }
 
     private async Task Run(Func<Task> action)
     {

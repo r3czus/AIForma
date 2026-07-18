@@ -40,6 +40,9 @@ public sealed class NutritionClient(HttpClient http)
     public Task<MealResponse> SaveMeal(SaveMealRequest request) =>
         Send<MealResponse>(HttpMethod.Post, "api/v1/meals", request);
 
+    public Task<MealResponse> UpdateMeal(Guid id, SaveMealRequest request) =>
+        Send<MealResponse>(HttpMethod.Put, $"api/v1/meals/{id}", request);
+
     public async Task<MealPhotoDraftResponse> AnalyzeMealText(string description)
     {
         using var response = await Send(HttpMethod.Post, "api/v1/nutrition/meal-text", new AnalyzeMealTextRequest(description));
