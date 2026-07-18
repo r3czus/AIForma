@@ -9,6 +9,12 @@ public sealed class ProgressClient(HttpClient http)
     public Task<WeightProgressResponse?> GetWeight(DateOnly from, DateOnly to) =>
         http.GetFromJsonAsync<WeightProgressResponse>($"api/v1/progress/weight?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
 
+    public async Task<IReadOnlyList<BodyMeasurementResponse>> GetBodyMeasurements(DateOnly from, DateOnly to) =>
+        await http.GetFromJsonAsync<List<BodyMeasurementResponse>>($"api/v1/progress/body-measurements?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}") ?? [];
+
+    public async Task<IReadOnlyList<MuscleVolumePoint>> GetMuscleVolume(DateOnly from, DateOnly to) =>
+        await http.GetFromJsonAsync<List<MuscleVolumePoint>>($"api/v1/progress/muscle-volume?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}") ?? [];
+
     public Task<ExerciseProgressResponse?> GetExercise(Guid exerciseId, DateOnly from, DateOnly to) =>
         http.GetFromJsonAsync<ExerciseProgressResponse>($"api/v1/progress/exercises/{exerciseId}?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
 

@@ -19,3 +19,4 @@ public sealed record TrainingWeekSummaryResponse(int CompletedWorkouts, int Plan
 public sealed record NutritionWeekSummaryResponse(int LoggedDays, int DaysOnCalories, decimal CalorieAdherencePercent,
     decimal AverageCalories, decimal AverageTargetCalories, int DaysOnProtein, decimal AverageProteinG, decimal AverageCalorieDifference);
 public sealed record ProgressWeekSummaryResponse(DateOnly From, DateOnly To, TrainingWeekSummaryResponse Training, NutritionWeekSummaryResponse Nutrition);
+public sealed record MuscleVolumePoint(string MuscleGroup, int WorkingSets, decimal VolumeKg);

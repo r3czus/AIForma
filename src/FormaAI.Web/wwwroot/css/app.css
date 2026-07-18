@@ -469,6 +469,15 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .portion-shortcuts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .workout-finish-summary, .workout-session-tools { background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; margin: 16px 0; padding: 20px; }
 .workout-inline-editor { background: var(--surface-soft); border-radius: 14px; display: grid; gap: 8px; margin-top: 8px; padding: 12px; }
+.progress-range { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; display: flex; gap: 4px; margin-bottom: 14px; padding: 6px; }
+.calendar-day-detail { align-items: center; background: var(--surface-soft); border-radius: 14px; display: grid; gap: 4px; grid-template-columns: 1fr auto; margin-top: 14px; padding: 12px 14px; }
+.calendar-day-detail strong { grid-column: 1 / -1; text-transform: capitalize; }
+.nutrition-day { cursor: pointer; font: inherit; }
+.muscle-volume-list { display: grid; gap: 14px; }
+.muscle-volume-list > div { display: grid; gap: 5px; grid-template-columns: minmax(110px, 1fr) 2fr auto; align-items: center; }
+.muscle-volume-list i { background: var(--surface-soft); border-radius: 999px; height: 8px; overflow: hidden; }
+.muscle-volume-list i b { background: var(--action); display: block; height: 100%; }
+.muscle-volume-list strong { font-family: "IBM Plex Mono", monospace; font-size: .7rem; }
 .meal-slot-empty { background: transparent; border: 0; color: var(--muted); cursor: pointer; font: inherit; font-size: .75rem; padding: 15px 16px; text-align: left; width: 100%; }
 .meal-slot-empty:hover { color: var(--action); }
 

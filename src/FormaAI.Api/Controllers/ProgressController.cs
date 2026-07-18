@@ -127,6 +127,34 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         return new NutritionAdherenceResponse(start, tolerance, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);
     }
 
+    [HttpGet("progress/body-measurements")]
+    public async Task<ActionResult<IReadOnlyList<BodyMeasurementResponse>>> BodyMeasurements([FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
+    {
+        var range = DateRange(from, to);
+        if (range is null) return BadRequest("Nieprawidłowy zakres dat.");
+        var measurements = await db.BodyMeasurements.Where(x => x.UserId == UserId() && x.LocalDate >= range.Value.From && x.LocalDate <= range.Value.To)
+            .OrderBy(x => x.LocalDate).ThenBy(x => x.MeasuredAtUtc).ToListAsync();
+        return measurements.Select(MeasurementResponse).ToList();
+    }
+
+    [HttpGet("progress/muscle-volume")]
+    public async Task<ActionResult<IReadOnlyList<MuscleVolumePoint>>> MuscleVolume([FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
+    {
+        var range = DateRange(from, to);
+        if (range is null) return BadRequest("Nieprawidłowy zakres dat.");
+        var fromUtc = range.Value.From.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var toUtc = range.Value.To.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var rows = await (from set in db.CompletedSets
+                          join item in db.WorkoutExercises on set.WorkoutExerciseId equals item.Id
+                          join session in db.WorkoutSessions on item.WorkoutSessionId equals session.Id
+                          join exercise in db.Exercises on item.ExerciseId equals exercise.Id
+                          where session.UserId == UserId() && session.Status == SessionStatus.Completed && set.Type == SetType.Working
+                              && set.CompletedAtUtc >= fromUtc && set.CompletedAtUtc < toUtc
+                          select new { exercise.PrimaryMuscleGroup, set.WeightKg, set.Repetitions }).ToListAsync();
+        return rows.GroupBy(x => x.PrimaryMuscleGroup).OrderByDescending(x => x.Count())
+            .Select(x => new MuscleVolumePoint(x.Key.ToString(), x.Count(), x.Sum(y => y.WeightKg * y.Repetitions))).ToList();
+    }
+
     [HttpGet("progress/week-summary")]
     public async Task<ActionResult<ProgressWeekSummaryResponse>> WeekSummary()
     {
