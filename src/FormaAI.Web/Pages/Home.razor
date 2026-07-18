@@ -112,16 +112,43 @@
                             <div><span class="card-kicker">Dziennik</span><h2>Dzisiejsze posiłki</h2></div>
                             <MudButton Href="/food" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add">Dodaj posiłek</MudButton>
                         </div>
-                        @if (_day.Meals.Count == 0)
+                        @foreach (var slot in _mealSlots)
                         {
-                            <p class="empty-copy">Pierwszy posiłek nada rytm dzisiejszemu bilansowi.</p>
+                            var meals = MealsFor(slot);
+                            var calories = meals.Sum(x => x.Macro.CaloriesKcal);
+                            <section class="meal-slot">
+                                <header class="meal-slot-heading">
+                                    <div><strong>@slot</strong><span>@meals.Count pozycji · @calories.ToString("0") kcal</span></div>
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Add" Color="Color.Primary" Href="/food" aria-label="@($"Dodaj do sekcji {slot}")" />
+                                </header>
+                                @if (meals.Count == 0)
+                                {
+                                    <MudButton Href="/food" Variant="Variant.Text" Class="meal-slot-empty">Dodaj pierwszy posiłek</MudButton>
+                                }
+                                @foreach (var meal in meals)
+                                {
+                                    <MudPaper Class="meal-row" Elevation="0">
+                                        <div class="row-copy">
+                                            <MudText Typo="Typo.subtitle1">@DisplayMealName(meal.Name, slot)</MudText>
+                                            <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => x.ProductName))</MudText>
+                                        </div>
+                                        <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
+                                    </MudPaper>
+                                }
+                            </section>
                         }
-                        @foreach (var meal in _day.Meals)
+                        @if (OtherMeals.Count > 0)
                         {
-                            <MudPaper Class="meal-row" Elevation="0">
-                                <MudText>@meal.Name</MudText>
-                                <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
-                            </MudPaper>
+                            <section class="meal-slot">
+                                <header class="meal-slot-heading"><div><strong>Inne</strong><span>Wpisy spoza obecnych sekcji</span></div></header>
+                                @foreach (var meal in OtherMeals)
+                                {
+                                    <MudPaper Class="meal-row" Elevation="0">
+                                        <div class="row-copy"><MudText Typo="Typo.subtitle1">@meal.Name</MudText><MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => x.ProductName))</MudText></div>
+                                        <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
+                                    </MudPaper>
+                                }
+                            </section>
                         }
                     </section>
                 }
@@ -147,6 +174,7 @@
     private CurrentUserResponse? _user;
     private UserProfileResponse? _profile;
     private NutritionDayResponse? _day;
+    private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
     private TodayWorkoutResponse? _todayWorkout;
     private bool _loading = true;
     private int _tab;
@@ -161,6 +189,7 @@
         BodyGoal.MuscleGain => "Budowanie masy",
         _ => "Uzupełnij profil"
     };
+    private IReadOnlyList<MealResponse> OtherMeals => _day?.Meals.Where(x => !_mealSlots.Any(slot => BelongsTo(x.Name, slot))).ToList() ?? [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -186,6 +215,7 @@
     private async Task LoadUserData()
     {
         _profile = await Account.GetProfile();
+        _mealSlots = _profile.MealSlots?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? _mealSlots;
         _day = await Nutrition.GetDay(DateOnly.FromDateTime(DateTime.Now));
         _todayWorkout = await TrainingApi.GetToday();
     }
@@ -195,6 +225,10 @@
         var session = await TrainingApi.Start(_todayWorkout!.TrainingDayId);
         Navigation.NavigateTo($"/workout/{session.Id}");
     }
+
+    private List<MealResponse> MealsFor(string slot) => _day?.Meals.Where(x => BelongsTo(x.Name, slot)).ToList() ?? [];
+    private static bool BelongsTo(string mealName, string slot) => mealName.Equals(slot, StringComparison.OrdinalIgnoreCase) || mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase);
+    private static string DisplayMealName(string mealName, string slot) => mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase) ? mealName[(slot.Length + 3)..] : mealName;
 
     private async Task Run(Func<Task> action, string error)
     {
