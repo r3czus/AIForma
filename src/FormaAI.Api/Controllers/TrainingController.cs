@@ -166,6 +166,8 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     public async Task<ActionResult<WorkoutSessionResponse>> Start(StartWorkoutRequest request)
     {
         var userId = UserId();
+        var active = await SessionQuery().OrderByDescending(x => x.StartedAtUtc).FirstOrDefaultAsync(x => x.UserId == userId && x.Status == SessionStatus.InProgress);
+        if (active is not null) return SessionResponse(active);
         var day = await db.TrainingDays.Include(x => x.Exercises)
             .SingleOrDefaultAsync(x => x.Id == request.TrainingDayId && db.TrainingPlans.Any(p => p.Id == x.TrainingPlanId && p.UserId == userId));
         if (day is null) return NotFound();
@@ -177,6 +179,13 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         db.WorkoutSessions.Add(session);
         await db.SaveChangesAsync();
         return Created($"api/v1/workout-sessions/{session.Id}", SessionResponse(session));
+    }
+
+    [HttpGet("workout-sessions/active")]
+    public async Task<ActionResult<WorkoutSessionResponse>> ActiveSession()
+    {
+        var session = await SessionQuery().OrderByDescending(x => x.StartedAtUtc).FirstOrDefaultAsync(x => x.UserId == UserId() && x.Status == SessionStatus.InProgress);
+        return session is null ? NotFound() : SessionResponse(session);
     }
 
     [HttpGet("workout-sessions/{id:guid}")]
@@ -197,6 +206,7 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         if (exercise is null) return ValidationProblem("Ćwiczenie nie należy do tej sesji.");
         if (exercise.Sets.Any(x => x.SetNumber == request.SetNumber)) return Conflict("Ten numer serii jest już zapisany.");
         var set = new CompletedSet(exercise.Id, request.SetNumber, request.WeightKg, request.Repetitions, request.Rir, request.SetType);
+        set.Update(request.WeightKg, request.Repetitions, request.Rir, request.SetType, request.Notes);
         exercise.Sets.Add(set);
         db.CompletedSets.Add(set);
         await db.SaveChangesAsync();
@@ -212,9 +222,51 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         if (session.Status != SessionStatus.InProgress) return Conflict("Trening jest już zakończony.");
         var set = session.Exercises.SelectMany(x => x.Sets).SingleOrDefault(x => x.Id == setId);
         if (set is null) return NotFound();
-        set.Update(request.WeightKg, request.Repetitions, request.Rir, request.SetType);
+        set.Update(request.WeightKg, request.Repetitions, request.Rir, request.SetType, request.Notes);
         await db.SaveChangesAsync();
         return SetResponse(set);
+    }
+
+    [HttpPost("workout-sessions/{id:guid}/exercises")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<WorkoutExerciseResponse>> AddWorkoutExercise(Guid id, AddWorkoutExerciseRequest request)
+    {
+        var session = await SessionQuery().SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
+        if (session is null) return NotFound();
+        if (session.Status != SessionStatus.InProgress) return Conflict("Trening jest już zakończony.");
+        var exercise = await db.Exercises.SingleOrDefaultAsync(x => x.Id == request.ExerciseId && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == UserId()));
+        if (exercise is null || request.MinReps > request.MaxReps) return ValidationProblem("Nieprawidłowe ćwiczenie lub zakres powtórzeń.");
+        var item = new WorkoutExercise(exercise, session.Exercises.Count + 1, request.PlannedSets, request.MinReps, request.MaxReps, request.TargetRir, request.RestSeconds);
+        session.Exercises.Add(item);
+        await db.SaveChangesAsync();
+        return Created($"api/v1/workout-sessions/{id}/exercises/{item.Id}", ExerciseResponse(item));
+    }
+
+    [HttpPut("workout-sessions/{id:guid}/exercises/{workoutExerciseId:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<WorkoutExerciseResponse>> ReplaceWorkoutExercise(Guid id, Guid workoutExerciseId, ReplaceWorkoutExerciseRequest request)
+    {
+        var session = await SessionQuery().SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
+        if (session is null) return NotFound();
+        var item = session.Exercises.SingleOrDefault(x => x.Id == workoutExerciseId);
+        if (item is null) return NotFound();
+        if (item.Sets.Count > 0) return Conflict("Nie można zamienić ćwiczenia po zapisaniu serii.");
+        var exercise = await db.Exercises.SingleOrDefaultAsync(x => x.Id == request.ExerciseId && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == UserId()));
+        if (exercise is null) return NotFound();
+        item.ReplaceExercise(exercise);
+        await db.SaveChangesAsync();
+        return ExerciseResponse(item);
+    }
+
+    [HttpPut("workout-sessions/{id:guid}/notes")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveWorkoutNotes(Guid id, SaveWorkoutNotesRequest request)
+    {
+        var session = await db.WorkoutSessions.SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
+        if (session is null) return NotFound();
+        session.UpdateNotes(request.Notes);
+        await db.SaveChangesAsync();
+        return NoContent();
     }
 
     [HttpPost("workout-sessions/{id:guid}/complete")]
@@ -284,7 +336,8 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     private IQueryable<WorkoutSession> SessionQuery() => db.WorkoutSessions.Include(x => x.Exercises).ThenInclude(x => x.Sets);
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static ExerciseResponse ExerciseResponse(Exercise x) => new(x.Id, x.Name, x.PrimaryMuscleGroup, x.Equipment, x.IsUnilateral, x.OwnerUserId != null, x.Description);
-    private static CompletedSetResponse SetResponse(CompletedSet x) => new(x.Id, x.SetNumber, x.WeightKg, x.Repetitions, x.Rir, x.Type, x.CompletedAtUtc);
+    private static CompletedSetResponse SetResponse(CompletedSet x) => new(x.Id, x.SetNumber, x.WeightKg, x.Repetitions, x.Rir, x.Type, x.CompletedAtUtc, x.Notes);
+    private static WorkoutExerciseResponse ExerciseResponse(WorkoutExercise e) => new(e.Id, e.ExerciseId, e.ExerciseNameSnapshot, e.Order, e.PlannedSets, e.MinReps, e.MaxReps, e.TargetRir, e.RestSeconds, e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList());
     private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(x.Id, x.NameSnapshot, x.StartedAtUtc, x.FinishedAtUtc, x.Status,
         x.Exercises.OrderBy(e => e.Order).Select(e => new WorkoutExerciseResponse(e.Id, e.ExerciseId, e.ExerciseNameSnapshot, e.Order, e.PlannedSets, e.MinReps, e.MaxReps, e.TargetRir, e.RestSeconds, e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList())).ToList());
 }

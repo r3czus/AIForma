@@ -23,6 +23,25 @@
             <span class="data-chip">@CompletedSets / @PlannedSets serii</span>
         </header>
 
+        @if (_completed)
+        {
+            <MudPaper Class="workout-finish-summary" Elevation="0">
+                <span class="page-kicker">Trening zakończony</span>
+                <MudText Typo="Typo.h4">Dobra robota</MudText>
+                <div class="metric-row">
+                    <div><span>Czas</span><strong>@FormatElapsed(_elapsed)</strong></div>
+                    <div><span>Serie</span><strong>@CompletedSets</strong></div>
+                    <div><span>Objętość</span><strong>@SessionVolume.ToString("0") kg</strong></div>
+                    <div><span>Ćwiczenia</span><strong>@_session.Exercises.Count</strong></div>
+                </div>
+                @if (_newRecords.Count > 0) { <MudAlert Severity="Severity.Success" Class="mt-3">Nowy najlepszy wynik: @string.Join(", ", _newRecords)</MudAlert> }
+                <MudButton Href="/progress" Variant="Variant.Outlined" FullWidth="true" Class="mt-3">Zobacz progres</MudButton>
+                <MudButton Href="/training" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-2">Wróć do treningów</MudButton>
+            </MudPaper>
+        }
+        else
+        {
+
         <section class="workout-console" aria-label="Czas i postęp treningu">
             <div class="session-clock">
                 <span>Czas treningu</span>
@@ -73,6 +92,7 @@
                         <span>@set.SetNumber. @(set.SetType == SetType.Warmup ? "Rozgrzewka" : "Seria robocza")</span>
                         <strong>@set.WeightKg kg × @set.Repetitions</strong>
                         <span>RIR @(set.Rir?.ToString("0.#") ?? "—")</span>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditSet(exercise, set)" aria-label="Edytuj serię" />
                     </div>
                 }
 
@@ -81,15 +101,38 @@
                     <MudNumericField @bind-Value="form.Repetitions" Label="Powtórzenia" Min="1" />
                     <MudNumericField @bind-Value="form.Rir" Label="RIR" Min="0m" Max="10m" />
                 </div>
+                <MudTextField @bind-Value="form.Notes" Label="Notatka do serii (opcjonalnie)" MaxLength="300" />
                 <MudCheckBox @bind-Value="form.IsWarmup" Label="Seria rozgrzewkowa" />
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="() => SaveSet(exercise, form)">Zapisz serię</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="() => SaveSet(exercise, form)">@(form.SetId is null ? "Zapisz serię" : "Zapisz poprawioną serię")</MudButton>
+
+                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => BeginSwap(exercise)" Disabled="@(exercise.Sets.Count > 0)">Zamień ćwiczenie</MudButton>
+                @if (_swapTargetId == exercise.Id)
+                {
+                    <div class="workout-inline-editor">
+                        <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Nowe ćwiczenie">
+                            @foreach (var option in _catalog.Where(x => x.Id != exercise.ExerciseId)) { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem> }
+                        </MudSelect>
+                        <MudButton Variant="Variant.Filled" Disabled="@(_selectedExerciseId is null)" OnClick="() => ReplaceExercise(exercise)">Zapisz zamianę</MudButton>
+                    </div>
+                }
             </MudPaper>
         }
+
+        <MudPaper Class="workout-session-tools" Elevation="0">
+            <MudText Typo="Typo.h6">Dodaj ćwiczenie do tej sesji</MudText>
+            <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Ćwiczenie">
+                @foreach (var option in _catalog) { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem> }
+            </MudSelect>
+            <MudButton Variant="Variant.Outlined" FullWidth="true" Disabled="@(_selectedExerciseId is null)" OnClick="AddExercise">Dodaj ćwiczenie</MudButton>
+            <MudTextField @bind-Value="_sessionNotes" Label="Notatka do treningu" Lines="3" MaxLength="1000" Class="mt-4" />
+            <MudButton Variant="Variant.Text" FullWidth="true" OnClick="SaveNotes">Zapisz notatkę</MudButton>
+        </MudPaper>
 
         <div class="session-actions">
             <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ trening</MudButton>
             <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
         </div>
+        }
     }
 </MudContainer>
 
@@ -99,21 +142,37 @@
     private WorkoutSessionResponse? _session;
     private readonly Dictionary<Guid, SetForm> _forms = [];
     private readonly Dictionary<Guid, ExerciseHistoryEntry?> _history = [];
+    private IReadOnlyList<ExerciseResponse> _catalog = [];
+    private readonly List<string> _newRecords = [];
+    private Guid? _swapTargetId;
+    private Guid? _selectedExerciseId;
+    private string? _sessionNotes;
+    private bool _completed;
     private CancellationTokenSource? _clockCancellation;
     private int _restSeconds;
     private TimeSpan _elapsed;
     private int CompletedSets => _session?.Exercises.Sum(x => x.Sets.Count) ?? 0;
     private int PlannedSets => _session?.Exercises.Sum(x => x.PlannedSets) ?? 0;
     private int SessionPercent => PlannedSets == 0 ? 0 : Math.Min(100, (int)Math.Round(CompletedSets * 100d / PlannedSets));
+    private decimal SessionVolume => _session?.Exercises.SelectMany(x => x.Sets).Where(x => x.SetType == SetType.Working).Sum(x => x.WeightKg * x.Repetitions) ?? 0;
 
     protected override async Task OnParametersSetAsync()
     {
         await Reload();
+        _catalog = await TrainingApi.GetExercises();
         foreach (var exercise in _session!.Exercises)
         {
             _forms.TryAdd(exercise.Id, new SetForm());
             if (exercise.ExerciseId is Guid exerciseId && !_history.ContainsKey(exerciseId))
+            {
                 _history[exerciseId] = (await TrainingApi.GetHistory(exerciseId)).FirstOrDefault();
+                if (_history[exerciseId] is { } last)
+                {
+                    _forms[exercise.Id].WeightKg = last.WeightKg;
+                    _forms[exercise.Id].Repetitions = last.Repetitions;
+                    _forms[exercise.Id].Rir = last.Rir;
+                }
+            }
         }
         if (_clockCancellation is null)
         {
@@ -128,16 +187,52 @@
         try
         {
             await JS.InvokeVoidAsync("formaTimer.ready");
-            var setNumber = exercise.Sets.Count == 0 ? 1 : exercise.Sets.Max(x => x.SetNumber) + 1;
-            await TrainingApi.SaveSet(Id, new SaveSetRequest(exercise.Id, setNumber, form.WeightKg, form.Repetitions, form.Rir, form.IsWarmup ? SetType.Warmup : SetType.Working));
+            var setNumber = form.SetNumber ?? (exercise.Sets.Count == 0 ? 1 : exercise.Sets.Max(x => x.SetNumber) + 1);
+            var request = new SaveSetRequest(exercise.Id, setNumber, form.WeightKg, form.Repetitions, form.Rir, form.IsWarmup ? SetType.Warmup : SetType.Working, form.Notes);
+            if (form.SetId is Guid setId) await TrainingApi.UpdateSet(Id, setId, request);
+            else await TrainingApi.SaveSet(Id, request);
+            if (!form.IsWarmup && exercise.ExerciseId is Guid exerciseId && (!_history.TryGetValue(exerciseId, out var last) || last is null || form.WeightKg > last.WeightKg))
+                if (!_newRecords.Contains(exercise.ExerciseName)) _newRecords.Add(exercise.ExerciseName);
             await Reload();
-            form.IsWarmup = false;
+            form.SetId = null; form.SetNumber = null; form.Notes = null; form.IsWarmup = false;
             StartRestTimer(exercise.RestSeconds ?? 0);
         }
         catch (HttpRequestException)
         {
             Snackbar.Add("Nie udało się zapisać serii.", Severity.Error);
         }
+    }
+
+    private void EditSet(WorkoutExerciseResponse exercise, CompletedSetResponse set)
+    {
+        var form = _forms[exercise.Id];
+        form.SetId = set.Id; form.SetNumber = set.SetNumber; form.WeightKg = set.WeightKg; form.Repetitions = set.Repetitions;
+        form.Rir = set.Rir; form.IsWarmup = set.SetType == SetType.Warmup; form.Notes = set.Notes;
+    }
+
+    private void BeginSwap(WorkoutExerciseResponse exercise) { _swapTargetId = exercise.Id; _selectedExerciseId = null; }
+
+    private async Task ReplaceExercise(WorkoutExerciseResponse exercise)
+    {
+        if (_selectedExerciseId is null) return;
+        await TrainingApi.ReplaceExercise(Id, exercise.Id, _selectedExerciseId.Value);
+        _swapTargetId = null; _selectedExerciseId = null;
+        await Reload();
+    }
+
+    private async Task AddExercise()
+    {
+        if (_selectedExerciseId is null) return;
+        await TrainingApi.AddExercise(Id, new AddWorkoutExerciseRequest(_selectedExerciseId.Value));
+        _selectedExerciseId = null;
+        await Reload();
+        foreach (var exercise in _session!.Exercises) _forms.TryAdd(exercise.Id, new SetForm());
+    }
+
+    private async Task SaveNotes()
+    {
+        await TrainingApi.SaveNotes(Id, _sessionNotes);
+        Snackbar.Add("Notatka zapisana.", Severity.Success);
     }
 
     private async Task Reload() => _session = await TrainingApi.GetSession(Id);
@@ -168,8 +263,8 @@
     private async Task Complete()
     {
         await TrainingApi.Complete(Id);
-        Snackbar.Add("Trening zakończony. Dobra robota!", Severity.Success);
-        Navigation.NavigateTo("/training");
+        _clockCancellation?.Cancel();
+        _completed = true;
     }
 
     private async Task Abandon()
@@ -194,5 +289,8 @@
         public int Repetitions { get; set; } = 8;
         public decimal? Rir { get; set; } = 2;
         public bool IsWarmup { get; set; }
+        public Guid? SetId { get; set; }
+        public int? SetNumber { get; set; }
+        public string? Notes { get; set; }
     }
 }

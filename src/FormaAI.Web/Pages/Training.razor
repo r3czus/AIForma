@@ -25,6 +25,14 @@
             <div><span>Dzisiaj</span><strong>@(_today is null ? "Regeneracja" : _today.AlreadyCompleted ? "Wykonany" : _today.DayName)</strong></div>
         </section>
 
+        @if (_activeSession is not null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-3">
+                Masz rozpoczęty trening „@_activeSession.Name”. Zapisane serie czekają na Ciebie.
+                <MudButton Href="@($"/workout/{_activeSession.Id}")" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Class="ml-2">Wznów trening</MudButton>
+            </MudAlert>
+        }
+
         @if (_today is not null)
         {
             <MudPaper Class="workout-today" Elevation="1">
@@ -183,6 +191,7 @@
     private IReadOnlyList<ExerciseResponse> _exercises = [];
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
     private TodayWorkoutResponse? _today;
+    private WorkoutSessionResponse? _activeSession;
     private readonly PlanDraft _plan = new();
     private readonly DayDraft _day = new();
     private readonly PlannedDraft _planned = new();
@@ -200,7 +209,7 @@
         if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
         await Reload(); _loading = false;
     }
-    private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); }
+    private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); _activeSession = await TrainingApi.GetActiveSession(); }
     private void AddExercise()
     {
         var exercise = _exercises.FirstOrDefault(x => x.Id == _planned.ExerciseId);

@@ -13,8 +13,11 @@ public sealed record TrainingDayResponse(Guid Id, string Name, DayOfWeek? DayOfW
 public sealed record TrainingPlanResponse(Guid Id, string Name, string Goal, bool IsActive, DateOnly StartsOn, IReadOnlyList<TrainingDayResponse> Days);
 public sealed record TodayWorkoutResponse(Guid PlanId, Guid TrainingDayId, string PlanName, string DayName, bool AlreadyCompleted, IReadOnlyList<PlannedExerciseResponse> Exercises);
 public sealed record StartWorkoutRequest(Guid TrainingDayId);
-public sealed record SaveSetRequest(Guid WorkoutExerciseId, [Range(1, 50)] int SetNumber, [Range(0, 1000)] decimal WeightKg, [Range(1, 1000)] int Repetitions, [Range(0, 10)] decimal? Rir, SetType SetType);
-public sealed record CompletedSetResponse(Guid Id, int SetNumber, decimal WeightKg, int Repetitions, decimal? Rir, SetType SetType, DateTime CompletedAtUtc);
+public sealed record SaveSetRequest(Guid WorkoutExerciseId, [Range(1, 50)] int SetNumber, [Range(0, 1000)] decimal WeightKg, [Range(1, 1000)] int Repetitions, [Range(0, 10)] decimal? Rir, SetType SetType, [MaxLength(300)] string? Notes = null);
+public sealed record CompletedSetResponse(Guid Id, int SetNumber, decimal WeightKg, int Repetitions, decimal? Rir, SetType SetType, DateTime CompletedAtUtc, string? Notes = null);
+public sealed record AddWorkoutExerciseRequest(Guid ExerciseId, [Range(1, 10)] int PlannedSets = 3, [Range(1, 100)] int MinReps = 8, [Range(1, 100)] int MaxReps = 12, [Range(0, 10)] decimal? TargetRir = 2, [Range(0, 3600)] int? RestSeconds = 90);
+public sealed record ReplaceWorkoutExerciseRequest(Guid ExerciseId);
+public sealed record SaveWorkoutNotesRequest([MaxLength(1000)] string? Notes);
 public sealed record WorkoutExerciseResponse(Guid Id, Guid? ExerciseId, string ExerciseName, int Order, int PlannedSets, int MinReps, int MaxReps, decimal? TargetRir, int? RestSeconds, IReadOnlyList<CompletedSetResponse> Sets);
 public sealed record WorkoutSessionResponse(Guid Id, string Name, DateTime StartedAtUtc, DateTime? FinishedAtUtc, SessionStatus Status, IReadOnlyList<WorkoutExerciseResponse> Exercises);
 public sealed record ExerciseHistoryEntry(DateTime CompletedAtUtc, decimal WeightKg, int Repetitions, decimal? Rir, decimal Volume);

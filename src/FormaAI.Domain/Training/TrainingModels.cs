@@ -116,6 +116,7 @@ public sealed class WorkoutSession
     public string? Notes { get; private set; }
     public List<WorkoutExercise> Exercises { get; private set; } = [];
     public void Finish(SessionStatus status) { Status = status; FinishedAtUtc = DateTime.UtcNow; }
+    public void UpdateNotes(string? notes) => Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
 }
 
 public sealed class WorkoutExercise
@@ -126,6 +127,11 @@ public sealed class WorkoutExercise
         Id = Guid.NewGuid(); ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Order = planned.Order;
         PlannedSets = planned.Sets; MinReps = planned.MinReps; MaxReps = planned.MaxReps;
         TargetRir = planned.TargetRir; RestSeconds = planned.RestSeconds;
+    }
+    public WorkoutExercise(Exercise exercise, int order, int sets, int minReps, int maxReps, decimal? targetRir, int? restSeconds)
+    {
+        Id = Guid.NewGuid(); ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Order = order;
+        PlannedSets = sets; MinReps = minReps; MaxReps = maxReps; TargetRir = targetRir; RestSeconds = restSeconds;
     }
     public Guid Id { get; private set; }
     public Guid WorkoutSessionId { get; private set; }
@@ -138,6 +144,7 @@ public sealed class WorkoutExercise
     public decimal? TargetRir { get; private set; }
     public int? RestSeconds { get; private set; }
     public List<CompletedSet> Sets { get; private set; } = [];
+    public void ReplaceExercise(Exercise exercise) { ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; }
 }
 
 public sealed class CompletedSet
@@ -157,5 +164,5 @@ public sealed class CompletedSet
     public SetType Type { get; private set; }
     public DateTime CompletedAtUtc { get; private set; }
     public string? Notes { get; private set; }
-    public void Update(decimal weightKg, int repetitions, decimal? rir, SetType type) { WeightKg = weightKg; Repetitions = repetitions; Rir = rir; Type = type; }
+    public void Update(decimal weightKg, int repetitions, decimal? rir, SetType type, string? notes = null) { WeightKg = weightKg; Repetitions = repetitions; Rir = rir; Type = type; Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(); }
 }
