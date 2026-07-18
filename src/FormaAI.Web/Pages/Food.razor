@@ -62,8 +62,16 @@
                     <div class="module-form-heading">
                         <span class="card-kicker">Nowy wpis</span>
                         <h2>Zbuduj posiłek</h2>
-                        <p>Dodawaj produkty po kolei, a aplikacja policzy całość.</p>
+                        <p>Dodaj ręcznie albo pozwól AI oszacować skład ze zdjęcia lub opisu.</p>
                     </div>
+                    <div class="meal-entry-modes" role="group" aria-label="Sposób dodawania posiłku">
+                        <MudButton Variant="@(_entryMode == MealEntryMode.Manual ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="() => SelectMode(MealEntryMode.Manual)" StartIcon="@Icons.Material.Outlined.Edit">Ręcznie</MudButton>
+                        <MudButton Variant="@(_entryMode == MealEntryMode.Photo ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="() => SelectMode(MealEntryMode.Photo)" StartIcon="@Icons.Material.Outlined.PhotoCamera">Zdjęcie AI</MudButton>
+                        <MudButton Variant="@(_entryMode == MealEntryMode.Text ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="() => SelectMode(MealEntryMode.Text)" StartIcon="@Icons.Material.Outlined.AutoAwesome">Opis AI</MudButton>
+                    </div>
+
+                    @if (_entryMode == MealEntryMode.Manual)
+                    {
                     <MudTextField @bind-Value="_meal.Name" Label="Nazwa posiłku" />
                     <MudSelect T="Guid?" @bind-Value="_meal.ProductId" Label="Produkt">
                         @foreach (var product in _products)
@@ -87,6 +95,62 @@
                     <MudCheckBox @bind-Value="_meal.DeductFromPantry" Label="Odejmij składniki ze spiżarni" />
 
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(_meal.Items.Count == 0)" OnClick="SaveMeal" Class="mt-4">Zapisz posiłek</MudButton>
+                    }
+                    else
+                    {
+                        @if (_entryMode == MealEntryMode.Photo)
+                        {
+                            <label class="meal-photo-capture @(_aiBusy ? "busy" : null)">
+                                <MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" />
+                                <strong>@(_aiBusy ? "AI analizuje zdjęcie…" : "Zrób zdjęcie jedzenia")</strong>
+                                <span>Na iPhonie otworzy się aparat. Możesz też wybrać zdjęcie z galerii.</span>
+                                <InputFile OnChange="AnalyzePhoto" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" disabled="@_aiBusy" />
+                            </label>
+                        }
+                        else
+                        {
+                            <MudTextField @bind-Value="_mealDescription" Label="Co zjadłeś?" Lines="4" MaxLength="1000" Placeholder="Np. dwa jajka sadzone, dwie kromki chleba z masłem i pomidor" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(_aiBusy || string.IsNullOrWhiteSpace(_mealDescription))" OnClick="AnalyzeText" StartIcon="@Icons.Material.Outlined.AutoAwesome">
+                                @(_aiBusy ? "AI analizuje opis…" : "Policz z opisu")
+                            </MudButton>
+                        }
+
+                        @if (_aiDraft is not null)
+                        {
+                            <section class="ai-meal-draft">
+                                <div class="ai-draft-heading">
+                                    <div><span class="card-kicker">Propozycja AI</span><h3>Sprawdź przed zapisem</h3></div>
+                                    <strong>@AiCalories.ToString("0") kcal</strong>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(_aiDraft.Note))
+                                {
+                                    <MudAlert Severity="Severity.Info" Dense="true">@_aiDraft.Note</MudAlert>
+                                }
+                                <MudTextField @bind-Value="_aiDraft.Name" Label="Nazwa posiłku" />
+                                @foreach (var item in _aiDraft.Items)
+                                {
+                                    <div class="ai-food-item">
+                                        <div class="ai-food-name">
+                                            <MudTextField @bind-Value="item.Name" Label="Składnik" />
+                                            <MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="() => _aiDraft.Items.Remove(item)" aria-label="Usuń składnik" />
+                                        </div>
+                                        <div class="ai-food-values">
+                                            <MudNumericField @bind-Value="item.AmountGrams" Label="Ilość (g)" Min="1m" />
+                                            <MudNumericField @bind-Value="item.CaloriesPer100" Label="kcal / 100 g" Min="0m" />
+                                            <MudNumericField @bind-Value="item.ProteinPer100" Label="B / 100 g" Min="0m" />
+                                            <MudNumericField @bind-Value="item.FatPer100" Label="T / 100 g" Min="0m" />
+                                            <MudNumericField @bind-Value="item.CarbohydratesPer100" Label="W / 100 g" Min="0m" />
+                                        </div>
+                                    </div>
+                                }
+                                <MudButton Variant="Variant.Text" OnClick="AddAiItem" StartIcon="@Icons.Material.Outlined.Add">Dodaj składnik</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(_savingAi || _aiDraft.Items.Count == 0)" OnClick="SaveAiMeal" Class="mt-2">
+                                    @(_savingAi ? "Zapisuję…" : "Dodaj posiłek do dziennika")
+                                </MudButton>
+                                <MudText Typo="Typo.caption">Wartości rozpoznane przez AI są szacunkowe i możesz je poprawić.</MudText>
+                            </section>
+                        }
+                    }
                 </section>
             </MudTabPanel>
 
@@ -148,6 +212,12 @@
     private string? _barcodeMessage;
     private bool _barcodeUnavailable;
     private bool _loading = true;
+    private bool _aiBusy;
+    private bool _savingAi;
+    private string _mealDescription = string.Empty;
+    private MealEntryMode _entryMode;
+    private AiMealForm? _aiDraft;
+    private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -181,6 +251,73 @@
         _meal.Items.Add(new MealDraftItem(product.Id, product.Name, _meal.AmountGrams));
         _meal.ProductId = null;
         _meal.AmountGrams = 100;
+    }
+
+    private void SelectMode(MealEntryMode mode)
+    {
+        _entryMode = mode;
+        _aiDraft = null;
+    }
+
+    private async Task AnalyzePhoto(InputFileChangeEventArgs args)
+    {
+        if (args.File.Size > 12 * 1024 * 1024)
+        {
+            Snackbar.Add("Zdjęcie może mieć maksymalnie 12 MB.", Severity.Warning);
+            return;
+        }
+        await Analyze(() => Nutrition.AnalyzeMealPhoto(args.File));
+    }
+
+    private async Task AnalyzeText() => await Analyze(() => Nutrition.AnalyzeMealText(_mealDescription));
+
+    private async Task Analyze(Func<Task<MealPhotoDraftResponse>> action)
+    {
+        _aiBusy = true;
+        try
+        {
+            var draft = await action();
+            if (draft.Items.Count == 0)
+            {
+                Snackbar.Add("AI nie rozpoznało posiłku. Zrób wyraźniejsze zdjęcie albo doprecyzuj opis.", Severity.Info);
+                return;
+            }
+            _aiDraft = new AiMealForm(draft.MealName, draft.Note, draft.Items.Select(x => new AiFoodForm(x)).ToList());
+        }
+        catch (HttpRequestException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            if (ex.Message.Contains("limit", StringComparison.OrdinalIgnoreCase))
+            {
+                _aiDraft = new AiMealForm("Przykładowy posiłek", "Model osiągnął limit. To szkic zastępczy — wpisz własne składniki i popraw wartości przed zapisem.",
+                [
+                    new AiFoodForm { Name = "Pierś z kurczaka", AmountGrams = 150, CaloriesPer100 = 165, ProteinPer100 = 31, FatPer100 = 3.6m },
+                    new AiFoodForm { Name = "Ryż gotowany", AmountGrams = 200, CaloriesPer100 = 130, ProteinPer100 = 2.7m, FatPer100 = .3m, CarbohydratesPer100 = 28 }
+                ]);
+            }
+        }
+        finally { _aiBusy = false; }
+    }
+
+    private void AddAiItem() => _aiDraft?.Items.Add(new AiFoodForm());
+
+    private async Task SaveAiMeal()
+    {
+        if (_aiDraft is null) return;
+        _savingAi = true;
+        try
+        {
+            await Nutrition.SaveEstimatedMeal(new SaveEstimatedMealRequest(
+                string.IsNullOrWhiteSpace(_aiDraft.Name) ? "Posiłek" : _aiDraft.Name,
+                DateTimeOffset.Now,
+                _aiDraft.Items.Select(x => new SaveEstimatedMealItemRequest(x.Name, x.AmountGrams, x.CaloriesPer100, x.ProteinPer100, x.FatPer100, x.CarbohydratesPer100)).ToList()));
+            _aiDraft = null;
+            _mealDescription = string.Empty;
+            await Reload();
+            Snackbar.Add("Posiłek dodany do dziennika.", Severity.Success);
+        }
+        catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać posiłku.", Severity.Error); }
+        finally { _savingAi = false; }
     }
 
     private async Task SaveMeal() => await Run(async () =>
@@ -277,4 +414,25 @@
     }
 
     private sealed record MealDraftItem(Guid ProductId, string Name, decimal AmountGrams);
+    private enum MealEntryMode { Manual, Photo, Text }
+
+    private sealed class AiMealForm(string name, string? note, List<AiFoodForm> items)
+    {
+        public string Name { get; set; } = name;
+        public string? Note { get; } = note;
+        public List<AiFoodForm> Items { get; } = items;
+    }
+
+    private sealed class AiFoodForm
+    {
+        public AiFoodForm() { }
+        public AiFoodForm(MealPhotoItemDraft item) => (Name, AmountGrams, CaloriesPer100, ProteinPer100, FatPer100, CarbohydratesPer100) =
+            (item.Name, item.AmountGrams, item.CaloriesPer100, item.ProteinPer100, item.FatPer100, item.CarbohydratesPer100);
+        public string Name { get; set; } = string.Empty;
+        public decimal AmountGrams { get; set; } = 100;
+        public decimal CaloriesPer100 { get; set; }
+        public decimal ProteinPer100 { get; set; }
+        public decimal FatPer100 { get; set; }
+        public decimal CarbohydratesPer100 { get; set; }
+    }
 }

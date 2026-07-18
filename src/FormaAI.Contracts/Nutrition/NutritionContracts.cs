@@ -15,3 +15,8 @@ public sealed record SaveMealRequest([Required, MaxLength(120)] string Name, Dat
 public sealed record MealItemResponse(Guid Id, Guid? ProductId, string ProductName, decimal AmountGrams, MacroResponse Macro, bool IsEstimated);
 public sealed record MealResponse(Guid Id, string Name, DateTime OccurredAtUtc, IReadOnlyList<MealItemResponse> Items, MacroResponse Macro);
 public sealed record NutritionDayResponse(DateOnly Date, MacroResponse? Target, MacroResponse Consumed, MacroResponse? Remaining, IReadOnlyList<MealResponse> Meals);
+public sealed record MealPhotoItemDraft(string Name, decimal AmountGrams, decimal CaloriesPer100, decimal ProteinPer100, decimal FatPer100, decimal CarbohydratesPer100);
+public sealed record MealPhotoDraftResponse(string MealName, string? Note, IReadOnlyList<MealPhotoItemDraft> Items);
+public sealed record AnalyzeMealTextRequest([Required, MaxLength(1000)] string Description);
+public sealed record SaveEstimatedMealRequest([Required, MaxLength(120)] string Name, DateTimeOffset OccurredAt, [MinLength(1), MaxLength(12)] IReadOnlyList<SaveEstimatedMealItemRequest> Items);
+public sealed record SaveEstimatedMealItemRequest([Required, MaxLength(200)] string Name, [Range(0.01, 5000)] decimal AmountGrams, [Range(0, 5000)] decimal CaloriesPer100, [Range(0, 1000)] decimal ProteinPer100, [Range(0, 1000)] decimal FatPer100, [Range(0, 1000)] decimal CarbohydratesPer100);

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FormaAI.Application.Nutrition;
+using FormaAI.Application.Assistant;
 using FormaAI.Contracts.Nutrition;
 using FormaAI.Domain.Nutrition;
 using FormaAI.Infrastructure.Persistence;
@@ -13,7 +14,7 @@ namespace FormaAI.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/v1")]
-public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient openFoodFacts) : ControllerBase
+public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient openFoodFacts, IAssistantModel assistant) : ControllerBase
 {
     [HttpGet("nutrition-targets/current")]
     public async Task<ActionResult<NutritionTargetResponse>> GetCurrentTarget()
@@ -117,6 +118,59 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
         var meal = await BuildMeal(userId, request);
         if (meal is null) return ValidationProblem("Co najmniej jeden produkt nie istnieje lub nie należy do użytkownika.");
         if (request.DeductFromPantry && !await DeductFromPantry(userId, meal)) return Conflict("W spiżarni nie ma wystarczającej ilości składników.");
+        db.Meals.Add(meal);
+        await db.SaveChangesAsync();
+        return Created($"api/v1/meals/{meal.Id}", MealResponse(meal));
+    }
+
+    [HttpPost("nutrition/meal-photo")]
+    [ValidateAntiForgeryToken]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(12 * 1024 * 1024)]
+    public async Task<ActionResult<MealPhotoDraftResponse>> AnalyzePhoto([FromForm] IFormFile photo, CancellationToken cancellationToken)
+    {
+        var mime = photo.ContentType.ToLowerInvariant();
+        if (photo.Length is 0 or > 12 * 1024 * 1024) return BadRequest("Zdjęcie może mieć maksymalnie 12 MB.");
+        if (mime is not ("image/jpeg" or "image/png" or "image/webp" or "image/heic" or "image/heif"))
+            return BadRequest("Obsługiwane formaty to JPEG, PNG, WEBP, HEIC i HEIF.");
+        await using var stream = new MemoryStream((int)photo.Length);
+        await photo.CopyToAsync(stream, cancellationToken);
+        try { return await assistant.AnalyzeMealPhoto(stream.ToArray(), mime, cancellationToken); }
+        catch (AssistantModelUnavailableException ex) { return StatusCode(StatusCodes.Status503ServiceUnavailable, ex.Message); }
+    }
+
+    [HttpPost("nutrition/meal-text")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<MealPhotoDraftResponse>> AnalyzeText(AnalyzeMealTextRequest request, CancellationToken cancellationToken)
+    {
+        try { return await assistant.AnalyzeMealText(request.Description, cancellationToken); }
+        catch (AssistantModelUnavailableException ex) { return StatusCode(StatusCodes.Status503ServiceUnavailable, ex.Message); }
+    }
+
+    [HttpPost("meals/estimated")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<MealResponse>> CreateEstimatedMeal(SaveEstimatedMealRequest request)
+    {
+        var userId = UserId();
+        var names = request.Items.Select(x => x.Name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var known = await db.Products.Where(x => (x.OwnerUserId == null || x.OwnerUserId == userId) && names.Contains(x.Name)).ToListAsync();
+        var products = known.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+        var localDate = await LocalDate(userId, request.OccurredAt.UtcDateTime);
+        var meal = new Meal(userId, request.Name, request.OccurredAt.UtcDateTime, localDate);
+        meal.MarkAsAssistantDraft();
+
+        foreach (var item in request.Items)
+        {
+            if (!products.TryGetValue(item.Name.Trim(), out var product))
+            {
+                product = new Product(userId, item.Name, null, item.CaloriesPer100, item.ProteinPer100, item.FatPer100, item.CarbohydratesPer100, item.AmountGrams);
+                db.Products.Add(product);
+                products[product.Name] = product;
+            }
+            var macro = NutritionCalculator.ForProduct(product, item.AmountGrams);
+            meal.Items.Add(new MealItem(product.Id, product.Name, item.AmountGrams, macro.CaloriesKcal, macro.ProteinG, macro.FatG, macro.CarbohydratesG, true));
+        }
+
         db.Meals.Add(meal);
         await db.SaveChangesAsync();
         return Created($"api/v1/meals/{meal.Id}", MealResponse(meal));

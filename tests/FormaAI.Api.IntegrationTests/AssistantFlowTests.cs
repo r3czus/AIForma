@@ -113,4 +113,8 @@ public sealed class FakeAssistantModel : IAssistantModel
     public void Enqueue(AssistantModelTurn turn) => _turns.Enqueue(turn);
     public Task<AssistantModelTurn> Generate(AssistantModelRequest request, CancellationToken cancellationToken) =>
         Task.FromResult(_turns.TryDequeue(out var turn) ? turn : new AssistantModelTurn("Nie mam kolejnej odpowiedzi.", null, 0, 0));
+    public Task<MealPhotoDraftResponse> AnalyzeMealPhoto(byte[] image, string mimeType, CancellationToken cancellationToken) =>
+        Task.FromResult(new MealPhotoDraftResponse("Test", null, []));
+    public Task<MealPhotoDraftResponse> AnalyzeMealText(string description, CancellationToken cancellationToken) =>
+        Task.FromResult(new MealPhotoDraftResponse("Test", null, []));
 }

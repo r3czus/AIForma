@@ -1,10 +1,13 @@
 using System.Text.Json;
+using FormaAI.Contracts.Nutrition;
 
 namespace FormaAI.Application.Assistant;
 
 public interface IAssistantModel
 {
     Task<AssistantModelTurn> Generate(AssistantModelRequest request, CancellationToken cancellationToken);
+    Task<MealPhotoDraftResponse> AnalyzeMealPhoto(byte[] image, string mimeType, CancellationToken cancellationToken);
+    Task<MealPhotoDraftResponse> AnalyzeMealText(string description, CancellationToken cancellationToken);
 }
 
 public sealed record AssistantModelRequest(string SystemInstruction, IReadOnlyList<AssistantModelMessage> Messages, IReadOnlyList<AssistantToolResult> ToolResults);

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FormaAI.Application.Assistant;
+using FormaAI.Contracts.Nutrition;
 using FormaAI.Domain.Assistant;
 using FormaAI.Infrastructure.Persistence;
 using Microsoft.AspNetCore.DataProtection;
@@ -37,6 +38,118 @@ public sealed class GeminiAssistantModel(
         return config.Provider == AiProvider.Gemini
             ? await SendGemini(config, request.SystemInstruction, prompt, cancellationToken)
             : await SendOpenAi(config, request.SystemInstruction, prompt, cancellationToken);
+    }
+
+    public async Task<MealPhotoDraftResponse> AnalyzeMealPhoto(byte[] image, string mimeType, CancellationToken cancellationToken)
+    {
+        var config = await RuntimeSettings(cancellationToken);
+        if (string.IsNullOrWhiteSpace(config.ApiKey)) throw new AssistantModelUnavailableException("Brak klucza API.");
+
+        var prompt = """
+            Przeanalizuj zdjęcie jedzenia. Rozpoznaj osobne składniki widoczne na talerzu i oszacuj ich masę oraz wartości odżywcze na 100 g.
+            Nie udawaj pewności: w polu note krótko opisz najważniejsze założenia. Gdy zdjęcie nie przedstawia jedzenia, zwróć pustą listę items.
+            Nazwy podaj po polsku. Nie dodawaj składników, których nie widać, poza oczywistym olejem lub sosem potrzebnym do przygotowania potrawy.
+            """;
+
+        var json = config.Provider == AiProvider.Gemini
+            ? await SendGeminiMeal(config, prompt, image, mimeType, cancellationToken)
+            : await SendOpenAiMeal(config, prompt, image, mimeType, cancellationToken);
+        return ParseMeal(json);
+    }
+
+    public async Task<MealPhotoDraftResponse> AnalyzeMealText(string description, CancellationToken cancellationToken)
+    {
+        var config = await RuntimeSettings(cancellationToken);
+        if (string.IsNullOrWhiteSpace(config.ApiKey)) throw new AssistantModelUnavailableException("Brak klucza API.");
+        var prompt = $"""
+            Rozpisz opis posiłku na osobne składniki, oszacuj ich masę oraz wartości odżywcze na 100 g.
+            Nazwy podaj po polsku. Nie dodawaj składników, których opis nie sugeruje. W polu note krótko opisz najważniejsze założenia.
+            Opis użytkownika: {description}
+            """;
+        var json = config.Provider == AiProvider.Gemini
+            ? await SendGeminiMeal(config, prompt, null, null, cancellationToken)
+            : await SendOpenAiMeal(config, prompt, null, null, cancellationToken);
+        return ParseMeal(json);
+    }
+
+    private static MealPhotoDraftResponse ParseMeal(string json)
+    {
+        var parsed = JsonSerializer.Deserialize<PhotoJson>(json, JsonOptions)
+            ?? throw new AssistantModelUnavailableException("Model zwrócił odpowiedź w nieobsługiwanym formacie.");
+        var items = parsed.Items.Take(12).Where(x => !string.IsNullOrWhiteSpace(x.Name) && x.AmountGrams > 0)
+            .Select(x => new MealPhotoItemDraft(
+                x.Name.Trim(),
+                decimal.Clamp(x.AmountGrams, 1, 5000),
+                decimal.Clamp(x.CaloriesPer100, 0, 5000),
+                decimal.Clamp(x.ProteinPer100, 0, 1000),
+                decimal.Clamp(x.FatPer100, 0, 1000),
+                decimal.Clamp(x.CarbohydratesPer100, 0, 1000)))
+            .ToList();
+        return new MealPhotoDraftResponse(string.IsNullOrWhiteSpace(parsed.MealName) ? "Posiłek ze zdjęcia" : parsed.MealName.Trim(), parsed.Note?.Trim(), items);
+    }
+
+    private async Task<string> SendGeminiMeal(RuntimeConfig config, string prompt, byte[]? image, string? mimeType, CancellationToken cancellationToken)
+    {
+        object[] parts = image is null
+            ? [new { text = prompt }]
+            : [new { text = prompt }, new { inlineData = new { mimeType, data = Convert.ToBase64String(image) } }];
+        var body = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    role = "user",
+                    parts
+                }
+            },
+            generationConfig = new
+            {
+                responseMimeType = "application/json",
+                responseJsonSchema = PhotoSchema,
+                maxOutputTokens = 2048
+            }
+        };
+        var endpoint = new Uri(new Uri(config.ApiBaseUrl), $"v1beta/models/{Uri.EscapeDataString(config.Model)}:generateContent");
+        using var message = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = JsonContent.Create(body) };
+        message.Headers.Add("x-goog-api-key", config.ApiKey);
+        using var response = await http.SendAsync(message, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw ProviderError("Gemini", response.StatusCode, config.Model);
+        var result = await response.Content.ReadFromJsonAsync<JsonObject>(cancellationToken: cancellationToken);
+        var text = result?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.GetValue<string>();
+        return string.IsNullOrWhiteSpace(text) ? throw new AssistantModelUnavailableException("Model nie rozpoznał zawartości zdjęcia.") : text;
+    }
+
+    private async Task<string> SendOpenAiMeal(RuntimeConfig config, string prompt, byte[]? image, string? mimeType, CancellationToken cancellationToken)
+    {
+        var format = " Zwróć JSON: mealName, note oraz items z polami name, amountGrams, caloriesPer100, proteinPer100, fatPer100, carbohydratesPer100.";
+        object[] content = image is null
+            ? [new { type = "text", text = prompt + format }]
+            : [new { type = "text", text = prompt + format }, new { type = "image_url", image_url = new { url = $"data:{mimeType};base64,{Convert.ToBase64String(image)}" } }];
+        var body = new
+        {
+            model = config.Model,
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content
+                }
+            },
+            response_format = new { type = "json_object" },
+            temperature = 0.1,
+            max_tokens = 1600
+        };
+        var baseUri = new Uri(config.ApiBaseUrl);
+        var suffix = baseUri.AbsolutePath.TrimEnd('/').EndsWith("/v1", StringComparison.OrdinalIgnoreCase) ? "chat/completions" : "v1/chat/completions";
+        using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, suffix)) { Content = JsonContent.Create(body) };
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.ApiKey);
+        using var response = await http.SendAsync(message, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw ProviderError("Wybrane API", response.StatusCode, config.Model);
+        var result = await response.Content.ReadFromJsonAsync<JsonObject>(cancellationToken: cancellationToken);
+        var text = result?["choices"]?[0]?["message"]?["content"]?.GetValue<string>();
+        return string.IsNullOrWhiteSpace(text) ? throw new AssistantModelUnavailableException("Model nie rozpoznał zawartości zdjęcia.") : text;
     }
 
     private async Task<AssistantModelTurn> SendGemini(RuntimeConfig config, string systemInstruction, string prompt, CancellationToken cancellationToken)
@@ -156,9 +269,39 @@ public sealed class GeminiAssistantModel(
     };
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly object PhotoSchema = new
+    {
+        type = "object",
+        properties = new
+        {
+            mealName = new { type = "string" },
+            note = new { type = new[] { "string", "null" } },
+            items = new
+            {
+                type = "array",
+                items = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        name = new { type = "string" },
+                        amountGrams = new { type = "number" },
+                        caloriesPer100 = new { type = "number" },
+                        proteinPer100 = new { type = "number" },
+                        fatPer100 = new { type = "number" },
+                        carbohydratesPer100 = new { type = "number" }
+                    },
+                    required = new[] { "name", "amountGrams", "caloriesPer100", "proteinPer100", "fatPer100", "carbohydratesPer100" }
+                }
+            }
+        },
+        required = new[] { "mealName", "note", "items" }
+    };
     private sealed record RuntimeConfig(AiProvider Provider, string ApiBaseUrl, string Model, string ApiKey);
     private sealed record ModelJson(string? Reply, ToolJson? ToolCall);
     private sealed record ToolJson(string Name, JsonElement Arguments);
+    private sealed record PhotoJson(string MealName, string? Note, IReadOnlyList<PhotoItemJson> Items);
+    private sealed record PhotoItemJson(string Name, decimal AmountGrams, decimal CaloriesPer100, decimal ProteinPer100, decimal FatPer100, decimal CarbohydratesPer100);
 }
 
 public sealed record GeminiSettings(string ApiKey, string Model);

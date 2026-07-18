@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using FormaAI.Contracts.Nutrition;
 using FormaAI.Contracts.Users;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace FormaAI.Web.Services;
 
@@ -37,6 +39,36 @@ public sealed class NutritionClient(HttpClient http)
 
     public Task<MealResponse> SaveMeal(SaveMealRequest request) =>
         Send<MealResponse>(HttpMethod.Post, "api/v1/meals", request);
+
+    public async Task<MealPhotoDraftResponse> AnalyzeMealText(string description)
+    {
+        using var response = await Send(HttpMethod.Post, "api/v1/nutrition/meal-text", new AnalyzeMealTextRequest(description));
+        return await ReadAnalysis(response);
+    }
+
+    public async Task<MealPhotoDraftResponse> AnalyzeMealPhoto(IBrowserFile photo)
+    {
+        var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        using var content = new MultipartFormDataContent();
+        await using var stream = photo.OpenReadStream(12 * 1024 * 1024);
+        using var file = new StreamContent(stream);
+        file.Headers.ContentType = new MediaTypeHeaderValue(photo.ContentType);
+        content.Add(file, "photo", photo.Name);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/nutrition/meal-photo") { Content = content };
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+        using var response = await http.SendAsync(request);
+        return await ReadAnalysis(response);
+    }
+
+    public Task<MealResponse> SaveEstimatedMeal(SaveEstimatedMealRequest request) =>
+        Send<MealResponse>(HttpMethod.Post, "api/v1/meals/estimated", request);
+
+    private static async Task<MealPhotoDraftResponse> ReadAnalysis(HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode) return (await response.Content.ReadFromJsonAsync<MealPhotoDraftResponse>())!;
+        var message = await response.Content.ReadFromJsonAsync<string>() ?? "Analiza AI nie powiodła się.";
+        throw new HttpRequestException(message, null, response.StatusCode);
+    }
 
     public async Task DeleteMeal(Guid id)
     {

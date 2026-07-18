@@ -547,6 +547,22 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .module-form-heading p { color: var(--muted); font-size: .85rem; line-height: 1.5; margin: 0; }
 .field-grid { display: grid; gap: 4px 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .draft-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 6px; }
+.meal-entry-modes { background: var(--paper); border: 1px solid var(--rule); border-radius: 16px; display: grid; gap: 5px; grid-template-columns: repeat(3, 1fr); margin: 18px 0 22px; padding: 5px; }
+.meal-entry-modes .mud-button-root { min-width: 0; padding-left: 8px; padding-right: 8px; }
+.meal-photo-capture { align-items: center; background: var(--fuel-soft); border: 2px dashed #e8a071; border-radius: 7px 22px 22px 22px; cursor: pointer; display: flex; flex-direction: column; gap: 7px; margin-bottom: 18px; padding: 28px 20px; text-align: center; }
+.meal-photo-capture > .mud-icon-root { color: var(--fuel); font-size: 2.2rem; }
+.meal-photo-capture strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.3rem; }
+.meal-photo-capture span { color: var(--muted); font-size: .78rem; line-height: 1.45; max-width: 420px; }
+.meal-photo-capture input { height: 1px; opacity: 0; overflow: hidden; position: absolute; width: 1px; }
+.meal-photo-capture.busy { cursor: wait; opacity: .72; }
+.ai-meal-draft { border-top: 1px solid var(--rule-strong); margin-top: 22px; padding-top: 22px; }
+.ai-draft-heading { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 14px; }
+.ai-draft-heading h3 { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.55rem; margin: 0; }
+.ai-draft-heading > strong { background: var(--ink); border-radius: 12px; color: white; font-family: "IBM Plex Mono", monospace; font-size: .75rem; padding: 9px 11px; white-space: nowrap; }
+.ai-food-item { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--fuel); border-radius: 5px 18px 18px 5px; margin: 12px 0; padding: 12px 14px 15px; }
+.ai-food-name { align-items: center; display: grid; gap: 6px; grid-template-columns: 1fr auto; }
+.ai-food-values { display: grid; gap: 8px; grid-template-columns: 1.15fr repeat(4, 1fr); }
+.ai-meal-draft > .mud-typography-caption { color: var(--muted); display: block; line-height: 1.45; margin-top: 10px; }
 .module-empty {
     align-items: center;
     background: rgba(255, 255, 255, .58);
@@ -873,6 +889,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .module-status > div:nth-child(2) { border-right: 0; }
     .module-status > div:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
     .field-grid { grid-template-columns: 1fr; }
+    .meal-entry-modes { grid-template-columns: 1fr; }
+    .meal-entry-modes .mud-button-root { justify-content: flex-start; }
+    .ai-food-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ai-food-values > :first-child { grid-column: 1 / -1; }
     .module-form { padding-left: 0; padding-right: 0; }
     .meal-row { align-items: flex-start; }
     .recipe-metrics { gap: 5px; }
