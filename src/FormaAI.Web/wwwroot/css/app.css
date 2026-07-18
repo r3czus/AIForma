@@ -487,7 +487,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .meal-add-header .mud-icon-button { margin-top: 7px; }
 .meal-add-header h4 { margin-top: 2px; }
 .meal-add-shell { background: rgba(255, 255, 255, .76); border: 1px solid var(--rule); border-radius: 24px; box-shadow: 0 16px 38px rgba(25, 46, 37, .07); padding: 18px; }
-.food-diary { margin-top: 16px; }
+.food-diary { margin-top: 16px; min-height: 280px; position: relative; }
+.food-diary.loading > :not(.food-day-loading) { opacity: .38; pointer-events: none; }
+.food-day-loading { align-items: center; background: rgba(247, 249, 247, .92); border: 1px solid var(--rule); border-radius: 16px; box-shadow: 0 12px 32px rgba(25, 46, 37, .1); display: flex; gap: 12px; left: 50%; padding: 12px 16px; position: absolute; top: 110px; transform: translateX(-50%); white-space: nowrap; z-index: 10; }
+.food-day-loading span { color: var(--muted); font-size: .76rem; font-weight: 700; }
 .meal-own-product { border: 1px solid var(--rule); border-radius: 16px; background: rgba(255, 255, 255, .58); padding: 0 14px 14px; }
 .meal-own-product summary { cursor: pointer; font-weight: 800; padding: 14px 0; }
 .meal-own-product[open] summary { color: var(--cobalt); }
@@ -503,10 +506,30 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .meal-add-section-title span { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.15rem; font-weight: 700; }
 .meal-add-section-title small { color: var(--muted); }
 .meal-search-box { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 18px; margin: 18px 0; padding: 14px; }
+.meal-catalog-search { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 16px; margin-top: 18px; padding: 7px 12px 2px; }
+.meal-catalog-tabs { border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 10px; }
+.meal-catalog-tabs button { background: transparent; border: 0; border-bottom: 3px solid transparent; color: var(--muted); cursor: pointer; font-size: .76rem; font-weight: 700; padding: 12px 5px 10px; }
+.meal-catalog-tabs button.active { border-bottom-color: var(--fuel); color: var(--ink); }
+.meal-catalog { min-height: 180px; padding: 16px 0 4px; }
+.meal-catalog-loading { align-items: center; color: var(--muted); display: flex; gap: 10px; justify-content: center; min-height: 150px; }
+.meal-catalog-empty { color: var(--muted); margin: 45px 0; text-align: center; }
+.meal-product-list { border-bottom: 1px solid var(--rule); border-top: 1px solid var(--rule); }
+.meal-product-row { align-items: center; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.meal-product-row:last-child { border-bottom: 0; }
+.meal-product-row.selected { background: rgba(239, 136, 78, .09); }
+.meal-product-row label { align-items: center; cursor: pointer; display: grid; gap: 10px; grid-template-columns: auto minmax(0, 1fr) auto; min-width: 0; padding: 12px 4px 12px 2px; }
+.meal-product-row input { accent-color: var(--fuel); height: 20px; width: 20px; }
+.meal-product-row label > span { display: flex; flex-direction: column; min-width: 0; }
+.meal-product-row label > span:nth-child(3) { align-items: flex-end; }
+.meal-product-row label strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meal-product-row label small { color: var(--muted); font-size: .66rem; }
+.meal-product-row label > span:last-child strong { font-family: "IBM Plex Mono", monospace; font-size: .72rem; }
+.favorite-product { background: transparent; border: 0; color: var(--fuel); cursor: pointer; padding: 10px; }
+.recent-meal-grid.compact-list { margin-bottom: 18px; }
 .meal-portion-row { align-items: end; display: grid; gap: 10px; grid-template-columns: 1fr auto; }
 .meal-portion-row .mud-button-root { margin-bottom: 4px; min-height: 42px; }
 .meal-draft-list { border: 1px solid var(--rule); border-radius: 16px; margin: 14px 0; overflow: hidden; }
-.meal-draft-list > div { align-items: center; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; padding: 10px 10px 10px 14px; }
+.meal-draft-list > div { align-items: center; border-bottom: 1px solid var(--rule); display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) 150px auto; padding: 8px 8px 8px 14px; }
 .meal-draft-list > div:last-child { border-bottom: 0; }
 .meal-draft-list span { display: flex; flex-direction: column; }
 .meal-draft-list small { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .63rem; }
@@ -1075,6 +1098,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .meal-entry-modes-wide button { padding: 9px 7px; }
     .meal-entry-modes-wide button span { display: none; }
     .meal-add-shell { border-radius: 20px; padding: 14px; }
+    .meal-catalog-tabs button { font-size: .69rem; padding-left: 2px; padding-right: 2px; }
+    .meal-product-row label { gap: 7px; }
+    .meal-product-row label > span:last-child strong { font-size: .67rem; }
+    .meal-draft-list > div { grid-template-columns: minmax(0, 1fr) 105px auto; }
     .food-week { margin-left: -2px; margin-right: -2px; padding-left: 9px; padding-right: 9px; }
     .food-week-days { gap: 2px; }
     .food-week-days strong { height: 38px; width: 38px; }

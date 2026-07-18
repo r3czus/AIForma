@@ -51,8 +51,8 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
             products = products.Where(x => x.Name.Contains(query));
         }
 
-        return await products.OrderBy(x => x.Name).Take(30)
-            .Select(x => new ProductResponse(x.Id, x.Name, x.Brand, x.CaloriesPer100, x.ProteinPer100, x.FatPer100, x.CarbohydratesPer100, x.DefaultServingAmount, x.DefaultServingUnit, x.GramsPerPiece, x.Barcode))
+        return await products.OrderBy(x => x.Name).Take(100)
+            .Select(x => new ProductResponse(x.Id, x.Name, x.Brand, x.CaloriesPer100, x.ProteinPer100, x.FatPer100, x.CarbohydratesPer100, x.DefaultServingAmount, x.DefaultServingUnit, x.GramsPerPiece, x.Barcode, x.OwnerUserId != null))
             .ToListAsync();
     }
 
@@ -250,7 +250,7 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
     }
 
     private static NutritionTargetResponse TargetResponse(NutritionTarget x) => new(x.Id, x.EffectiveFrom, x.CaloriesKcal, x.ProteinG, x.FatG, x.CarbohydratesG);
-    private static ProductResponse ProductResponse(Product x) => new(x.Id, x.Name, x.Brand, x.CaloriesPer100, x.ProteinPer100, x.FatPer100, x.CarbohydratesPer100, x.DefaultServingAmount, x.DefaultServingUnit, x.GramsPerPiece, x.Barcode);
+    private static ProductResponse ProductResponse(Product x) => new(x.Id, x.Name, x.Brand, x.CaloriesPer100, x.ProteinPer100, x.FatPer100, x.CarbohydratesPer100, x.DefaultServingAmount, x.DefaultServingUnit, x.GramsPerPiece, x.Barcode, x.OwnerUserId != null);
     private static ProductImportDraft Draft(Product x) => new(x.Barcode!, x.Name, x.Brand, x.CaloriesPer100, x.ProteinPer100, x.FatPer100, x.CarbohydratesPer100, x.DefaultServingAmount, x.DefaultServingUnit);
     private static MacroResponse MacroResponse(NutritionTarget x) => new(x.CaloriesKcal, x.ProteinG, x.FatG, x.CarbohydratesG);
     private static MacroResponse MacroResponse(Macro x) => new(x.CaloriesKcal, x.ProteinG, x.FatG, x.CarbohydratesG);

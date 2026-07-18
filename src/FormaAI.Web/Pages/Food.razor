@@ -42,7 +42,11 @@
             </div>
         </section>
 
-        <div class="food-panel food-diary">
+        <div class="food-panel food-diary @(_dayLoading ? "loading" : null)" aria-busy="@_dayLoading">
+                @if (_dayLoading)
+                {
+                    <div class="food-day-loading"><MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Primary" /><span>Pobieram podsumowanie dnia…</span></div>
+                }
                 @if (_day is not null)
                 {
                     <MacroSummary Day="_day" />
@@ -270,6 +274,7 @@
     private string? _barcodeMessage;
     private bool _barcodeUnavailable;
     private bool _loading = true;
+    private bool _dayLoading;
     private bool _aiBusy;
     private bool _savingAi;
     private string _mealDescription = string.Empty;
@@ -324,21 +329,21 @@
         if (next > Today) return;
         _date = next;
         CancelMealEdit();
-        await Reload();
+        await LoadDay();
     }
 
     private async Task GoToday()
     {
         _date = Today;
         CancelMealEdit();
-        await Reload();
+        await LoadDay();
     }
 
     private async Task SelectDay(DateOnly day)
     {
         if (day > Today || day == _date) return;
         _date = day;
-        await Reload();
+        await LoadDay();
     }
 
     private async Task ChangeWeek(int offset)
@@ -346,7 +351,14 @@
         var next = WeekStart.AddDays(offset * 7);
         if (next > Today) return;
         _date = next.AddDays(Math.Min(((int)_date.DayOfWeek + 6) % 7, Math.Max(0, Today.DayNumber - next.DayNumber)));
-        await Reload();
+        await LoadDay();
+    }
+
+    private async Task LoadDay()
+    {
+        _dayLoading = true;
+        try { await Reload(); }
+        finally { _dayLoading = false; }
     }
 
     private void AddItem()

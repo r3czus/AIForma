@@ -1,8 +1,10 @@
 @page "/food/add"
 @inject AccountClient Account
 @inject NutritionClient Nutrition
+@inject PantryClient PantryApi
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
 <PageTitle>@(_editingMealId is null ? "Dodaj posiłek" : "Edytuj posiłek") · FormaAI</PageTitle>
 
@@ -37,37 +39,77 @@
 
             @if (_entryMode == MealEntryMode.Manual)
             {
-                @if (_editingMealId is null && _recentMeals.Count > 0)
-                {
-                    <section class="recent-meals compact">
-                        <div class="meal-add-section-title"><span>Ostatnie</span><small>Dodaj jednym dotknięciem</small></div>
-                        <div class="recent-meal-grid">
-                            @foreach (var recent in _recentMeals.Take(4))
-                            {
-                                <button type="button" @onclick="() => CopyMeal(recent)"><strong>@RecentName(recent.Name)</strong><span>@recent.Macro.CaloriesKcal.ToString("0") kcal · B @recent.Macro.ProteinG.ToString("0") g</span></button>
-                            }
-                        </div>
-                    </section>
-                }
-
-                <div class="meal-search-box">
-                    <MudTextField @bind-Value="_productSearch" Immediate="true" Label="Szukaj produktu" Placeholder="Np. banan, skyr, ryż" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
-                    <MudSelect T="Guid?" Value="_meal.ProductId" ValueChanged="SelectProduct" Label="Wybierz produkt">
-                        @foreach (var product in FilteredProducts.Take(40))
-                        {
-                            <MudSelectItem T="Guid?" Value="@((Guid?)product.Id)">@product.Name</MudSelectItem>
-                        }
-                    </MudSelect>
-                    <div class="meal-portion-row">
-                        <MudNumericField @bind-Value="_meal.AmountGrams" Label="Ilość (g)" Min="0.01m" />
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_meal.ProductId is null)" OnClick="AddItem" StartIcon="@Icons.Material.Outlined.Add">Dodaj</MudButton>
-                    </div>
-                    <div class="portion-shortcuts">
-                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => ScalePortion(.5m)">½ porcji</MudButton>
-                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => ScalePortion(1m)">1 porcja</MudButton>
-                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => ScalePortion(2m)">2 porcje</MudButton>
-                    </div>
+                <div class="meal-catalog-search">
+                    <MudTextField T="string" Value="_productSearch" ValueChanged="@((string value) => SearchProducts(value))" Immediate="true" DebounceInterval="250" Placeholder="Szukaj produktu lub marki" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" aria-label="Szukaj produktu" />
                 </div>
+
+                <nav class="meal-catalog-tabs" aria-label="Filtry produktów">
+                    <button type="button" class="@(_catalogScope == CatalogScope.Search ? "active" : null)" @onclick="() => SetCatalogScope(CatalogScope.Search)">Szukaj</button>
+                    <button type="button" class="@(_catalogScope == CatalogScope.Own ? "active" : null)" @onclick="() => SetCatalogScope(CatalogScope.Own)">Własne</button>
+                    <button type="button" class="@(_catalogScope == CatalogScope.Favorites ? "active" : null)" @onclick="() => SetCatalogScope(CatalogScope.Favorites)">Ulubione</button>
+                    <button type="button" class="@(_catalogScope == CatalogScope.Pantry ? "active" : null)" @onclick="() => SetCatalogScope(CatalogScope.Pantry)">Lodówka</button>
+                </nav>
+
+                <section class="meal-catalog" aria-live="polite">
+                    @if (_catalogLoading)
+                    {
+                        <div class="meal-catalog-loading"><MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary" /><span>Szukam produktów…</span></div>
+                    }
+                    else if (_catalogScope == CatalogScope.Search && string.IsNullOrWhiteSpace(_productSearch))
+                    {
+                        <div class="meal-add-section-title"><span>Ostatnie w tej sekcji</span><small>Dodaj ponownie jednym dotknięciem</small></div>
+                        @if (_recentMeals.Count > 0)
+                        {
+                            <div class="recent-meal-grid">
+                                @foreach (var recent in _recentMeals.Take(6))
+                                {
+                                    <button type="button" @onclick="() => CopyMeal(recent)"><strong>@RecentName(recent.Name)</strong><span>@recent.Macro.CaloriesKcal.ToString("0") kcal · B @recent.Macro.ProteinG.ToString("0") g</span></button>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="meal-catalog-empty">Zacznij pisać, aby znaleźć pierwszy produkt.</p>
+                        }
+                    }
+                    else
+                    {
+                        @if (_catalogScope == CatalogScope.Own && _recentMeals.Count > 0)
+                        {
+                            <div class="meal-add-section-title"><span>Twoje gotowe dania</span><small>Zapisane wcześniej</small></div>
+                            <div class="recent-meal-grid compact-list">
+                                @foreach (var recent in _recentMeals.Take(4))
+                                {
+                                    <button type="button" @onclick="() => CopyMeal(recent)"><strong>@RecentName(recent.Name)</strong><span>@recent.Macro.CaloriesKcal.ToString("0") kcal</span></button>
+                                }
+                            </div>
+                        }
+
+                        @if (VisibleProducts.Count > 0)
+                        {
+                            <div class="meal-product-list">
+                                @foreach (var product in VisibleProducts)
+                                {
+                                    var portion = DefaultPortion(product);
+                                    <div class="meal-product-row @(IsSelected(product.Id) ? "selected" : null)">
+                                        <label>
+                                            <input type="checkbox" checked="@IsSelected(product.Id)" @onchange="() => ToggleProduct(product)" />
+                                            <span><strong>@product.Name</strong><small>@(string.IsNullOrWhiteSpace(product.Brand) ? "Produkt" : product.Brand)</small></span>
+                                            <span><strong>@PortionCalories(product, portion).ToString("0") kcal</strong><small>@portion.ToString("0.#") g</small></span>
+                                        </label>
+                                        <button type="button" class="favorite-product" @onclick="() => ToggleFavorite(product.Id)" aria-label="@(IsFavorite(product.Id) ? "Usuń z ulubionych" : "Dodaj do ulubionych")">
+                                            <MudIcon Icon="@(IsFavorite(product.Id) ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" />
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="meal-catalog-empty">Brak produktów w tym widoku.</p>
+                        }
+                    }
+                </section>
 
                 <details class="meal-own-product">
                     <summary>Nie ma produktu? Dodaj własny</summary>
@@ -84,15 +126,14 @@
                     </MudButton>
                 </details>
 
-                <MudButton Href="/profile" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Tune">Zmień dzienny cel w profilu</MudButton>
-
                 <MudTextField @bind-Value="_meal.Name" Label="Nazwa dania (opcjonalnie)" />
                 @if (_meal.Items.Count > 0)
                 {
+                    <div class="meal-add-section-title"><span>Wybrane produkty</span><small>@_meal.Items.Count</small></div>
                     <div class="meal-draft-list">
                         @foreach (var item in _meal.Items)
                         {
-                            <div><span><strong>@item.Name</strong><small>@item.AmountGrams.ToString("0.#") g</small></span><MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="() => _meal.Items.Remove(item)" aria-label="Usuń produkt" /></div>
+                            <div><span><strong>@item.Name</strong><small>Ustaw ilość</small></span><MudNumericField @bind-Value="item.AmountGrams" Min="0.01m" Adornment="Adornment.End" AdornmentText="g" HideSpinButtons="true" aria-label="Ilość produktu" /><MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="() => _meal.Items.Remove(item)" aria-label="Usuń produkt" /></div>
                         }
                     </div>
                 }
@@ -155,28 +196,38 @@
     [SupplyParameterFromQuery(Name = "edit")] public Guid? EditQuery { get; set; }
 
     private static readonly System.Globalization.CultureInfo PolishCulture = new("pl-PL");
+    private const string FavoritesStorageKey = "formaai.favoriteProducts";
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
     private DateOnly _date = Today;
     private IReadOnlyList<ProductResponse> _products = [];
+    private IReadOnlyList<ProductResponse> _searchResults = [];
     private IReadOnlyList<MealResponse> _recentMeals = [];
+    private IReadOnlyList<PantryItemResponse> _pantry = [];
+    private HashSet<Guid> _favorites = [];
     private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
     private string _selectedMealSlot = "Śniadanie";
     private readonly MealForm _meal = new();
     private readonly ProductForm _product = new();
     private string _productSearch = string.Empty;
-    private decimal _basePortion = 100;
     private MealEntryMode _entryMode;
+    private CatalogScope _catalogScope;
     private string _mealDescription = string.Empty;
     private AiMealForm? _aiDraft;
     private bool _loading = true;
     private bool _aiBusy;
     private bool _saving;
     private bool _savingProduct;
+    private bool _catalogLoading;
     private Guid? _editingMealId;
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
-    private IEnumerable<ProductResponse> FilteredProducts => string.IsNullOrWhiteSpace(_productSearch)
-        ? _products
-        : _products.Where(x => x.Name.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) || (x.Brand?.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) ?? false));
+    private IReadOnlyList<ProductResponse> VisibleProducts => _catalogScope switch
+    {
+        CatalogScope.Search => _searchResults,
+        CatalogScope.Own => _products.Where(x => x.IsOwn).ToList(),
+        CatalogScope.Favorites => _products.Where(x => _favorites.Contains(x.Id)).ToList(),
+        CatalogScope.Pantry => _products.Where(x => _pantry.Any(p => p.ProductId == x.Id)).ToList(),
+        _ => []
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -188,6 +239,10 @@
         _selectedMealSlot = _mealSlots.Contains(SlotQuery, StringComparer.OrdinalIgnoreCase) ? _mealSlots.First(x => x.Equals(SlotQuery, StringComparison.OrdinalIgnoreCase)) : _mealSlots[0];
         _products = await Nutrition.GetProducts();
         _recentMeals = await Nutrition.GetRecentMeals();
+        _pantry = await PantryApi.GetPantry();
+        var favoriteJson = await JS.InvokeAsync<string?>("localStorage.getItem", FavoritesStorageKey);
+        if (!string.IsNullOrWhiteSpace(favoriteJson))
+            _favorites = System.Text.Json.JsonSerializer.Deserialize<HashSet<Guid>>(favoriteJson) ?? [];
 
         if (EditQuery is Guid id)
         {
@@ -205,21 +260,36 @@
 
     private void ReturnToDiary() => Navigation.NavigateTo($"/food?date={_date:yyyy-MM-dd}");
     private void SelectMode(MealEntryMode mode) { _entryMode = mode; _aiDraft = null; }
-    private void SelectProduct(Guid? id)
+    private void SetCatalogScope(CatalogScope scope) => _catalogScope = scope;
+
+    private async Task SearchProducts(string value)
     {
-        _meal.ProductId = id;
-        var product = _products.FirstOrDefault(x => x.Id == id);
-        _basePortion = product?.DefaultServingAmount ?? 100;
-        if (product?.DefaultServingUnit == ServingUnit.Piece && product.GramsPerPiece is not null) _basePortion = product.GramsPerPiece.Value;
-        _meal.AmountGrams = _basePortion;
+        _productSearch = value;
+        _catalogScope = CatalogScope.Search;
+        if (string.IsNullOrWhiteSpace(value)) { _searchResults = []; return; }
+        _catalogLoading = true;
+        try { _searchResults = await Nutrition.GetProducts(value.Trim()); }
+        finally { _catalogLoading = false; }
     }
-    private void ScalePortion(decimal multiplier) => _meal.AmountGrams = Math.Max(.01m, _basePortion * multiplier);
-    private void AddItem()
+
+    private void ToggleProduct(ProductResponse product)
     {
-        var product = _products.FirstOrDefault(x => x.Id == _meal.ProductId);
-        if (product is null || _meal.AmountGrams <= 0) return;
-        _meal.Items.Add(new MealDraftItem(product.Id, product.Name, _meal.AmountGrams));
-        _meal.ProductId = null;
+        var selected = _meal.Items.FirstOrDefault(x => x.ProductId == product.Id);
+        if (selected is not null) _meal.Items.Remove(selected);
+        else _meal.Items.Add(new MealDraftItem(product.Id, product.Name, DefaultPortion(product)));
+    }
+
+    private bool IsSelected(Guid id) => _meal.Items.Any(x => x.ProductId == id);
+    private bool IsFavorite(Guid id) => _favorites.Contains(id);
+    private static decimal DefaultPortion(ProductResponse product) => product.DefaultServingUnit == ServingUnit.Piece && product.GramsPerPiece is not null
+        ? product.GramsPerPiece.Value
+        : product.DefaultServingAmount ?? 100;
+    private static decimal PortionCalories(ProductResponse product, decimal portion) => product.CaloriesPer100 * portion / 100m;
+
+    private async Task ToggleFavorite(Guid id)
+    {
+        if (!_favorites.Add(id)) _favorites.Remove(id);
+        await JS.InvokeVoidAsync("localStorage.setItem", FavoritesStorageKey, System.Text.Json.JsonSerializer.Serialize(_favorites));
     }
 
     private async Task SaveProduct()
@@ -230,8 +300,8 @@
         {
             var saved = await Nutrition.SaveProduct(new SaveProductRequest(_product.Name.Trim(), _product.Brand, _product.Calories, _product.Protein, _product.Fat, _product.Carbs, 100, ServingUnit.Gram));
             _products = _products.Append(saved).OrderBy(x => x.Name).ToList();
-            _meal.ProductId = saved.Id;
-            _meal.AmountGrams = 100;
+            _searchResults = _searchResults.Append(saved).ToList();
+            ToggleProduct(saved);
             _product.Clear();
             Snackbar.Add("Produkt dodany. Ustaw porcję i dodaj go do posiłku.", Severity.Success);
         }
@@ -308,8 +378,6 @@
     private sealed class MealForm
     {
         public string Name { get; set; } = string.Empty;
-        public Guid? ProductId { get; set; }
-        public decimal AmountGrams { get; set; } = 100;
         public bool DeductFromPantry { get; set; }
         public List<MealDraftItem> Items { get; } = [];
     }
@@ -330,8 +398,14 @@
             Calories = Protein = Fat = Carbs = 0;
         }
     }
-    private sealed record MealDraftItem(Guid ProductId, string Name, decimal AmountGrams);
+    private sealed class MealDraftItem(Guid productId, string name, decimal amountGrams)
+    {
+        public Guid ProductId { get; } = productId;
+        public string Name { get; } = name;
+        public decimal AmountGrams { get; set; } = amountGrams;
+    }
     private enum MealEntryMode { Manual, Photo, Text }
+    private enum CatalogScope { Search, Own, Favorites, Pantry }
     private sealed class AiMealForm(string name, string? note, List<AiFoodForm> items) { public string Name { get; set; } = name; public string? Note { get; } = note; public List<AiFoodForm> Items { get; } = items; }
     private sealed class AiFoodForm
     {
