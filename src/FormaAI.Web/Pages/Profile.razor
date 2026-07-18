@@ -1,0 +1,247 @@
+@page "/profile"
+@inject AccountClient Account
+@inject NutritionClient Nutrition
+@inject ProgressClient ProgressApi
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Profil · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page profile-page">
+    @if (_loading)
+    {
+        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję profil</span></div>
+    }
+    else
+    {
+        <header class="module-heading profile-heading">
+            <div>
+                <span class="page-kicker">Twoje ustawienia</span>
+                <MudText Typo="Typo.h4">Profil</MudText>
+                <p>Cel, pomiary i zasady liczenia w jednym miejscu.</p>
+            </div>
+        </header>
+
+        <section class="profile-summary">
+            <span class="profile-avatar">@Initial</span>
+            <div><strong>@_profile!.Email</strong><span>@GoalName</span></div>
+            <small>@(_targetCalories is null ? "Uzupełnij dane i wylicz cel" : $"{_targetCalories:0} kcal dziennie")</small>
+        </section>
+
+        <MudTabs Class="module-tabs profile-tabs" PanelClass="profile-panel">
+            <MudTabPanel Text="Cel i kalorie">
+                <MudPaper Class="profile-section" Elevation="0">
+                    <div class="profile-section-heading"><span class="card-kicker">Punkt wyjścia</span><h2>Wylicz dzienny cel</h2><p>Wzór uwzględnia wiek, wzrost, obecną masę, aktywność i kierunek zmiany wagi.</p></div>
+                    <div class="field-grid">
+                        <MudDatePicker @bind-Date="_birthDate" Label="Data urodzenia" />
+                        <MudSelect T="BiologicalSex?" @bind-Value="_sex" Label="Płeć">
+                            <MudSelectItem T="BiologicalSex?" Value="BiologicalSex.Female">Kobieta</MudSelectItem>
+                            <MudSelectItem T="BiologicalSex?" Value="BiologicalSex.Male">Mężczyzna</MudSelectItem>
+                        </MudSelect>
+                        <MudNumericField @bind-Value="_heightCm" Label="Wzrost (cm)" Min="50m" Max="280m" />
+                        <MudNumericField @bind-Value="_currentWeightKg" Label="Obecna masa (kg)" Min="20m" Max="500m" />
+                        <MudNumericField @bind-Value="_startingWeightKg" Label="Masa początkowa (kg)" Min="20m" Max="500m" />
+                        <MudNumericField @bind-Value="_targetWeightKg" Label="Masa docelowa (kg)" Min="20m" Max="500m" />
+                        <MudSelect T="ActivityLevel?" @bind-Value="_activity" Label="Aktywność w ciągu dnia">
+                            <MudSelectItem T="ActivityLevel?" Value="ActivityLevel.Low">Niska · głównie siedząco</MudSelectItem>
+                            <MudSelectItem T="ActivityLevel?" Value="ActivityLevel.Light">Lekka · trochę ruchu</MudSelectItem>
+                            <MudSelectItem T="ActivityLevel?" Value="ActivityLevel.Moderate">Średnia · regularny ruch</MudSelectItem>
+                            <MudSelectItem T="ActivityLevel?" Value="ActivityLevel.High">Wysoka · dużo ruchu</MudSelectItem>
+                        </MudSelect>
+                        <MudSelect T="BodyGoal?" @bind-Value="_goal" Label="Cel">
+                            <MudSelectItem T="BodyGoal?" Value="BodyGoal.Reduction">Redukcja</MudSelectItem>
+                            <MudSelectItem T="BodyGoal?" Value="BodyGoal.Maintenance">Utrzymanie</MudSelectItem>
+                            <MudSelectItem T="BodyGoal?" Value="BodyGoal.MuscleGain">Budowanie masy</MudSelectItem>
+                        </MudSelect>
+                    </div>
+                    <div class="profile-actions">
+                        <MudButton Variant="Variant.Outlined" OnClick="SaveProfile">Zapisz dane profilu</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CalculateTarget">Wylicz kalorie</MudButton>
+                    </div>
+                </MudPaper>
+
+                @if (_targetCalories is not null)
+                {
+                    <MudPaper Class="nutrition-prescription" Elevation="0">
+                        <div><span>Twój dzienny cel</span><strong>@_targetCalories.Value.ToString("0")</strong><small>kcal</small></div>
+                        <div class="prescription-macros">
+                            <MudNumericField @bind-Value="_proteinG" Label="Białko (g)" Min="0m" />
+                            <MudNumericField @bind-Value="_fatG" Label="Tłuszcze (g)" Min="0m" />
+                            <MudNumericField @bind-Value="_carbsG" Label="Węglowodany (g)" Min="0m" />
+                        </div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveNutritionTarget">Zapisz cel żywieniowy</MudButton>
+                    </MudPaper>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="Pomiary">
+                <MudPaper Class="profile-section" Elevation="0">
+                    <div class="profile-section-heading"><span class="card-kicker">Dane ciała</span><h2>Zapisz pomiar</h2><p>Mierz się w podobnej porze dnia. Nie musisz uzupełniać wszystkich obwodów.</p></div>
+                    <div class="field-grid">
+                        <MudDatePicker @bind-Date="_measurementDate" Label="Data" />
+                        <MudNumericField @bind-Value="_measurementWeightKg" Label="Masa (kg)" Min="20m" Max="500m" />
+                        <MudNumericField @bind-Value="_waistCm" Label="Talia (cm)" />
+                        <MudNumericField @bind-Value="_chestCm" Label="Klatka (cm)" />
+                        <MudNumericField @bind-Value="_hipsCm" Label="Biodra (cm)" />
+                        <MudNumericField @bind-Value="_armCm" Label="Ramię (cm)" />
+                        <MudNumericField @bind-Value="_thighCm" Label="Udo (cm)" />
+                    </div>
+                    <MudTextField @bind-Value="_measurementNotes" Label="Notatka" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveMeasurement" Class="mt-3">Zapisz pomiar</MudButton>
+                </MudPaper>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Ustawienia">
+                <MudPaper Class="profile-section" Elevation="0">
+                    <div class="profile-section-heading"><span class="card-kicker">Rytm aplikacji</span><h2>Ustawienia</h2></div>
+                    <MudNumericField @bind-Value="_toleranceKcal" Label="Tolerancja zaliczenia kalorii (± kcal)" Min="0" Max="1000" HelperText="Dzień zostanie zaliczony, gdy wynik zmieści się w tym odstępie od celu." />
+                    <MudNumericField @bind-Value="_plannedTrainings" Label="Planowane treningi tygodniowo" Min="1" Max="14" />
+                    <MudTextField @bind-Value="_timeZoneId" Label="Strefa czasowa" HelperText="Np. Europe/Warsaw" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveProfile" Class="mt-3">Zapisz ustawienia</MudButton>
+                </MudPaper>
+
+                <MudPaper Class="profile-section account-section" Elevation="0">
+                    <div class="profile-section-heading"><span class="card-kicker">Konto</span><h2>Dostęp i prywatność</h2></div>
+                    @if (_user!.IsAdmin)
+                    {
+                        <MudButton Href="/admin" Variant="Variant.Outlined" FullWidth="true" StartIcon="@Icons.Material.Outlined.AdminPanelSettings">Panel administratora</MudButton>
+                    }
+                    <MudButton Href="/privacy" Variant="Variant.Text" FullWidth="true">Prywatność i źródła danych</MudButton>
+                    <MudButton OnClick="Logout" Variant="Variant.Outlined" FullWidth="true">Wyloguj się</MudButton>
+                    <MudExpansionPanels Class="mt-3">
+                        <MudExpansionPanel Text="Usuń konto">
+                            <MudAlert Severity="Severity.Warning" Dense="true">Ta operacja trwale usunie wszystkie dane.</MudAlert>
+                            <MudTextField @bind-Value="_deletePassword" Label="Hasło" InputType="InputType.Password" />
+                            <MudTextField @bind-Value="_deleteConfirmation" Label="Wpisz USUŃ" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true" Disabled="@(_deleteConfirmation != "USUŃ" || string.IsNullOrEmpty(_deletePassword))" OnClick="DeleteAccount" Class="mt-3">Usuń konto na stałe</MudButton>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                </MudPaper>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</MudContainer>
+
+@code {
+    private CurrentUserResponse? _user;
+    private UserProfileResponse? _profile;
+    private bool _loading = true;
+    private DateTime? _birthDate;
+    private BiologicalSex? _sex;
+    private ActivityLevel? _activity;
+    private BodyGoal? _goal;
+    private decimal? _heightCm;
+    private decimal? _currentWeightKg;
+    private decimal? _startingWeightKg;
+    private decimal? _targetWeightKg;
+    private int? _plannedTrainings;
+    private int _toleranceKcal = 100;
+    private string _timeZoneId = "Europe/Warsaw";
+    private decimal? _targetCalories;
+    private decimal _proteinG;
+    private decimal _fatG;
+    private decimal _carbsG;
+    private DateTime? _measurementDate = DateTime.Today;
+    private decimal _measurementWeightKg = 75;
+    private decimal? _waistCm;
+    private decimal? _chestCm;
+    private decimal? _hipsCm;
+    private decimal? _armCm;
+    private decimal? _thighCm;
+    private string? _measurementNotes;
+    private string _deletePassword = string.Empty;
+    private string _deleteConfirmation = string.Empty;
+    private char Initial => char.ToUpperInvariant(_profile!.Email[0]);
+    private string GoalName => _goal switch { BodyGoal.Reduction => "Redukcja", BodyGoal.Maintenance => "Utrzymanie", BodyGoal.MuscleGain => "Budowanie masy", _ => "Cel nieustawiony" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await Account.GetCurrentUser();
+        if (_user is null) { Navigation.NavigateTo("/"); return; }
+        _profile = await Account.GetProfile();
+        var target = await Nutrition.GetCurrentTarget();
+        var weight = await ProgressApi.GetWeight(DateOnly.FromDateTime(DateTime.Today.AddDays(-90)), DateOnly.FromDateTime(DateTime.Today));
+
+        _birthDate = _profile.BirthDate?.ToDateTime(TimeOnly.MinValue);
+        _sex = _profile.Sex;
+        _activity = _profile.ActivityLevel;
+        _goal = _profile.Goal;
+        _heightCm = _profile.HeightCm;
+        _startingWeightKg = _profile.StartingWeightKg;
+        _targetWeightKg = _profile.TargetWeightKg;
+        _currentWeightKg = weight?.CurrentAverageKg ?? _profile.StartingWeightKg;
+        _measurementWeightKg = _currentWeightKg ?? 75;
+        _plannedTrainings = _profile.PlannedTrainingsPerWeek;
+        _toleranceKcal = _profile.CalorieToleranceKcal;
+        _timeZoneId = _profile.TimeZoneId;
+        if (target is not null)
+        {
+            _targetCalories = target.CaloriesKcal;
+            _proteinG = target.ProteinG;
+            _fatG = target.FatG;
+            _carbsG = target.CarbohydratesG;
+        }
+        _loading = false;
+    }
+
+    private void CalculateTarget()
+    {
+        if (_birthDate is null || _sex is null || _activity is null || _goal is null || _heightCm is null || _currentWeightKg is null)
+        {
+            Snackbar.Add("Uzupełnij datę urodzenia, płeć, wzrost, obecną masę, aktywność i cel.", Severity.Info);
+            return;
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var birth = DateOnly.FromDateTime(_birthDate.Value);
+        var age = today.Year - birth.Year - (today < birth.AddYears(today.Year - birth.Year) ? 1 : 0);
+        var bmr = 10m * _currentWeightKg.Value + 6.25m * _heightCm.Value - 5m * age + (_sex == BiologicalSex.Male ? 5m : -161m);
+        var factor = _activity switch { ActivityLevel.Low => 1.2m, ActivityLevel.Light => 1.375m, ActivityLevel.Moderate => 1.55m, _ => 1.725m };
+        var adjustment = _goal switch { BodyGoal.Reduction => -400m, BodyGoal.MuscleGain => 250m, _ => 0m };
+        _targetCalories = Math.Round(Math.Max(1200m, bmr * factor + adjustment));
+        _proteinG = Math.Round(_currentWeightKg.Value * 2m);
+        _fatG = Math.Round(_currentWeightKg.Value * .9m);
+        _carbsG = Math.Round(Math.Max(0m, (_targetCalories.Value - _proteinG * 4m - _fatG * 9m) / 4m));
+    }
+
+    private async Task SaveProfile() => await Run(async () =>
+    {
+        _profile = await Account.UpdateProfile(new UpdateUserProfileRequest(
+            _timeZoneId, _heightCm, _startingWeightKg, _goal, _plannedTrainings,
+            _birthDate is null ? null : DateOnly.FromDateTime(_birthDate.Value), _sex, _activity, _targetWeightKg, _toleranceKcal));
+        Snackbar.Add("Profil zapisany.", Severity.Success);
+    }, "Nie udało się zapisać profilu.");
+
+    private async Task SaveNutritionTarget() => await Run(async () =>
+    {
+        await Nutrition.SaveTarget(new SaveNutritionTargetRequest(DateOnly.FromDateTime(DateTime.Today), _targetCalories!.Value, _proteinG, _fatG, _carbsG));
+        Snackbar.Add("Cel żywieniowy zapisany.", Severity.Success);
+    }, "Nie udało się zapisać celu żywieniowego.");
+
+    private async Task SaveMeasurement() => await Run(async () =>
+    {
+        if (_measurementDate is null) return;
+        await ProgressApi.SaveMeasurement(new SaveBodyMeasurementRequest(DateOnly.FromDateTime(_measurementDate.Value), _measurementWeightKg, _waistCm, _measurementNotes, _chestCm, _hipsCm, _armCm, _thighCm));
+        _currentWeightKg = _measurementWeightKg;
+        _measurementNotes = null;
+        Snackbar.Add("Pomiar zapisany.", Severity.Success);
+    }, "Nie udało się zapisać pomiaru.");
+
+    private async Task Logout()
+    {
+        await Account.Logout();
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private async Task DeleteAccount() => await Run(async () =>
+    {
+        await Account.DeleteAccount(new DeleteAccountRequest(_deletePassword, _deleteConfirmation));
+        Navigation.NavigateTo("/", forceLoad: true);
+    }, "Nie udało się usunąć konta. Sprawdź hasło i potwierdzenie.");
+
+    private async Task Run(Func<Task> action, string error)
+    {
+        try { await action(); }
+        catch (HttpRequestException) { Snackbar.Add(error, Severity.Error); }
+    }
+}

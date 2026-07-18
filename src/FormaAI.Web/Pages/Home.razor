@@ -136,37 +136,6 @@
                     <MudButton Href="/progress" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ShowChart" FullWidth="true">Dodaj pomiar</MudButton>
                 </MudPaper>
 
-                @if (_profile is not null)
-                {
-                    <MudExpansionPanels Class="settings-panels">
-                        <MudExpansionPanel Text="Profil i ustawienia">
-                            <EditForm Model="_profileForm" OnValidSubmit="SaveProfile">
-                                <MudTextField @bind-Value="_profileForm.TimeZoneId" Label="Strefa czasowa" Required="true" />
-                                <MudNumericField @bind-Value="_profileForm.HeightCm" Label="Wzrost (cm)" />
-                                <MudNumericField @bind-Value="_profileForm.StartingWeightKg" Label="Masa początkowa (kg)" />
-                                <MudSelect T="BodyGoal?" @bind-Value="_profileForm.Goal" Label="Cel">
-                                    <MudSelectItem T="BodyGoal?" Value="BodyGoal.Reduction">Redukcja</MudSelectItem>
-                                    <MudSelectItem T="BodyGoal?" Value="BodyGoal.Maintenance">Utrzymanie</MudSelectItem>
-                                    <MudSelectItem T="BodyGoal?" Value="BodyGoal.MuscleGain">Budowanie masy</MudSelectItem>
-                                </MudSelect>
-                                <MudNumericField @bind-Value="_profileForm.PlannedTrainingsPerWeek" Label="Treningi tygodniowo" />
-                                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">Zapisz zmiany</MudButton>
-                            </EditForm>
-                        </MudExpansionPanel>
-                        <MudExpansionPanel Text="Prywatność i konto">
-                            <MudAlert Severity="Severity.Warning" Dense="true">Usunięcie konta trwale kasuje wszystkie zapisane dane.</MudAlert>
-                            <MudTextField @bind-Value="_delete.Password" Label="Hasło" InputType="InputType.Password" />
-                            <MudTextField @bind-Value="_delete.Confirmation" Label="Wpisz USUŃ" />
-                            <MudButton Variant="Variant.Filled" Color="Color.Error" Disabled="@(_delete.Confirmation != "USUŃ" || string.IsNullOrEmpty(_delete.Password))" OnClick="DeleteAccount" Class="mt-3">Usuń konto na stałe</MudButton>
-                            <MudButton Href="/privacy" Variant="Variant.Text" Class="mt-3">Prywatność i źródła danych</MudButton>
-                        </MudExpansionPanel>
-                    </MudExpansionPanels>
-                }
-                @if (_user.IsAdmin)
-                {
-                    <MudButton Href="/admin" Variant="Variant.Outlined" FullWidth="true" StartIcon="@Icons.Material.Outlined.AdminPanelSettings">Panel administratora</MudButton>
-                }
-                <MudButton OnClick="Logout" Variant="Variant.Text" Color="Color.Secondary">Wyloguj się</MudButton>
             </aside>
         </div>
     }
@@ -175,8 +144,6 @@
 @code {
     private readonly LoginForm _login = new();
     private readonly RegisterForm _register = new();
-    private readonly ProfileForm _profileForm = new();
-    private readonly DeleteForm _delete = new();
     private CurrentUserResponse? _user;
     private UserProfileResponse? _profile;
     private NutritionDayResponse? _day;
@@ -216,43 +183,11 @@
         Navigation.NavigateTo("/", forceLoad: true);
     }, "Nie udało się utworzyć konta.");
 
-    private async Task SaveProfile() => await Run(async () =>
-    {
-        _profile = await Account.UpdateProfile(new UpdateUserProfileRequest(_profileForm.TimeZoneId, _profileForm.HeightCm, _profileForm.StartingWeightKg, _profileForm.Goal, _profileForm.PlannedTrainingsPerWeek));
-        Snackbar.Add("Profil zapisany.", Severity.Success);
-    }, "Nie udało się zapisać profilu.");
-
-    private async Task Logout()
-    {
-        await Account.Logout();
-        _user = null;
-        _profile = null;
-        _day = null;
-        _todayWorkout = null;
-        Navigation.NavigateTo("/", forceLoad: true);
-    }
-
-    private async Task DeleteAccount() => await Run(async () =>
-    {
-        await Account.DeleteAccount(new DeleteAccountRequest(_delete.Password, _delete.Confirmation));
-        _user = null;
-        _profile = null;
-        _day = null;
-        _todayWorkout = null;
-        Snackbar.Add("Konto i dane zostały usunięte.", Severity.Success);
-        Navigation.NavigateTo("/", forceLoad: true);
-    }, "Nie udało się usunąć konta. Sprawdź hasło i potwierdzenie.");
-
     private async Task LoadUserData()
     {
         _profile = await Account.GetProfile();
         _day = await Nutrition.GetDay(DateOnly.FromDateTime(DateTime.Now));
         _todayWorkout = await TrainingApi.GetToday();
-        _profileForm.TimeZoneId = _profile.TimeZoneId;
-        _profileForm.HeightCm = _profile.HeightCm;
-        _profileForm.StartingWeightKg = _profile.StartingWeightKg;
-        _profileForm.Goal = _profile.Goal;
-        _profileForm.PlannedTrainingsPerWeek = _profile.PlannedTrainingsPerWeek;
     }
 
     private async Task StartWorkout()
@@ -269,13 +204,4 @@
 
     private sealed class LoginForm { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; }
     private sealed class RegisterForm { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; public string TimeZoneId { get; set; } = "Europe/Warsaw"; }
-    private sealed class DeleteForm { public string Password { get; set; } = string.Empty; public string Confirmation { get; set; } = string.Empty; }
-    private sealed class ProfileForm
-    {
-        public string TimeZoneId { get; set; } = string.Empty;
-        public decimal? HeightCm { get; set; }
-        public decimal? StartingWeightKg { get; set; }
-        public BodyGoal? Goal { get; set; }
-        public int? PlannedTrainingsPerWeek { get; set; }
-    }
 }

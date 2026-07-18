@@ -6,6 +6,14 @@ namespace FormaAI.Web.Services;
 
 public sealed class NutritionClient(HttpClient http)
 {
+    public async Task<NutritionTargetResponse?> GetCurrentTarget()
+    {
+        using var response = await http.GetAsync("api/v1/nutrition-targets/current");
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<NutritionTargetResponse>();
+    }
+
     public async Task<NutritionDayResponse> GetDay(DateOnly date) =>
         (await http.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{date:yyyy-MM-dd}"))!;
 

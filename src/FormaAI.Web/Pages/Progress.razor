@@ -29,6 +29,44 @@
             <div><span>Plan</span><strong>@(_consistency?.CompletionPercent.ToString("0.#") ?? "0")%</strong></div>
         </section>
 
+        @if (_nutrition is not null)
+        {
+            <MudPaper Class="progress-card nutrition-calendar-card" Elevation="0">
+                <div class="calendar-heading">
+                    <div><span class="card-kicker">Regularność jedzenia</span><MudText Typo="Typo.h6">@MonthLabel</MudText></div>
+                    <div>
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="() => ChangeMonth(-1)" aria-label="Poprzedni miesiąc" />
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="() => ChangeMonth(1)" aria-label="Następny miesiąc" />
+                    </div>
+                </div>
+                <div class="calendar-score">
+                    <strong>@_nutrition.DaysOnTarget</strong>
+                    <span>dni w celu z @_nutrition.LoggedDays zapisanych</span>
+                    <small>zaliczenie: cel ± @_nutrition.ToleranceKcal kcal</small>
+                </div>
+                <div class="nutrition-calendar" aria-label="Kalendarz realizacji kalorii">
+                    @foreach (var label in new[] { "Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd" })
+                    {
+                        <span class="weekday">@label</span>
+                    }
+                    @for (var i = 0; i < CalendarOffset; i++)
+                    {
+                        <span class="calendar-gap"></span>
+                    }
+                    @foreach (var day in _nutrition.Days)
+                    {
+                        <span class="nutrition-day @DayClass(day)" title="@DayTitle(day)">@day.Date.Day</span>
+                    }
+                </div>
+                <div class="calendar-legend">
+                    <span><i class="on-target"></i>W celu</span>
+                    <span><i class="outside"></i>Poza zakresem</span>
+                    <span><i class="empty"></i>Brak wpisów</span>
+                    <MudButton Href="/profile" Variant="Variant.Text" Size="Size.Small">Ustaw tolerancję</MudButton>
+                </div>
+            </MudPaper>
+        }
+
         <MudPaper Class="progress-card" Elevation="0">
             <div class="progress-card-heading"><span class="card-kicker">Pomiar ciała</span><MudText Typo="Typo.h6">Masa i obwód</MudText><p>Dodaj wynik z podobnej pory dnia, żeby trend był bardziej miarodajny.</p></div>
             <div class="set-entry">
@@ -102,6 +140,7 @@
     private DateOnly From => _to.AddDays(-89);
     private WeightProgressResponse? _weight;
     private ConsistencyResponse? _consistency;
+    private NutritionAdherenceResponse? _nutrition;
     private ExerciseProgressResponse? _exerciseProgress;
     private IReadOnlyList<ExerciseResponse> _exercises = [];
     private Guid? _selectedExercise;
@@ -110,6 +149,9 @@
     private decimal? _waistCm;
     private string? _notes;
     private bool _loading = true;
+    private DateOnly _calendarMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private int CalendarOffset => ((int)_calendarMonth.DayOfWeek + 6) % 7;
+    private string MonthLabel => _calendarMonth.ToString("MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"));
 
     private List<ChartSeries> WeightSeries => [new() { Name = "Średnia 7 dni", Data = _weight!.Points.Select(x => (double)x.SevenDayAverageKg).ToArray() }];
     private string[] WeightLabels => _weight!.Points.Select(x => x.Date.ToString("dd.MM")).ToArray();
@@ -131,6 +173,13 @@
     {
         _weight = await ProgressApi.GetWeight(From, _to);
         _consistency = await ProgressApi.GetConsistency(From, _to);
+        _nutrition = await ProgressApi.GetNutritionAdherence(_calendarMonth);
+    }
+
+    private async Task ChangeMonth(int offset)
+    {
+        _calendarMonth = _calendarMonth.AddMonths(offset);
+        _nutrition = await ProgressApi.GetNutritionAdherence(_calendarMonth);
     }
 
     private async Task SaveMeasurement()
@@ -153,4 +202,10 @@
     }
 
     private static string Signed(decimal? value) => value is null ? "—" : $"{(value > 0 ? "+" : string.Empty)}{value:0.##}";
+    private static string DayClass(NutritionAdherencePoint day) => day.Date > DateOnly.FromDateTime(DateTime.Today)
+        ? "future"
+        : !day.HasMeals ? "empty" : day.IsWithinTarget ? "on-target" : "outside";
+    private static string DayTitle(NutritionAdherencePoint day) => !day.HasMeals
+        ? $"{day.Date:dd.MM}: brak zapisanych posiłków"
+        : $"{day.Date:dd.MM}: {day.ConsumedKcal:0} z {day.TargetKcal:0} kcal";
 }
