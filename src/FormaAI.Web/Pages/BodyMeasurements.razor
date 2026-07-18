@@ -1,0 +1,67 @@
+@page "/progress/measurements"
+@inject AccountClient Account
+@inject ProgressClient ProgressApi
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Dodaj pomiary · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap measurement-page">
+    <header class="measurement-page-heading">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="BackToProgress" aria-label="Wróć do progresu" />
+        <div><span class="page-kicker">Dane ciała</span><MudText Typo="Typo.h4">Dodaj pomiary</MudText><p>Wpisz tylko te wartości, które dziś mierzysz. Masa ciała jest wymagana.</p></div>
+    </header>
+
+    <MudPaper Class="measurement-entry-card" Elevation="0">
+        <div class="field-grid">
+            <MudDatePicker @bind-Date="_date" Label="Data" />
+            <MudNumericField @bind-Value="_weightKg" Label="Masa (kg)" Min="20m" Max="500m" />
+            <MudNumericField @bind-Value="_waistCm" Label="Brzuch / talia (cm)" Min="30m" Max="300m" />
+            <MudNumericField @bind-Value="_chestCm" Label="Klatka (cm)" Min="30m" Max="300m" />
+            <MudNumericField @bind-Value="_hipsCm" Label="Biodra (cm)" Min="30m" Max="300m" />
+            <MudNumericField @bind-Value="_armCm" Label="Ramię (cm)" Min="10m" Max="100m" />
+            <MudNumericField @bind-Value="_thighCm" Label="Udo (cm)" Min="20m" Max="150m" />
+        </div>
+        <MudTextField @bind-Value="_notes" Label="Notatka" MaxLength="500" />
+        <div class="measurement-actions">
+            <MudButton Variant="Variant.Text" OnClick="BackToProgress">Anuluj</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">Zapisz pomiary</MudButton>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private DateTime? _date = DateTime.Today;
+    private decimal _weightKg = 75;
+    private decimal? _waistCm;
+    private decimal? _chestCm;
+    private decimal? _hipsCm;
+    private decimal? _armCm;
+    private decimal? _thighCm;
+    private string? _notes;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Account.GetCurrentUser() is null) Navigation.NavigateTo("/");
+    }
+
+    private void BackToProgress() => Navigation.NavigateTo("/progress");
+
+    private async Task Save()
+    {
+        if (_date is null) return;
+        _saving = true;
+        try
+        {
+            await ProgressApi.SaveMeasurement(new SaveBodyMeasurementRequest(DateOnly.FromDateTime(_date.Value), _weightKg, _waistCm, _notes, _chestCm, _hipsCm, _armCm, _thighCm));
+            Snackbar.Add("Pomiary zapisane.", Severity.Success);
+            Navigation.NavigateTo("/progress");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się zapisać pomiarów.", Severity.Error);
+        }
+        finally { _saving = false; }
+    }
+}

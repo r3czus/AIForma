@@ -106,12 +106,10 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             .Select(x => x.CalorieToleranceKcal).SingleAsync();
         var fromUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var toUtc = end.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var workoutDays = (await db.WorkoutSessions
+        var workoutSessions = await db.WorkoutSessions
+                .Include(x => x.Exercises).ThenInclude(x => x.Sets)
                 .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed && x.FinishedAtUtc >= fromUtc && x.FinishedAtUtc < toUtc)
-                .Select(x => x.FinishedAtUtc!.Value)
-                .ToListAsync())
-            .Select(DateOnly.FromDateTime)
-            .ToHashSet();
+                .ToListAsync();
 
         var days = Enumerable.Range(0, end.Day)
             .Select(offset => start.AddDays(offset))
@@ -122,8 +120,13 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
                 var items = logged.SelectMany(x => x.Items).ToList();
                 var consumed = items.Sum(x => x.CaloriesKcal);
                 var within = logged.Count > 0 && target is not null && Math.Abs(consumed - target.CaloriesKcal) <= tolerance;
-                return new NutritionAdherencePoint(date, target?.CaloriesKcal, consumed, logged.Count > 0, within, workoutDays.Contains(date),
-                    items.Sum(x => x.ProteinG), items.Sum(x => x.FatG), items.Sum(x => x.CarbohydratesG), target?.ProteinG, target?.FatG, target?.CarbohydratesG);
+                var sessions = workoutSessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) == date).ToList();
+                var sets = sessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
+                return new NutritionAdherencePoint(date, target?.CaloriesKcal, consumed, logged.Count > 0, within, sessions.Count > 0,
+                    items.Sum(x => x.ProteinG), items.Sum(x => x.FatG), items.Sum(x => x.CarbohydratesG), target?.ProteinG, target?.FatG, target?.CarbohydratesG,
+                    sessions.Count == 1 ? sessions[0].NameSnapshot : sessions.Count > 1 ? $"{sessions.Count} treningi" : null,
+                    (int)Math.Round(sessions.Sum(x => (x.FinishedAtUtc!.Value - x.StartedAtUtc).TotalMinutes)),
+                    sessions.Sum(x => x.Exercises.Count), sets.Count, sets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions)));
             }).ToList();
 
         return new NutritionAdherenceResponse(start, tolerance, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);

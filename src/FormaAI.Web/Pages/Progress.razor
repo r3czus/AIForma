@@ -28,13 +28,6 @@
                 <MudButton Size="Size.Small" Variant="@(_rangeDays == days ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="() => ChangeRange(days)">@(days == 365 ? "Rok" : $"{days} dni")</MudButton>
             }
         </div>
-        <section class="module-status progress-status" aria-label="Podsumowanie progresu">
-            <div><span>Pomiary</span><strong>@(_weight?.Points.Count ?? 0)</strong></div>
-            <div><span>Średnia kg</span><strong>@(_weight?.CurrentAverageKg?.ToString("0.00") ?? "—")</strong></div>
-            <div><span>Zmiana kg</span><strong>@Signed(_weight?.ChangeKg)</strong></div>
-            <div><span>Plan</span><strong>@(_consistency?.CompletionPercent.ToString("0.#") ?? "0")%</strong></div>
-        </section>
-
         @if (_targetWeightKg is not null && _weight?.CurrentAverageKg is not null)
         {
             <MudPaper Class="progress-card goal-forecast" Elevation="0">
@@ -79,6 +72,8 @@
             </section>
         }
 
+        @if (DateTime.Today.DayOfWeek == DayOfWeek.Sunday)
+        {
         <MudPaper Class="progress-card check-in-card" Elevation="0">
             <div class="progress-card-heading"><span class="card-kicker">Tygodniowy check-in</span><MudText Typo="Typo.h6">Jak działał organizm?</MudText><p>Oceń ostatni tydzień w skali 1–5. Te dane pomagają odróżnić słabszy trening od zwykłego braku regeneracji.</p></div>
             <div class="check-in-grid">
@@ -95,9 +90,17 @@
                 <MudChart ChartType="ChartType.Line" ChartSeries="@CheckInSeries" XAxisLabels="@CheckInLabels" Width="100%" Height="210px" />
             }
         </MudPaper>
+        }
 
         @if (_nutrition is not null)
         {
+            @if (_week is not null)
+            {
+                <section class="progress-training-glance" aria-label="Trening w ostatnich siedmiu dniach">
+                    <div><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><span>Objętość treningów</span><strong>@_week.Training.TotalVolumeKg.ToString("0") kg</strong><small>@_week.Training.WorkingSets serii roboczych</small></div>
+                    <div><MudIcon Icon="@Icons.Material.Outlined.Timer" /><span>Czas treningów</span><strong>@Duration(_week.Training.TotalMinutes)</strong><small>@_week.Training.CompletedWorkouts ukończonych sesji</small></div>
+                </section>
+            }
             <MudPaper Class="progress-card nutrition-calendar-card" Elevation="0">
                 <div class="calendar-heading">
                     <div><span class="card-kicker">Regularność jedzenia</span><MudText Typo="Typo.h6">@MonthLabel</MudText></div>
@@ -128,11 +131,27 @@
                 @if (_selectedDay is not null)
                 {
                     <div class="calendar-day-detail">
-                        <strong>@_selectedDay.Date.ToString("dddd, d MMMM", new System.Globalization.CultureInfo("pl-PL"))</strong>
-                        <span>@(_selectedDay.HasMeals ? $"{_selectedDay.ConsumedKcal:0} z {_selectedDay.TargetKcal:0} kcal" : "Brak zapisanych posiłków")</span>
-                        @if (_selectedDay.HasMeals) { <span>B @_selectedDay.ProteinG.ToString("0") g · W @_selectedDay.CarbohydratesG.ToString("0") g · T @_selectedDay.FatG.ToString("0") g</span> }
-                        <span>@(_selectedDay.HasCompletedWorkout ? "Trening wykonany" : "Bez ukończonego treningu")</span>
-                        <MudButton Href="@($"/food?date={_selectedDay.Date:yyyy-MM-dd}")" Variant="Variant.Text" Size="Size.Small">Otwórz dziennik</MudButton>
+                        <header><strong>@_selectedDay.Date.ToString("dddd, d MMMM", new System.Globalization.CultureInfo("pl-PL"))</strong><span>Podsumowanie dnia</span></header>
+                        <section class="day-summary-diet">
+                            <div><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><span>Dieta</span></div>
+                            @if (_selectedDay.HasMeals)
+                            {
+                                <strong>@_selectedDay.ConsumedKcal.ToString("0") <small>/ @_selectedDay.TargetKcal?.ToString("0") kcal</small></strong>
+                                <p>B @_selectedDay.ProteinG.ToString("0") g · W @_selectedDay.CarbohydratesG.ToString("0") g · T @_selectedDay.FatG.ToString("0") g</p>
+                            }
+                            else { <p>Brak zapisanych posiłków</p> }
+                            <MudButton Href="@($"/food?date={_selectedDay.Date:yyyy-MM-dd}")" Variant="Variant.Text" Size="Size.Small">Otwórz dziennik</MudButton>
+                        </section>
+                        <section class="day-summary-workout">
+                            <div><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><span>Trening</span></div>
+                            @if (_selectedDay.HasCompletedWorkout)
+                            {
+                                <strong>@_selectedDay.WorkoutName</strong>
+                                <p>@Duration(_selectedDay.WorkoutMinutes) · @_selectedDay.WorkoutExercises ćwiczeń · @_selectedDay.WorkoutSets serii</p>
+                                <small>Objętość @_selectedDay.WorkoutVolumeKg.ToString("0") kg</small>
+                            }
+                            else { <p>Bez ukończonego treningu</p> }
+                        </section>
                     </div>
                 }
                 <div class="calendar-legend">
@@ -147,19 +166,17 @@
         }
 
         <MudPaper Class="progress-card" Elevation="0">
-            <div class="progress-card-heading"><span class="card-kicker">Pomiar ciała</span><MudText Typo="Typo.h6">Masa i obwód</MudText><p>Dodaj wynik z podobnej pory dnia, żeby trend był bardziej miarodajny.</p></div>
-            <div class="set-entry">
-                <MudDatePicker @bind-Date="_measurementDate" Label="Data" />
-                <MudNumericField @bind-Value="_weightKg" Label="Masa (kg)" Min="20m" Max="500m" />
-                <MudNumericField @bind-Value="_waistCm" Label="Talia (cm)" Min="30m" Max="300m" />
-            </div>
-            <MudTextField @bind-Value="_notes" Label="Notatka" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveMeasurement" Class="mt-3">Zapisz pomiar</MudButton>
+            <div class="progress-card-heading measurement-heading"><div><span class="card-kicker">Pomiar ciała</span><MudText Typo="Typo.h6">Masa i obwód</MudText><p>Zakres wykresu odpowiada wybranemu okresowi u góry strony.</p></div><MudButton Href="/progress/measurements" Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Outlined.Add">Dodaj pomiary</MudButton></div>
 
             @if (_weight?.Points.Count > 0)
             {
                 <div class="chart-label">Trend masy · średnia 7 dni</div>
-                <MudChart ChartType="ChartType.Line" ChartSeries="@WeightSeries" XAxisLabels="@WeightLabels" Width="100%" Height="240px" Class="mt-4" />
+                <div class="weight-trend-chart" aria-label="Wykres masy ciała od @WeightChartMin.ToString("0.0") do @WeightChartMax.ToString("0.0") kilogramów">
+                    <span class="chart-max">@WeightChartMax.ToString("0.0") kg</span>
+                    <svg viewBox="0 0 100 46" preserveAspectRatio="none" role="img"><line x1="4" y1="4" x2="96" y2="4" /><line x1="4" y1="42" x2="96" y2="42" /><polyline points="@WeightChartPolyline" /></svg>
+                    <span class="chart-min">@WeightChartMin.ToString("0.0") kg</span>
+                    <div><span>@_weight.Points.First().Date.ToString("dd.MM")</span><span>@_weight.Points.Last().Date.ToString("dd.MM")</span></div>
+                </div>
                 <div class="metric-row">
                     <div><span>Średnia 7 dni</span><strong>@_weight.CurrentAverageKg?.ToString("0.00") kg</strong></div>
                     <div><span>Zmiana trendu</span><strong>@Signed(_weight.ChangeKg) kg</strong></div>
@@ -175,6 +192,12 @@
         {
             <MudPaper Class="progress-card" Elevation="0">
                 <div class="progress-card-heading"><span class="card-kicker">Obwody ciała</span><MudText Typo="Typo.h6">Zmiana wymiarów</MudText><p>Każdy obwód ma własną linię, dzięki czemu masa nie zasłania zmian sylwetki.</p></div>
+                <div class="body-metric-filters" role="group" aria-label="Widoczne obwody">
+                    @foreach (var metric in BodyMetrics)
+                    {
+                        <button type="button" class="@(_visibleBodyMetrics.Contains(metric.Key) ? "selected" : null)" @onclick="() => ToggleBodyMetric(metric.Key)">@metric.Label</button>
+                    }
+                </div>
                 <MudChart ChartType="ChartType.Line" ChartSeries="@BodySeries" XAxisLabels="@BodyLabels" Width="100%" Height="260px" />
             </MudPaper>
         }
@@ -267,10 +290,6 @@
     private int _recovery = 3;
     private string? _checkInNotes;
     private Guid? _selectedExercise;
-    private DateTime? _measurementDate = DateTime.Today;
-    private decimal _weightKg = 75;
-    private decimal? _waistCm;
-    private string? _notes;
     private bool _loading = true;
     private DateOnly _calendarMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private int CalendarOffset => ((int)_calendarMonth.DayOfWeek + 6) % 7;
@@ -289,21 +308,38 @@
             ? $"Brakuje wpisów z {7 - _week.Nutrition.LoggedDays} dni — średnie obejmują tylko zapisane dni."
             : "Pełny tydzień zapisany — porównanie jest miarodajne.";
 
-    private List<ChartSeries> WeightSeries => [new() { Name = "Średnia 7 dni", Data = _weight!.Points.Select(x => (double)x.SevenDayAverageKg).ToArray() }];
-    private string[] WeightLabels => _weight!.Points.Select(x => x.Date.ToString("dd.MM")).ToArray();
+    private decimal WeightChartMax => _weight?.Points.Max(x => x.SevenDayAverageKg) ?? 0;
+    private decimal WeightChartMin => _weight?.Points.Count > 0
+        ? Math.Min(_weight.Points.Min(x => x.SevenDayAverageKg), WeightChartMax - 1)
+        : 0;
+    private string WeightChartPolyline
+    {
+        get
+        {
+            if (_weight?.Points.Count == 0) return string.Empty;
+            var span = Math.Max(1, WeightChartMax - WeightChartMin);
+            return string.Join(' ', _weight!.Points.Select((point, index) =>
+            {
+                var x = _weight.Points.Count == 1 ? 50 : 4 + index * 92m / (_weight.Points.Count - 1);
+                var y = 4 + (WeightChartMax - point.SevenDayAverageKg) * 38m / span;
+                return $"{Invariant(x)},{Invariant(y)}";
+            }));
+        }
+    }
     private List<ChartSeries> ConsistencySeries => [new() { Name = "Treningi", Data = _consistency!.Weeks.Select(x => (double)x.CompletedWorkouts).ToArray() }];
     private string[] ConsistencyLabels => _consistency!.Weeks.Select(x => x.WeekStarting.ToString("dd.MM")).ToArray();
     private List<ChartSeries> ExerciseVolumeSeries => [new() { Name = "Objętość (kg)", Data = _exerciseProgress!.Points.Select(x => (double)x.VolumeKg).ToArray() }];
     private List<ChartSeries> ExerciseStrengthSeries => [new() { Name = "e1RM (kg)", Data = _exerciseProgress!.Points.Select(x => (double)(x.EstimatedOneRepMaxKg ?? 0)).ToArray() }];
     private string[] ExerciseLabels => _exerciseProgress!.Points.Select(x => x.Date.ToString("dd.MM")).ToArray();
-    private List<ChartSeries> BodySeries =>
+    private static readonly (string Key, string Label)[] BodyMetrics =
     [
-        new() { Name = "Talia", Data = _measurements.Select(x => (double)(x.WaistCm ?? 0)).ToArray() },
-        new() { Name = "Klatka", Data = _measurements.Select(x => (double)(x.ChestCm ?? 0)).ToArray() },
-        new() { Name = "Biodra", Data = _measurements.Select(x => (double)(x.HipsCm ?? 0)).ToArray() },
-        new() { Name = "Ramię", Data = _measurements.Select(x => (double)(x.ArmCm ?? 0)).ToArray() },
-        new() { Name = "Udo", Data = _measurements.Select(x => (double)(x.ThighCm ?? 0)).ToArray() }
+        ("waist", "Brzuch / talia"), ("chest", "Klatka"), ("hips", "Biodra"), ("arm", "Ramię"), ("thigh", "Udo")
     ];
+    private readonly HashSet<string> _visibleBodyMetrics = ["waist", "hips"];
+    private List<ChartSeries> BodySeries => BodyMetrics
+        .Where(metric => _visibleBodyMetrics.Contains(metric.Key))
+        .Select(metric => new ChartSeries { Name = metric.Label, Data = BodyMetricData(metric.Key) })
+        .ToList();
     private string[] BodyLabels => _measurements.Select(x => x.LocalDate.ToString("dd.MM")).ToArray();
     private List<ChartSeries> NutritionSeries =>
     [
@@ -392,19 +428,6 @@
         _nutrition = await ProgressApi.GetNutritionAdherence(_calendarMonth);
     }
 
-    private async Task SaveMeasurement()
-    {
-        if (_measurementDate is null) return;
-        try
-        {
-            await ProgressApi.SaveMeasurement(new SaveBodyMeasurementRequest(DateOnly.FromDateTime(_measurementDate.Value), _weightKg, _waistCm, _notes));
-            _notes = null;
-            await Reload();
-            Snackbar.Add("Pomiar zapisany.", Severity.Success);
-        }
-        catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać pomiaru.", Severity.Error); }
-    }
-
     private async Task LoadExercise(Guid? exerciseId)
     {
         _selectedExercise = exerciseId;
@@ -413,6 +436,7 @@
 
     private static string Signed(decimal? value) => value is null ? "—" : $"{(value > 0 ? "+" : string.Empty)}{value:0.##}";
     private static string PercentWidth(decimal value) => $"{Math.Clamp(value, 0, 100):0.#}%";
+    private static string Invariant(decimal value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
     private static string Duration(int minutes) => minutes < 60 ? $"{minutes} min" : $"{minutes / 60} h {minutes % 60} min";
     private static string TrendWord(decimal value) => value > 0 ? "wzrosła" : value < 0 ? "spadła" : "nie zmieniła się";
     private static string DayClass(NutritionAdherencePoint day)
@@ -432,6 +456,21 @@
         var diet = day.IsWithinTarget ? "dieta w zakresie" : day.ConsumedKcal < day.TargetKcal ? "dieta poniżej zakresu" : "dieta powyżej zakresu";
         return $"{day.Date:dd.MM}: {workout}; {diet} ({day.ConsumedKcal:0} z {day.TargetKcal:0} kcal)";
     }
+
+    private void ToggleBodyMetric(string metric)
+    {
+        if (!_visibleBodyMetrics.Remove(metric)) _visibleBodyMetrics.Add(metric);
+        else if (_visibleBodyMetrics.Count == 0) _visibleBodyMetrics.Add(metric);
+    }
+
+    private double[] BodyMetricData(string metric) => _measurements.Select(x => (double)(metric switch
+    {
+        "waist" => x.WaistCm,
+        "chest" => x.ChestCm,
+        "hips" => x.HipsCm,
+        "arm" => x.ArmCm,
+        _ => x.ThighCm
+    } ?? 0)).ToArray();
 
     private string MuscleWidth(int sets)
     {
