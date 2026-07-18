@@ -21,3 +21,5 @@ public sealed record NutritionWeekSummaryResponse(int LoggedDays, int DaysOnCalo
     decimal AverageCalories, decimal AverageTargetCalories, int DaysOnProtein, decimal AverageProteinG, decimal AverageCalorieDifference);
 public sealed record ProgressWeekSummaryResponse(DateOnly From, DateOnly To, TrainingWeekSummaryResponse Training, NutritionWeekSummaryResponse Nutrition);
 public sealed record MuscleVolumePoint(string MuscleGroup, int WorkingSets, decimal VolumeKg);
+public sealed record SaveWeeklyCheckInRequest(DateOnly LocalDate, [Range(1, 5)] int Energy, [Range(1, 5)] int Sleep, [Range(1, 5)] int Hunger, [Range(1, 5)] int Recovery, [MaxLength(500)] string? Notes);
+public sealed record WeeklyCheckInResponse(Guid Id, DateOnly LocalDate, int Energy, int Sleep, int Hunger, int Recovery, string? Notes);

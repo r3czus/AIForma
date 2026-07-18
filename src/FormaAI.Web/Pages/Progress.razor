@@ -79,6 +79,23 @@
             </section>
         }
 
+        <MudPaper Class="progress-card check-in-card" Elevation="0">
+            <div class="progress-card-heading"><span class="card-kicker">Tygodniowy check-in</span><MudText Typo="Typo.h6">Jak działał organizm?</MudText><p>Oceń ostatni tydzień w skali 1–5. Te dane pomagają odróżnić słabszy trening od zwykłego braku regeneracji.</p></div>
+            <div class="check-in-grid">
+                <MudSelect T="int" @bind-Value="_energy" Label="Energia">@for (var i = 1; i <= 5; i++) { <MudSelectItem Value="@i">@i / 5</MudSelectItem> }</MudSelect>
+                <MudSelect T="int" @bind-Value="_sleep" Label="Sen">@for (var i = 1; i <= 5; i++) { <MudSelectItem Value="@i">@i / 5</MudSelectItem> }</MudSelect>
+                <MudSelect T="int" @bind-Value="_hunger" Label="Głód">@for (var i = 1; i <= 5; i++) { <MudSelectItem Value="@i">@i / 5</MudSelectItem> }</MudSelect>
+                <MudSelect T="int" @bind-Value="_recovery" Label="Regeneracja">@for (var i = 1; i <= 5; i++) { <MudSelectItem Value="@i">@i / 5</MudSelectItem> }</MudSelect>
+            </div>
+            <MudTextField @bind-Value="_checkInNotes" Label="Co wpłynęło na ten tydzień?" Lines="2" MaxLength="500" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveCheckIn" Class="mt-3">Zapisz check-in</MudButton>
+            @if (_checkIns.Count > 1)
+            {
+                <div class="chart-label">Energia, sen i regeneracja</div>
+                <MudChart ChartType="ChartType.Line" ChartSeries="@CheckInSeries" XAxisLabels="@CheckInLabels" Width="100%" Height="210px" />
+            }
+        </MudPaper>
+
         @if (_nutrition is not null)
         {
             <MudPaper Class="progress-card nutrition-calendar-card" Elevation="0">
@@ -243,6 +260,12 @@
     private NutritionAdherencePoint? _selectedDay;
     private decimal? _startingWeightKg;
     private decimal? _targetWeightKg;
+    private IReadOnlyList<WeeklyCheckInResponse> _checkIns = [];
+    private int _energy = 3;
+    private int _sleep = 3;
+    private int _hunger = 3;
+    private int _recovery = 3;
+    private string? _checkInNotes;
     private Guid? _selectedExercise;
     private DateTime? _measurementDate = DateTime.Today;
     private decimal _weightKg = 75;
@@ -294,6 +317,13 @@
         new() { Name = "Tłuszcze", Data = _nutrition!.Days.Where(x => x.HasMeals).Select(x => (double)x.FatG).ToArray() },
         new() { Name = "Węglowodany", Data = _nutrition!.Days.Where(x => x.HasMeals).Select(x => (double)x.CarbohydratesG).ToArray() }
     ];
+    private List<ChartSeries> CheckInSeries =>
+    [
+        new() { Name = "Energia", Data = _checkIns.Select(x => (double)x.Energy).ToArray() },
+        new() { Name = "Sen", Data = _checkIns.Select(x => (double)x.Sleep).ToArray() },
+        new() { Name = "Regeneracja", Data = _checkIns.Select(x => (double)x.Recovery).ToArray() }
+    ];
+    private string[] CheckInLabels => _checkIns.Select(x => x.LocalDate.ToString("dd.MM")).ToArray();
     private decimal WeightGoalPercent
     {
         get
@@ -336,6 +366,15 @@
         _week = await ProgressApi.GetWeekSummary();
         _measurements = await ProgressApi.GetBodyMeasurements(From, _to);
         _muscleVolume = await ProgressApi.GetMuscleVolume(From, _to);
+        _checkIns = await ProgressApi.GetCheckIns(From, _to);
+    }
+
+    private async Task SaveCheckIn()
+    {
+        await ProgressApi.SaveCheckIn(new SaveWeeklyCheckInRequest(DateOnly.FromDateTime(DateTime.Today), _energy, _sleep, _hunger, _recovery, _checkInNotes));
+        _checkInNotes = null;
+        _checkIns = await ProgressApi.GetCheckIns(From, _to);
+        Snackbar.Add("Check-in zapisany.", Severity.Success);
     }
 
     private async Task ChangeRange(int days)

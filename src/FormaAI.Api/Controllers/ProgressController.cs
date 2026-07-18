@@ -129,6 +129,28 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         return new NutritionAdherenceResponse(start, tolerance, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);
     }
 
+    [HttpGet("progress/check-ins")]
+    public async Task<IReadOnlyList<WeeklyCheckInResponse>> CheckIns([FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
+    {
+        var range = DateRange(from, to);
+        if (range is null) return [];
+        return await db.WeeklyCheckIns.Where(x => x.UserId == UserId() && x.LocalDate >= range.Value.From && x.LocalDate <= range.Value.To)
+            .OrderBy(x => x.LocalDate).Select(x => new WeeklyCheckInResponse(x.Id, x.LocalDate, x.Energy, x.Sleep, x.Hunger, x.Recovery, x.Notes)).ToListAsync();
+    }
+
+    [HttpPost("progress/check-ins")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<WeeklyCheckInResponse>> SaveCheckIn(SaveWeeklyCheckInRequest request)
+    {
+        var userId = UserId();
+        var existing = await db.WeeklyCheckIns.SingleOrDefaultAsync(x => x.UserId == userId && x.LocalDate == request.LocalDate);
+        if (existing is not null) db.WeeklyCheckIns.Remove(existing);
+        var checkIn = new WeeklyCheckIn(userId, request.LocalDate, request.Energy, request.Sleep, request.Hunger, request.Recovery, request.Notes);
+        db.WeeklyCheckIns.Add(checkIn);
+        await db.SaveChangesAsync();
+        return new WeeklyCheckInResponse(checkIn.Id, checkIn.LocalDate, checkIn.Energy, checkIn.Sleep, checkIn.Hunger, checkIn.Recovery, checkIn.Notes);
+    }
+
     [HttpGet("progress/body-measurements")]
     public async Task<ActionResult<IReadOnlyList<BodyMeasurementResponse>>> BodyMeasurements([FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {

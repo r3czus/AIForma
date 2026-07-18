@@ -27,6 +27,19 @@ public sealed class ProgressClient(HttpClient http)
     public Task<ProgressWeekSummaryResponse?> GetWeekSummary() =>
         http.GetFromJsonAsync<ProgressWeekSummaryResponse>("api/v1/progress/week-summary");
 
+    public async Task<IReadOnlyList<WeeklyCheckInResponse>> GetCheckIns(DateOnly from, DateOnly to) =>
+        await http.GetFromJsonAsync<List<WeeklyCheckInResponse>>($"api/v1/progress/check-ins?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}") ?? [];
+
+    public async Task<WeeklyCheckInResponse> SaveCheckIn(SaveWeeklyCheckInRequest body)
+    {
+        var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/progress/check-ins") { Content = JsonContent.Create(body) };
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+        using var response = await http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<WeeklyCheckInResponse>())!;
+    }
+
     public async Task<BodyMeasurementResponse> SaveMeasurement(SaveBodyMeasurementRequest body)
     {
         var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");

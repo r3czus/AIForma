@@ -26,6 +26,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<WorkoutExercise> WorkoutExercises => Set<WorkoutExercise>();
     public DbSet<CompletedSet> CompletedSets => Set<CompletedSet>();
     public DbSet<BodyMeasurement> BodyMeasurements => Set<BodyMeasurement>();
+    public DbSet<WeeklyCheckIn> WeeklyCheckIns => Set<WeeklyCheckIn>();
     public DbSet<PantryItem> PantryItems => Set<PantryItem>();
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
@@ -188,6 +189,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             measurement.Property(x => x.ThighCm).HasPrecision(6, 2);
             measurement.Property(x => x.Notes).HasMaxLength(500);
             measurement.HasIndex(x => new { x.UserId, x.LocalDate });
+        });
+
+        builder.Entity<WeeklyCheckIn>(checkIn =>
+        {
+            checkIn.HasKey(x => x.Id);
+            checkIn.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            checkIn.Property(x => x.Notes).HasMaxLength(500);
+            checkIn.HasIndex(x => new { x.UserId, x.LocalDate }).IsUnique();
         });
 
         builder.Entity<PantryItem>(item =>
