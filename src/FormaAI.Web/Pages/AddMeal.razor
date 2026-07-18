@@ -1,0 +1,347 @@
+@page "/food/add"
+@inject AccountClient Account
+@inject NutritionClient Nutrition
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_editingMealId is null ? "Dodaj posiłek" : "Edytuj posiłek") · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap meal-add-page">
+    <header class="meal-add-header">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="ReturnToDiary" aria-label="Wróć do dziennika" />
+        <div>
+            <span class="page-kicker">@_date.ToString("dddd, d MMMM", PolishCulture)</span>
+            <MudText Typo="Typo.h4">@(_editingMealId is null ? $"Dodaj: {_selectedMealSlot}" : $"Edytuj: {_selectedMealSlot}")</MudText>
+        </div>
+    </header>
+
+    @if (_loading)
+    {
+        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Przygotowuję produkty</span></div>
+    }
+    else
+    {
+        <section class="meal-add-shell">
+            <div class="meal-add-slot-row">
+                <MudSelect T="string" @bind-Value="_selectedMealSlot" Label="Posiłek">
+                    @foreach (var slot in _mealSlots) { <MudSelectItem Value="@slot">@slot</MudSelectItem> }
+                </MudSelect>
+                <span>@_date.ToString("dd.MM")</span>
+            </div>
+
+            <div class="meal-entry-modes meal-entry-modes-wide" role="group" aria-label="Sposób dodawania posiłku">
+                <button type="button" class="@(_entryMode == MealEntryMode.Manual ? "selected" : null)" @onclick="() => SelectMode(MealEntryMode.Manual)"><MudIcon Icon="@Icons.Material.Outlined.Search" /><strong>Wyszukaj</strong><span>Produkty i porcje</span></button>
+                <button type="button" class="@(_entryMode == MealEntryMode.Photo ? "selected" : null)" @onclick="() => SelectMode(MealEntryMode.Photo)"><MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" /><strong>Zdjęcie AI</strong><span>Aparat lub galeria</span></button>
+                <button type="button" class="@(_entryMode == MealEntryMode.Text ? "selected" : null)" @onclick="() => SelectMode(MealEntryMode.Text)"><MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" /><strong>Opis AI</strong><span>Napisz, co zjadłeś</span></button>
+            </div>
+
+            @if (_entryMode == MealEntryMode.Manual)
+            {
+                @if (_editingMealId is null && _recentMeals.Count > 0)
+                {
+                    <section class="recent-meals compact">
+                        <div class="meal-add-section-title"><span>Ostatnie</span><small>Dodaj jednym dotknięciem</small></div>
+                        <div class="recent-meal-grid">
+                            @foreach (var recent in _recentMeals.Take(4))
+                            {
+                                <button type="button" @onclick="() => CopyMeal(recent)"><strong>@RecentName(recent.Name)</strong><span>@recent.Macro.CaloriesKcal.ToString("0") kcal · B @recent.Macro.ProteinG.ToString("0") g</span></button>
+                            }
+                        </div>
+                    </section>
+                }
+
+                <div class="meal-search-box">
+                    <MudTextField @bind-Value="_productSearch" Immediate="true" Label="Szukaj produktu" Placeholder="Np. banan, skyr, ryż" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
+                    <MudSelect T="Guid?" Value="_meal.ProductId" ValueChanged="SelectProduct" Label="Wybierz produkt">
+                        @foreach (var product in FilteredProducts.Take(40))
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)product.Id)">@product.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <div class="meal-portion-row">
+                        <MudNumericField @bind-Value="_meal.AmountGrams" Label="Ilość (g)" Min="0.01m" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_meal.ProductId is null)" OnClick="AddItem" StartIcon="@Icons.Material.Outlined.Add">Dodaj</MudButton>
+                    </div>
+                    <div class="portion-shortcuts">
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => ScalePortion(.5m)">½ porcji</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => ScalePortion(1m)">1 porcja</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => ScalePortion(2m)">2 porcje</MudButton>
+                    </div>
+                </div>
+
+                <details class="meal-own-product">
+                    <summary>Nie ma produktu? Dodaj własny</summary>
+                    <div class="field-grid">
+                        <MudTextField @bind-Value="_product.Name" Label="Nazwa produktu" />
+                        <MudTextField @bind-Value="_product.Brand" Label="Marka (opcjonalnie)" />
+                        <MudNumericField @bind-Value="_product.Calories" Label="Kalorie / 100 g" Min="0m" />
+                        <MudNumericField @bind-Value="_product.Protein" Label="Białko / 100 g" Min="0m" />
+                        <MudNumericField @bind-Value="_product.Fat" Label="Tłuszcze / 100 g" Min="0m" />
+                        <MudNumericField @bind-Value="_product.Carbs" Label="Węglowodany / 100 g" Min="0m" />
+                    </div>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_savingProduct || string.IsNullOrWhiteSpace(_product.Name))" OnClick="SaveProduct" StartIcon="@Icons.Material.Outlined.Add">
+                        @(_savingProduct ? "Dodaję…" : "Dodaj produkt do bazy")
+                    </MudButton>
+                </details>
+
+                <MudButton Href="/profile" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Tune">Zmień dzienny cel w profilu</MudButton>
+
+                <MudTextField @bind-Value="_meal.Name" Label="Nazwa dania (opcjonalnie)" />
+                @if (_meal.Items.Count > 0)
+                {
+                    <div class="meal-draft-list">
+                        @foreach (var item in _meal.Items)
+                        {
+                            <div><span><strong>@item.Name</strong><small>@item.AmountGrams.ToString("0.#") g</small></span><MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="() => _meal.Items.Remove(item)" aria-label="Usuń produkt" /></div>
+                        }
+                    </div>
+                }
+                <MudCheckBox @bind-Value="_meal.DeductFromPantry" Label="Odejmij składniki ze spiżarni" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@(_saving || _meal.Items.Count == 0)" OnClick="SaveMeal" Class="meal-add-submit">
+                    @(_saving ? "Zapisuję…" : _editingMealId is null ? "Dodaj posiłek" : "Zapisz zmiany")
+                </MudButton>
+            }
+            else
+            {
+                @if (_entryMode == MealEntryMode.Photo)
+                {
+                    <label class="meal-photo-capture @(_aiBusy ? "busy" : null)">
+                        <MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" />
+                        <strong>@(_aiBusy ? "AI analizuje zdjęcie…" : "Zrób zdjęcie posiłku")</strong>
+                        <span>Na iPhonie otworzy się aparat. Możesz też wskazać zdjęcie z galerii.</span>
+                        <InputFile OnChange="AnalyzePhoto" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" disabled="@_aiBusy" />
+                    </label>
+                }
+                else
+                {
+                    <MudTextField @bind-Value="_mealDescription" Immediate="true" Label="Co zjadłeś?" Lines="5" MaxLength="1000" Placeholder="Np. dwa jajka sadzone, dwie kromki chleba z masłem i pomidor" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@(_aiBusy || string.IsNullOrWhiteSpace(_mealDescription))" OnClick="AnalyzeText" StartIcon="@Icons.Material.Outlined.AutoAwesome">
+                        @(_aiBusy ? "AI analizuje opis…" : "Policz i przygotuj posiłek")
+                    </MudButton>
+                }
+
+                @if (_aiDraft is not null)
+                {
+                    <section class="ai-meal-draft">
+                        <div class="ai-draft-heading"><div><span class="card-kicker">Propozycja AI</span><h3>Sprawdź przed zapisem</h3></div><strong>@AiCalories.ToString("0") kcal</strong></div>
+                        @if (!string.IsNullOrWhiteSpace(_aiDraft.Note)) { <MudAlert Severity="Severity.Info" Dense="true">@_aiDraft.Note</MudAlert> }
+                        <MudTextField @bind-Value="_aiDraft.Name" Label="Nazwa dania" />
+                        @foreach (var item in _aiDraft.Items)
+                        {
+                            <div class="ai-food-item">
+                                <div class="ai-food-name"><MudTextField @bind-Value="item.Name" Label="Składnik" /><MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="() => _aiDraft.Items.Remove(item)" aria-label="Usuń składnik" /></div>
+                                <div class="ai-food-values">
+                                    <MudNumericField @bind-Value="item.AmountGrams" Label="Ilość (g)" Min="1m" />
+                                    <MudNumericField @bind-Value="item.CaloriesPer100" Label="kcal / 100 g" Min="0m" />
+                                    <MudNumericField @bind-Value="item.ProteinPer100" Label="B / 100 g" Min="0m" />
+                                    <MudNumericField @bind-Value="item.FatPer100" Label="T / 100 g" Min="0m" />
+                                    <MudNumericField @bind-Value="item.CarbohydratesPer100" Label="W / 100 g" Min="0m" />
+                                </div>
+                            </div>
+                        }
+                        <MudButton Variant="Variant.Text" OnClick="AddAiItem" StartIcon="@Icons.Material.Outlined.Add">Dodaj składnik</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@(_saving || _aiDraft.Items.Count == 0)" OnClick="SaveAiMeal">@(_saving ? "Zapisuję…" : "Dodaj do dziennika")</MudButton>
+                        <MudText Typo="Typo.caption">Wartości rozpoznane przez AI są szacunkowe i możesz je poprawić.</MudText>
+                    </section>
+                }
+            }
+        </section>
+    }
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "date")] public string? DateQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "slot")] public string? SlotQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "edit")] public Guid? EditQuery { get; set; }
+
+    private static readonly System.Globalization.CultureInfo PolishCulture = new("pl-PL");
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+    private DateOnly _date = Today;
+    private IReadOnlyList<ProductResponse> _products = [];
+    private IReadOnlyList<MealResponse> _recentMeals = [];
+    private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
+    private string _selectedMealSlot = "Śniadanie";
+    private readonly MealForm _meal = new();
+    private readonly ProductForm _product = new();
+    private string _productSearch = string.Empty;
+    private decimal _basePortion = 100;
+    private MealEntryMode _entryMode;
+    private string _mealDescription = string.Empty;
+    private AiMealForm? _aiDraft;
+    private bool _loading = true;
+    private bool _aiBusy;
+    private bool _saving;
+    private bool _savingProduct;
+    private Guid? _editingMealId;
+    private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
+    private IEnumerable<ProductResponse> FilteredProducts => string.IsNullOrWhiteSpace(_productSearch)
+        ? _products
+        : _products.Where(x => x.Name.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) || (x.Brand?.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (DateOnly.TryParse(DateQuery, out var selected) && selected <= Today) _date = selected;
+        if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
+
+        var profile = await Account.GetProfile();
+        _mealSlots = profile.MealSlots?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? _mealSlots;
+        _selectedMealSlot = _mealSlots.Contains(SlotQuery, StringComparer.OrdinalIgnoreCase) ? _mealSlots.First(x => x.Equals(SlotQuery, StringComparison.OrdinalIgnoreCase)) : _mealSlots[0];
+        _products = await Nutrition.GetProducts();
+        _recentMeals = await Nutrition.GetRecentMeals();
+
+        if (EditQuery is Guid id)
+        {
+            var day = await Nutrition.GetDay(_date);
+            var meal = day.Meals.FirstOrDefault(x => x.Id == id);
+            if (meal is not null)
+            {
+                _editingMealId = id;
+                _meal.Name = DisplayMealName(meal.Name);
+                _meal.Items.AddRange(meal.Items.Where(x => x.ProductId is not null).Select(x => new MealDraftItem(x.ProductId!.Value, x.ProductName, x.AmountGrams)));
+            }
+        }
+        _loading = false;
+    }
+
+    private void ReturnToDiary() => Navigation.NavigateTo($"/food?date={_date:yyyy-MM-dd}");
+    private void SelectMode(MealEntryMode mode) { _entryMode = mode; _aiDraft = null; }
+    private void SelectProduct(Guid? id)
+    {
+        _meal.ProductId = id;
+        var product = _products.FirstOrDefault(x => x.Id == id);
+        _basePortion = product?.DefaultServingAmount ?? 100;
+        if (product?.DefaultServingUnit == ServingUnit.Piece && product.GramsPerPiece is not null) _basePortion = product.GramsPerPiece.Value;
+        _meal.AmountGrams = _basePortion;
+    }
+    private void ScalePortion(decimal multiplier) => _meal.AmountGrams = Math.Max(.01m, _basePortion * multiplier);
+    private void AddItem()
+    {
+        var product = _products.FirstOrDefault(x => x.Id == _meal.ProductId);
+        if (product is null || _meal.AmountGrams <= 0) return;
+        _meal.Items.Add(new MealDraftItem(product.Id, product.Name, _meal.AmountGrams));
+        _meal.ProductId = null;
+    }
+
+    private async Task SaveProduct()
+    {
+        if (string.IsNullOrWhiteSpace(_product.Name)) return;
+        _savingProduct = true;
+        try
+        {
+            var saved = await Nutrition.SaveProduct(new SaveProductRequest(_product.Name.Trim(), _product.Brand, _product.Calories, _product.Protein, _product.Fat, _product.Carbs, 100, ServingUnit.Gram));
+            _products = _products.Append(saved).OrderBy(x => x.Name).ToList();
+            _meal.ProductId = saved.Id;
+            _meal.AmountGrams = 100;
+            _product.Clear();
+            Snackbar.Add("Produkt dodany. Ustaw porcję i dodaj go do posiłku.", Severity.Success);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się dodać produktu.", Severity.Error);
+        }
+        finally { _savingProduct = false; }
+    }
+
+    private async Task CopyMeal(MealResponse meal) => await Save(async () =>
+    {
+        var items = meal.Items.Where(x => x.ProductId is not null).Select(x => new MealItemRequest(x.ProductId!.Value, x.AmountGrams, x.IsEstimated)).ToList();
+        if (items.Count == 0) return;
+        await Nutrition.SaveMeal(new SaveMealRequest(MealName(RecentName(meal.Name)), EntryTime(), items));
+    });
+
+    private async Task SaveMeal() => await Save(async () =>
+    {
+        var request = new SaveMealRequest(MealName(_meal.Name), EntryTime(), _meal.Items.Select(x => new MealItemRequest(x.ProductId, x.AmountGrams, false)).ToList(), _meal.DeductFromPantry);
+        if (_editingMealId is Guid id) await Nutrition.UpdateMeal(id, request); else await Nutrition.SaveMeal(request);
+    });
+
+    private async Task AnalyzePhoto(InputFileChangeEventArgs args)
+    {
+        if (args.File.Size > 12 * 1024 * 1024) { Snackbar.Add("Zdjęcie może mieć maksymalnie 12 MB.", Severity.Warning); return; }
+        await Analyze(() => Nutrition.AnalyzeMealPhoto(args.File));
+    }
+    private async Task AnalyzeText() => await Analyze(() => Nutrition.AnalyzeMealText(_mealDescription));
+    private async Task Analyze(Func<Task<MealPhotoDraftResponse>> action)
+    {
+        _aiBusy = true;
+        try
+        {
+            var draft = await action();
+            if (draft.Items.Count == 0) { Snackbar.Add("AI nie rozpoznało posiłku. Spróbuj ponownie z wyraźniejszym zdjęciem lub opisem.", Severity.Info); return; }
+            _aiDraft = new AiMealForm(draft.MealName, draft.Note, draft.Items.Select(x => new AiFoodForm(x)).ToList());
+        }
+        catch (HttpRequestException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            if (ex.Message.Contains("limit", StringComparison.OrdinalIgnoreCase))
+                _aiDraft = new AiMealForm("Przykładowy posiłek", "Model osiągnął limit. Popraw szkic przed zapisem.", [new AiFoodForm { Name = "Pierś z kurczaka", AmountGrams = 150, CaloriesPer100 = 165, ProteinPer100 = 31, FatPer100 = 3.6m }, new AiFoodForm { Name = "Ryż gotowany", AmountGrams = 200, CaloriesPer100 = 130, ProteinPer100 = 2.7m, FatPer100 = .3m, CarbohydratesPer100 = 28 }]);
+        }
+        finally { _aiBusy = false; }
+    }
+    private void AddAiItem() => _aiDraft?.Items.Add(new AiFoodForm());
+    private async Task SaveAiMeal()
+    {
+        if (_aiDraft is null) return;
+        await Save(() => Nutrition.SaveEstimatedMeal(new SaveEstimatedMealRequest(MealName(_aiDraft.Name), EntryTime(), _aiDraft.Items.Select(x => new SaveEstimatedMealItemRequest(x.Name, x.AmountGrams, x.CaloriesPer100, x.ProteinPer100, x.FatPer100, x.CarbohydratesPer100)).ToList())));
+    }
+    private async Task Save(Func<Task> action)
+    {
+        _saving = true;
+        try { await action(); Snackbar.Add("Posiłek zapisany.", Severity.Success); ReturnToDiary(); }
+        catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać posiłku.", Severity.Error); }
+        finally { _saving = false; }
+    }
+
+    private string MealName(string? name) => string.IsNullOrWhiteSpace(name) ? _selectedMealSlot : $"{_selectedMealSlot} · {name.Trim()}";
+    private string DisplayMealName(string name) => name.StartsWith(_selectedMealSlot + " · ", StringComparison.OrdinalIgnoreCase) ? name[(_selectedMealSlot.Length + 3)..] : name;
+    private string RecentName(string name)
+    {
+        var slot = _mealSlots.FirstOrDefault(x => name.StartsWith(x + " · ", StringComparison.OrdinalIgnoreCase));
+        return slot is null ? name : name[(slot.Length + 3)..];
+    }
+    private DateTimeOffset EntryTime()
+    {
+        var local = _date.ToDateTime(TimeOnly.FromDateTime(DateTime.Now));
+        return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local));
+    }
+
+    private sealed class MealForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public Guid? ProductId { get; set; }
+        public decimal AmountGrams { get; set; } = 100;
+        public bool DeductFromPantry { get; set; }
+        public List<MealDraftItem> Items { get; } = [];
+    }
+
+    private sealed class ProductForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Brand { get; set; }
+        public decimal Calories { get; set; }
+        public decimal Protein { get; set; }
+        public decimal Fat { get; set; }
+        public decimal Carbs { get; set; }
+
+        public void Clear()
+        {
+            Name = string.Empty;
+            Brand = null;
+            Calories = Protein = Fat = Carbs = 0;
+        }
+    }
+    private sealed record MealDraftItem(Guid ProductId, string Name, decimal AmountGrams);
+    private enum MealEntryMode { Manual, Photo, Text }
+    private sealed class AiMealForm(string name, string? note, List<AiFoodForm> items) { public string Name { get; set; } = name; public string? Note { get; } = note; public List<AiFoodForm> Items { get; } = items; }
+    private sealed class AiFoodForm
+    {
+        public AiFoodForm() { }
+        public AiFoodForm(MealPhotoItemDraft item) => (Name, AmountGrams, CaloriesPer100, ProteinPer100, FatPer100, CarbohydratesPer100) = (item.Name, item.AmountGrams, item.CaloriesPer100, item.ProteinPer100, item.FatPer100, item.CarbohydratesPer100);
+        public string Name { get; set; } = string.Empty;
+        public decimal AmountGrams { get; set; } = 100;
+        public decimal CaloriesPer100 { get; set; }
+        public decimal ProteinPer100 { get; set; }
+        public decimal FatPer100 { get; set; }
+        public decimal CarbohydratesPer100 { get; set; }
+    }
+}

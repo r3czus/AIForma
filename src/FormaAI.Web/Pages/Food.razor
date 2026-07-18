@@ -9,7 +9,7 @@
 <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page food-page">
     <header class="module-heading">
         <div>
-            <span class="page-kicker">Paliwo · dzisiaj</span>
+            <span class="page-kicker">Paliwo · @DayCaption.ToLowerInvariant()</span>
             <MudText Typo="Typo.h4">Jedzenie</MudText>
             <p>Zapisuj posiłki i trzymaj dzienny rytm bez liczenia wszystkiego w pamięci.</p>
         </div>
@@ -22,24 +22,27 @@
     }
     else
     {
-        <section class="module-status fuel-status" aria-label="Bilans dnia">
-            <div><span>Data</span><strong>@_date.ToString("dd.MM")</strong></div>
-            <div><span>Energia</span><strong>@(_day is null ? "—" : $"{_day.Consumed.CaloriesKcal:0} kcal")</strong></div>
-            <div><span>Posiłki</span><strong>@(_day?.Meals.Count ?? 0)</strong></div>
-            <div><span>Cel</span><strong>@(_day?.Target is null ? "Do ustawienia" : $"{_day.Target.CaloriesKcal:0} kcal")</strong></div>
+        <section class="food-week" aria-label="Wybór dnia tygodnia">
+            <div class="food-week-heading">
+                <div><span>@DayCaption</span><strong>@_date.ToString("d MMMM", PolishCulture)</strong></div>
+                <div>
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="() => ChangeWeek(-1)" aria-label="Poprzedni tydzień" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(WeekStart.AddDays(7) > Today)" OnClick="() => ChangeWeek(1)" aria-label="Następny tydzień" />
+                </div>
+            </div>
+            <div class="food-week-days">
+                @foreach (var day in WeekDays)
+                {
+                    <button type="button" class="@(day == _date ? "selected" : null) @(day == Today ? "today" : null)" disabled="@(day > Today)" @onclick="() => SelectDay(day)" aria-label="@day.ToString("dddd, d MMMM", PolishCulture)">
+                        <span>@day.ToString("ddd", PolishCulture).TrimEnd('.')</span>
+                        <strong>@day.Day</strong>
+                        <i aria-hidden="true"></i>
+                    </button>
+                }
+            </div>
         </section>
 
-        <section class="journal-day-switch" aria-label="Wybór dnia dziennika">
-            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="() => ChangeDay(-1)" aria-label="Poprzedni dzień" />
-            <button type="button" @onclick="GoToday">
-                <span>@DayCaption</span>
-                <strong>@_date.ToString("dddd, d MMMM", PolishCulture)</strong>
-            </button>
-            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_date >= Today)" OnClick="() => ChangeDay(1)" aria-label="Następny dzień" />
-        </section>
-
-        <MudTabs Rounded="true" Class="module-tabs" PanelClass="food-panel" @bind-ActivePanelIndex="_activePanel">
-            <MudTabPanel Text="Dziennik">
+        <div class="food-panel food-diary">
                 @if (_day is not null)
                 {
                     <MacroSummary Day="_day" />
@@ -78,8 +81,10 @@
                     }
                     <MudButton Variant="Variant.Outlined" FullWidth="true" StartIcon="@Icons.Material.Outlined.Restore" OnClick="CopyPreviousDay" Class="mt-3">Kopiuj posiłki z poprzedniego dnia</MudButton>
                 }
-            </MudTabPanel>
+        </div>
 
+            @if (ShowInlineMealEditor)
+            {
             <MudTabPanel Text="Dodaj posiłek">
                 @if (_recentMeals.Count > 0)
                 {
@@ -201,7 +206,6 @@
                     }
                 </section>
             </MudTabPanel>
-
             <MudTabPanel Text="Produkty i cel">
                 <section class="module-form fuel-form">
                     <div class="module-form-heading"><span class="card-kicker">Punkt odniesienia</span><h2>Dzienny cel</h2></div>
@@ -245,11 +249,12 @@
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveProduct" Class="mt-3">Dodaj produkt</MudButton>
                 </section>
             </MudTabPanel>
-        </MudTabs>
+            }
     }
 </MudContainer>
 
 @code {
+    private static bool ShowInlineMealEditor => false;
     [SupplyParameterFromQuery(Name = "date")] public string? DateQuery { get; set; }
 
     private static readonly System.Globalization.CultureInfo PolishCulture = new("pl-PL");
@@ -270,7 +275,6 @@
     private string _mealDescription = string.Empty;
     private MealEntryMode _entryMode;
     private AiMealForm? _aiDraft;
-    private int _activePanel;
     private Guid? _editingMealId;
     private string _productSearch = string.Empty;
     private decimal _basePortion = 100;
@@ -278,6 +282,8 @@
     private string _selectedMealSlot = "Śniadanie";
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
     private string DayCaption => _date == Today ? "Dzisiaj" : _date == Today.AddDays(-1) ? "Wczoraj" : "Wybrany dzień";
+    private DateOnly WeekStart => _date.AddDays(-(((int)_date.DayOfWeek + 6) % 7));
+    private IEnumerable<DateOnly> WeekDays => Enumerable.Range(0, 7).Select(WeekStart.AddDays);
     private IEnumerable<ProductResponse> FilteredProducts => string.IsNullOrWhiteSpace(_productSearch)
         ? _products
         : _products.Where(x => x.Name.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) || (x.Brand?.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) ?? false));
@@ -328,6 +334,21 @@
         await Reload();
     }
 
+    private async Task SelectDay(DateOnly day)
+    {
+        if (day > Today || day == _date) return;
+        _date = day;
+        await Reload();
+    }
+
+    private async Task ChangeWeek(int offset)
+    {
+        var next = WeekStart.AddDays(offset * 7);
+        if (next > Today) return;
+        _date = next.AddDays(Math.Min(((int)_date.DayOfWeek + 6) % 7, Math.Max(0, Today.DayNumber - next.DayNumber)));
+        await Reload();
+    }
+
     private void AddItem()
     {
         var product = _products.FirstOrDefault(x => x.Id == _meal.ProductId);
@@ -357,23 +378,12 @@
 
     private void StartMeal(string slot)
     {
-        CancelMealEdit();
-        _selectedMealSlot = slot;
-        _meal.Name = string.Empty;
-        _entryMode = MealEntryMode.Manual;
-        _aiDraft = null;
-        _activePanel = 1;
+        Navigation.NavigateTo($"/food/add?date={_date:yyyy-MM-dd}&slot={Uri.EscapeDataString(slot)}");
     }
 
     private void EditMeal(MealResponse meal, string slot)
     {
-        _editingMealId = meal.Id;
-        _selectedMealSlot = slot;
-        _meal.Name = DisplayMealName(meal.Name, slot);
-        _meal.Items.Clear();
-        _meal.Items.AddRange(meal.Items.Where(x => x.ProductId is not null).Select(x => new MealDraftItem(x.ProductId!.Value, x.ProductName, x.AmountGrams)));
-        _entryMode = MealEntryMode.Manual;
-        _activePanel = 1;
+        Navigation.NavigateTo($"/food/add?date={_date:yyyy-MM-dd}&slot={Uri.EscapeDataString(slot)}&edit={meal.Id}");
     }
 
     private void CancelMealEdit()

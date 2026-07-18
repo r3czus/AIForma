@@ -466,6 +466,51 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .journal-day-switch > button:not(.mud-icon-button) { background: transparent; border: 0; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; padding: 10px; text-align: center; }
 .journal-day-switch > button span { color: var(--action); font-family: "IBM Plex Mono", monospace; font-size: .65rem; text-transform: uppercase; }
 .journal-day-switch > button strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1rem; text-transform: capitalize; }
+.food-week { background: var(--surface); border: 1px solid var(--rule); border-radius: 22px; margin: 16px 0; padding: 12px 14px 14px; }
+.food-week-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 8px; }
+.food-week-heading > div:first-child { display: flex; flex-direction: column; }
+.food-week-heading span { color: var(--fuel); font-family: "IBM Plex Mono", monospace; font-size: .64rem; letter-spacing: .08em; text-transform: uppercase; }
+.food-week-heading strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.05rem; text-transform: capitalize; }
+.food-week-days { display: grid; gap: 6px; grid-template-columns: repeat(7, 1fr); }
+.food-week-days button { align-items: center; background: transparent; border: 0; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 3px 0 0; position: relative; }
+.food-week-days button:disabled { cursor: default; opacity: .32; }
+.food-week-days span { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .58rem; text-transform: uppercase; }
+.food-week-days strong { align-items: center; border: 1px solid var(--rule-strong); border-radius: 50%; display: flex; font-family: "IBM Plex Mono", monospace; font-size: .72rem; height: 42px; justify-content: center; transition: background .18s ease, border-color .18s ease, color .18s ease; width: 42px; }
+.food-week-days button:not(:disabled):hover strong { border-color: var(--fuel); }
+.food-week-days button.selected strong { background: var(--fuel); border-color: var(--fuel); color: white; }
+.food-week-days i { background: transparent; border-radius: 50%; height: 4px; width: 4px; }
+.food-week-days button.today i { background: var(--action); }
+.food-week-days button:focus-visible strong { outline: 3px solid rgba(239, 136, 78, .25); outline-offset: 2px; }
+
+.meal-add-page { max-width: 760px; }
+.meal-add-header { align-items: flex-start; border-bottom: 1px solid var(--rule-strong); display: grid; gap: 8px; grid-template-columns: auto 1fr; margin-bottom: 18px; padding: 4px 0 18px; }
+.meal-add-header .mud-icon-button { margin-top: 7px; }
+.meal-add-header h4 { margin-top: 2px; }
+.meal-add-shell { background: rgba(255, 255, 255, .76); border: 1px solid var(--rule); border-radius: 24px; box-shadow: 0 16px 38px rgba(25, 46, 37, .07); padding: 18px; }
+.food-diary { margin-top: 16px; }
+.meal-own-product { border: 1px solid var(--rule); border-radius: 16px; background: rgba(255, 255, 255, .58); padding: 0 14px 14px; }
+.meal-own-product summary { cursor: pointer; font-weight: 800; padding: 14px 0; }
+.meal-own-product[open] summary { color: var(--cobalt); }
+.meal-add-slot-row { align-items: center; display: grid; gap: 14px; grid-template-columns: 1fr auto; }
+.meal-add-slot-row > span { background: var(--fuel-soft); border-radius: 99px; color: #9f4c24; font-family: "IBM Plex Mono", monospace; font-size: .7rem; padding: 8px 11px; }
+.meal-entry-modes-wide { margin: 12px 0 20px; }
+.meal-entry-modes-wide button { align-items: flex-start; background: transparent; border: 0; border-radius: 12px; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px; text-align: left; }
+.meal-entry-modes-wide button.selected { background: var(--fuel); color: white; }
+.meal-entry-modes-wide button .mud-icon-root { font-size: 1.25rem; margin-bottom: 5px; }
+.meal-entry-modes-wide button strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: .95rem; }
+.meal-entry-modes-wide button span { font-size: .62rem; opacity: .72; }
+.meal-add-section-title { align-items: baseline; display: flex; justify-content: space-between; margin: 18px 2px 9px; }
+.meal-add-section-title span { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.15rem; font-weight: 700; }
+.meal-add-section-title small { color: var(--muted); }
+.meal-search-box { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 18px; margin: 18px 0; padding: 14px; }
+.meal-portion-row { align-items: end; display: grid; gap: 10px; grid-template-columns: 1fr auto; }
+.meal-portion-row .mud-button-root { margin-bottom: 4px; min-height: 42px; }
+.meal-draft-list { border: 1px solid var(--rule); border-radius: 16px; margin: 14px 0; overflow: hidden; }
+.meal-draft-list > div { align-items: center; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; padding: 10px 10px 10px 14px; }
+.meal-draft-list > div:last-child { border-bottom: 0; }
+.meal-draft-list span { display: flex; flex-direction: column; }
+.meal-draft-list small { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .63rem; }
+.meal-add-submit { margin-top: 14px; }
 .portion-shortcuts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .workout-finish-summary, .workout-session-tools { background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; margin: 16px 0; padding: 20px; }
 .workout-inline-editor { background: var(--surface-soft); border-radius: 14px; display: grid; gap: 8px; margin-top: 8px; padding: 12px; }
@@ -674,6 +719,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .content-wrap > .mud-typography-h4:first-child { margin: 10px 0 4px; }
 .content-wrap > .mud-typography-h4:first-child + .mud-typography-root { color: var(--muted) !important; }
 .food-panel { padding: 22px 0; }
+.food-page .module-tabs .mud-tab:nth-child(2) { display: none; }
 .set-grid, .set-entry { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 12px 0; }
 .set-entry > :nth-child(3) { grid-column: 1 / -1; }
 .workout-mode { max-width: 760px !important; }
@@ -975,6 +1021,13 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .field-grid { grid-template-columns: 1fr; }
     .meal-entry-modes { grid-template-columns: 1fr; }
     .meal-entry-modes .mud-button-root { justify-content: flex-start; }
+    .meal-entry-modes-wide { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .meal-entry-modes-wide button { padding: 9px 7px; }
+    .meal-entry-modes-wide button span { display: none; }
+    .meal-add-shell { border-radius: 20px; padding: 14px; }
+    .food-week { margin-left: -2px; margin-right: -2px; padding-left: 9px; padding-right: 9px; }
+    .food-week-days { gap: 2px; }
+    .food-week-days strong { height: 38px; width: 38px; }
     .ai-food-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ai-food-values > :first-child { grid-column: 1 / -1; }
     .module-form { padding-left: 0; padding-right: 0; }

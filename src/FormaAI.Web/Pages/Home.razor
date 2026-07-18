@@ -130,7 +130,7 @@
                     <section class="meal-log">
                         <div class="section-heading">
                             <div><span class="card-kicker">Dziennik</span><h2>Dzisiejsze posiłki</h2></div>
-                            <MudButton Href="/food" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add">Dodaj posiłek</MudButton>
+                            <MudButton Href="/food/add" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add">Dodaj posiłek</MudButton>
                         </div>
                         @foreach (var slot in _mealSlots)
                         {
@@ -146,11 +146,11 @@
                                         <span>@meals.Count pozycji · @calories.ToString("0") kcal</span>
                                         <span class="meal-slot-macros">B @protein.ToString("0.#") g · W @carbohydrates.ToString("0.#") g · T @fat.ToString("0.#") g</span>
                                     </div>
-                                    <MudIconButton Icon="@Icons.Material.Outlined.Add" Color="Color.Primary" Href="/food" aria-label="@($"Dodaj do sekcji {slot}")" />
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Add" Color="Color.Primary" Href="@MealEntryUrl(slot)" aria-label="@($"Dodaj do sekcji {slot}")" />
                                 </header>
                                 @if (meals.Count == 0)
                                 {
-                                    <MudButton Href="/food" Variant="Variant.Text" Class="meal-slot-empty">Dodaj pierwszy posiłek</MudButton>
+                                    <MudButton Href="@MealEntryUrl(slot)" Variant="Variant.Text" Class="meal-slot-empty">Dodaj pierwszy posiłek</MudButton>
                                 }
                                 @foreach (var meal in meals)
                                 {
@@ -172,7 +172,7 @@
                 <MudPaper Class="quick-actions" Elevation="0">
                     <span class="card-kicker">Szybki start</span>
                     <h2>Co robisz teraz?</h2>
-                    <MudButton Href="/food" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.RestaurantMenu" FullWidth="true">Zapisz posiłek</MudButton>
+                    <MudButton Href="/food/add" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.RestaurantMenu" FullWidth="true">Zapisz posiłek</MudButton>
                     <MudButton Href="/training" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.FitnessCenter" FullWidth="true">Otwórz trening</MudButton>
                     <MudButton Href="/progress" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ShowChart" FullWidth="true">Dodaj pomiar</MudButton>
                 </MudPaper>
@@ -253,6 +253,7 @@
     private List<MealResponse> MealsFor(string slot) => _day?.Meals.Where(x => BelongsTo(x.Name, slot)).ToList() ?? [];
     private static bool BelongsTo(string mealName, string slot) => mealName.Equals(slot, StringComparison.OrdinalIgnoreCase) || mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase);
     private static string DisplayMealName(string mealName, string slot) => mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase) ? mealName[(slot.Length + 3)..] : mealName;
+    private static string MealEntryUrl(string slot) => $"/food/add?date={DateOnly.FromDateTime(DateTime.Now):yyyy-MM-dd}&slot={Uri.EscapeDataString(slot)}";
 
     private async Task Run(Func<Task> action, string error)
     {
