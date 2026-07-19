@@ -82,7 +82,14 @@ public sealed class NutritionClient(HttpClient http)
     private static async Task<MealPhotoDraftResponse> ReadAnalysis(HttpResponseMessage response)
     {
         if (response.IsSuccessStatusCode) return (await response.Content.ReadFromJsonAsync<MealPhotoDraftResponse>())!;
-        var message = await response.Content.ReadFromJsonAsync<string>() ?? "Analiza AI nie powiodła się.";
+        var body = await response.Content.ReadAsStringAsync();
+        var message = body.Trim();
+        if (message.StartsWith('"') && message.EndsWith('"'))
+        {
+            try { message = System.Text.Json.JsonSerializer.Deserialize<string>(message) ?? message; }
+            catch (System.Text.Json.JsonException) { }
+        }
+        if (string.IsNullOrWhiteSpace(message)) message = "Analiza AI nie powiodła się.";
         throw new HttpRequestException(message, null, response.StatusCode);
     }
 
