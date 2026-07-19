@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FormaAI.Contracts.Training;
+using FormaAI.Contracts.Nutrition;
 using FormaAI.Contracts.Users;
 using FormaAI.Domain.Training;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -20,6 +21,8 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
         var other = _factory.CreateClient(options);
         await Register(owner, "training-owner@example.test");
         await Register(other, "training-other@example.test");
+        var date = DateOnly.FromDateTime(DateTime.UtcNow);
+        await Send<SaveNutritionTargetRequest, NutritionTargetResponse>(owner, HttpMethod.Post, "api/v1/nutrition-targets", new(date, 2000, 150, 70, 220));
 
         var exercise = await Send<SaveExerciseRequest, ExerciseResponse>(owner, HttpMethod.Post, "api/v1/exercises", new("Wyciskanie hantli", MuscleGroup.Chest, Equipment.Dumbbell, false, "Ławka dodatnia, kontrolowany ruch."));
         Assert.Equal("Ławka dodatnia, kontrolowany ruch.", exercise.Description);
@@ -27,6 +30,10 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
             [new("Góra A", DateTime.UtcNow.DayOfWeek, [new(exercise.Id, 3, 8, 10, 2, 90)])]);
         var plan = await Send<SaveTrainingPlanRequest, TrainingPlanResponse>(owner, HttpMethod.Post, "api/v1/training-plans", planRequest);
         await SendNoContent(owner, HttpMethod.Post, $"api/v1/training-plans/{plan.Id}/activate");
+
+        var plannedDay = await owner.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{date:yyyy-MM-dd}");
+        Assert.Equal(2000, plannedDay!.Target!.CaloriesKcal);
+        Assert.Equal(0, plannedDay.TrainingBonusCalories);
 
         var today = await owner.GetFromJsonAsync<TodayWorkoutResponse>("api/v1/workouts/today");
         Assert.Equal("Góra A", today!.DayName);
@@ -37,6 +44,10 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
         var saved = await owner.GetFromJsonAsync<WorkoutSessionResponse>($"api/v1/workout-sessions/{session.Id}");
         Assert.Equal(32.5m, saved!.Exercises.Single().Sets.Single().WeightKg);
         await SendNoContent(owner, HttpMethod.Post, $"api/v1/workout-sessions/{session.Id}/complete");
+        var completedDay = await owner.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{date:yyyy-MM-dd}");
+        Assert.True(completedDay!.HasCompletedWorkout);
+        Assert.Equal(50, completedDay.TrainingBonusCalories);
+        Assert.Equal(2050, completedDay.Target!.CaloriesKcal);
         var history = await owner.GetFromJsonAsync<List<ExerciseHistoryEntry>>($"api/v1/exercises/{exercise.Id}/history");
         Assert.Equal(292.5m, history!.Single().Volume);
 

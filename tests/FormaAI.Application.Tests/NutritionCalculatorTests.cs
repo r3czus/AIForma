@@ -1,5 +1,6 @@
 using FormaAI.Application.Nutrition;
 using FormaAI.Domain.Nutrition;
+using FormaAI.Domain.Users;
 
 namespace FormaAI.Application.Tests;
 
@@ -30,5 +31,12 @@ public sealed class NutritionCalculatorTests
         Assert.Equal(10, remaining.ProteinG);
         Assert.Equal(-5, remaining.FatG);
         Assert.Equal(-10, remaining.CarbohydratesG);
+    }
+
+    [Fact]
+    public void TrainingBonusUsesOnlyCompletedWork()
+    {
+        Assert.Equal(0, NutritionCalculator.TrainingBonus(ActivityLevel.Moderate, TimeSpan.Zero, 0));
+        Assert.Equal(195, NutritionCalculator.TrainingBonus(ActivityLevel.Moderate, TimeSpan.FromMinutes(30), 15));
     }
 }

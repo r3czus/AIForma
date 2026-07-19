@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FormaAI.Application.Progress;
+using FormaAI.Application.Nutrition;
 using FormaAI.Contracts.Progress;
 using FormaAI.Domain.Nutrition;
 using FormaAI.Domain.Progress;
@@ -126,10 +127,11 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             .Where(x => x.UserId == userId && x.EffectiveFrom <= end)
             .OrderBy(x => x.EffectiveFrom)
             .ToListAsync();
-        var tolerance = await db.UserProfiles.Where(x => x.UserId == userId)
-            .Select(x => x.CalorieToleranceKcal).SingleAsync();
-        var fromUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var toUtc = end.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var profile = await db.UserProfiles.Where(x => x.UserId == userId)
+            .Select(x => new { x.CalorieToleranceKcal, x.TrainingActivityLevel, x.TimeZoneId }).SingleAsync();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(profile.TimeZoneId);
+        var fromUtc = TimeZoneInfo.ConvertTimeToUtc(start.ToDateTime(TimeOnly.MinValue), zone);
+        var toUtc = TimeZoneInfo.ConvertTimeToUtc(end.AddDays(1).ToDateTime(TimeOnly.MinValue), zone);
         var workoutSessions = await db.WorkoutSessions
                 .Include(x => x.Exercises).ThenInclude(x => x.Sets)
                 .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed && x.FinishedAtUtc >= fromUtc && x.FinishedAtUtc < toUtc)
@@ -161,18 +163,21 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
                 var logged = meals.Where(x => x.LocalDate == date).ToList();
                 var items = logged.SelectMany(x => x.Items).ToList();
                 var consumed = items.Sum(x => x.CaloriesKcal);
-                var within = logged.Count > 0 && target is not null && Math.Abs(consumed - target.CaloriesKcal) <= tolerance;
-                var sessions = workoutSessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) == date).ToList();
+                var sessions = workoutSessions.Where(x => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.FinishedAtUtc!.Value, zone)) == date).ToList();
                 var sets = sessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
-                return new NutritionAdherencePoint(date, target?.CaloriesKcal, consumed, logged.Count > 0, within, sessions.Count > 0,
-                    items.Sum(x => x.ProteinG), items.Sum(x => x.FatG), items.Sum(x => x.CarbohydratesG), target?.ProteinG, target?.FatG, target?.CarbohydratesG,
+                var bonus = sessions.Sum(x => NutritionCalculator.TrainingBonus(profile.TrainingActivityLevel, x.FinishedAtUtc!.Value - x.StartedAtUtc,
+                    x.Exercises.SelectMany(e => e.Sets).Count(s => s.Type == SetType.Working)));
+                var targetCalories = target?.CaloriesKcal + bonus;
+                var within = logged.Count > 0 && targetCalories is not null && Math.Abs(consumed - targetCalories.Value) <= profile.CalorieToleranceKcal;
+                return new NutritionAdherencePoint(date, targetCalories, consumed, logged.Count > 0, within, sessions.Count > 0,
+                    items.Sum(x => x.ProteinG), items.Sum(x => x.FatG), items.Sum(x => x.CarbohydratesG), target?.ProteinG, target?.FatG, target?.CarbohydratesG + bonus / 4m,
                     sessions.Count == 1 ? sessions[0].NameSnapshot : sessions.Count > 1 ? $"{sessions.Count} treningi" : null,
                     (int)Math.Round(sessions.Sum(x => (x.FinishedAtUtc!.Value - x.StartedAtUtc).TotalMinutes)),
                     sessions.Sum(x => x.Exercises.Count), sets.Count, sets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions)),
                     achievements.Where(x => x.Date == date).Select(x => x.Title).ToList());
             }).ToList();
 
-        return new NutritionAdherenceResponse(start, tolerance, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);
+        return new NutritionAdherenceResponse(start, profile.CalorieToleranceKcal, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);
     }
 
     [HttpGet("progress/check-ins")]
@@ -261,21 +266,26 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             .ToListAsync();
         var targets = await db.NutritionTargets.Where(x => x.UserId == userId && x.EffectiveFrom <= to)
             .OrderBy(x => x.EffectiveFrom).ToListAsync();
-        var tolerance = await db.UserProfiles.Where(x => x.UserId == userId).Select(x => x.CalorieToleranceKcal).SingleAsync();
+        var profile = await db.UserProfiles.Where(x => x.UserId == userId)
+            .Select(x => new { x.CalorieToleranceKcal, x.TrainingActivityLevel, x.TimeZoneId }).SingleAsync();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(profile.TimeZoneId);
         var loggedDays = meals.GroupBy(x => x.LocalDate).Select(group =>
         {
             var target = targets.LastOrDefault(x => x.EffectiveFrom <= group.Key);
             var items = group.SelectMany(x => x.Items).ToList();
+            var daySessions = currentSessions.Where(x => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.FinishedAtUtc!.Value, zone)) == group.Key).ToList();
+            var bonus = daySessions.Sum(x => NutritionCalculator.TrainingBonus(profile.TrainingActivityLevel, x.FinishedAtUtc!.Value - x.StartedAtUtc,
+                x.Exercises.SelectMany(e => e.Sets).Count(s => s.Type == SetType.Working)));
             return new
             {
                 Calories = items.Sum(x => x.CaloriesKcal),
                 Protein = items.Sum(x => x.ProteinG),
-                TargetCalories = target?.CaloriesKcal ?? 0,
+                TargetCalories = (target?.CaloriesKcal ?? 0) + bonus,
                 TargetProtein = target?.ProteinG ?? 0,
                 HasTarget = target is not null
             };
         }).ToList();
-        var daysOnCalories = loggedDays.Count(x => x.HasTarget && Math.Abs(x.Calories - x.TargetCalories) <= tolerance);
+        var daysOnCalories = loggedDays.Count(x => x.HasTarget && Math.Abs(x.Calories - x.TargetCalories) <= profile.CalorieToleranceKcal);
         var nutrition = new NutritionWeekSummaryResponse(
             loggedDays.Count,
             daysOnCalories,

@@ -433,6 +433,19 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .calorie-score strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 4.4rem; line-height: .9; margin: 5px 0; }
 .calorie-score span, .calorie-score small { color: var(--muted); font-size: .72rem; }
 .calorie-score .calorie-percent { align-self: flex-start; background: var(--fuel-soft); border-radius: 99px; color: #a44e23; font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 700; margin-top: 8px; padding: 5px 8px; }
+.calorie-target-breakdown { border-top: 1px solid var(--rule); display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 20px; padding-top: 16px; }
+.calorie-target-breakdown div { display: grid; gap: 3px; }
+.calorie-target-breakdown span { color: var(--muted); font-size: .7rem; }
+.calorie-target-breakdown strong { font-family: "IBM Plex Mono", monospace; font-size: .82rem; }
+.calorie-target-breakdown .earned strong { color: var(--fuel); }
+.goal-calorie-split { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 20px; }
+.goal-calorie-split > div { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 16px; display: grid; gap: 4px; padding: 14px; }
+.goal-calorie-split span, .goal-calorie-split small { color: var(--muted); font-size: .7rem; }
+.goal-calorie-split strong { font-family: "IBM Plex Mono", monospace; font-size: 1.1rem; }
+.workout-calorie-result { align-items: center; background: var(--fuel-soft); border-radius: 16px; color: #a44e23; display: grid; gap: 4px 10px; grid-template-columns: auto 1fr; margin-top: 14px; padding: 14px 16px; }
+.workout-calorie-result .mud-icon-root { grid-row: 1 / 3; }
+.workout-calorie-result span { font-size: .72rem; }
+.workout-calorie-result strong { font-family: "IBM Plex Mono", monospace; }
 .macro-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
 .macro-grid > div { background: var(--fuel-soft); border-radius: 14px; display: grid; gap: 4px; padding: 13px; }
 .macro-grid span, .macro-grid small { color: var(--muted); font-size: .65rem; }
@@ -1499,6 +1512,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 @media (max-width: 640px) {
     .daily-coach-content { grid-template-columns: auto 1fr; }
     .daily-coach-content .mud-button-root { grid-column: 1 / -1; }
+    .calorie-target-breakdown, .goal-calorie-split { grid-template-columns: 1fr; }
     .review-facts { grid-template-columns: 1fr; }
     .review-day { grid-template-columns: 1fr; }
     .photo-grid { gap: 8px; }

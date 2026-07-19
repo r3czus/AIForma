@@ -111,7 +111,11 @@
                         case 9:
                             <section class="goal-result">
                                 <span class="card-kicker">Twój wynik</span>
-                                <p>To cel na dzień bez treningu. W dni przypisane do aktywnego planu aplikacja automatycznie doda energię odpowiednią do intensywności treningów.</p>
+                                <p>Cel bazowy obowiązuje w dzień bez treningu. Dodatkowa energia pojawi się dopiero po ukończeniu sesji.</p>
+                                <div class="goal-calorie-split">
+                                    <div><span>Dzień bez treningu</span><strong>@_targetCalories?.ToString("0") kcal</strong></div>
+                                    <div><span>Przykładowy dzień treningowy</span><strong>@TypicalTrainingCalories.ToString("0") kcal</strong><small>około +@TypicalTrainingBonus.ToString("0") kcal za 60 min i 15 serii</small></div>
+                                </div>
                                 <div class="goal-result-dials">
                                     <label class="goal-result-dial energy">
                                         <span>Kalorie</span>
@@ -227,6 +231,14 @@
     private char Initial => char.ToUpperInvariant(_profile!.Email[0]);
     private string GoalName => _goal switch { BodyGoal.Reduction => "Redukcja", BodyGoal.Maintenance => "Utrzymanie", BodyGoal.MuscleGain => "Budowanie masy", _ => "Cel nieustawiony" };
     private decimal GoalProgress => _goalStep / 9m * 100m;
+    private decimal TypicalTrainingBonus => _trainingActivity switch
+    {
+        ActivityLevel.Light => 270,
+        ActivityLevel.Moderate => 360,
+        ActivityLevel.High => 450,
+        _ => 210
+    };
+    private decimal TypicalTrainingCalories => (_targetCalories ?? 0) + TypicalTrainingBonus;
     private string TargetWeightHint => _goal == BodyGoal.Maintenance
         ? "Przy utrzymaniu możesz podać obecną masę."
         : "Podaj wagę, do której chcesz dojść.";

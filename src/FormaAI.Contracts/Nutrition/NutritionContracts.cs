@@ -14,7 +14,8 @@ public sealed record MealItemRequest(Guid ProductId, [Range(0.01, 100000)] decim
 public sealed record SaveMealRequest([Required, MaxLength(120)] string Name, DateTimeOffset OccurredAt, [MinLength(1)] IReadOnlyList<MealItemRequest> Items, bool DeductFromPantry = false);
 public sealed record MealItemResponse(Guid Id, Guid? ProductId, string ProductName, decimal AmountGrams, MacroResponse Macro, bool IsEstimated);
 public sealed record MealResponse(Guid Id, string Name, DateTime OccurredAtUtc, IReadOnlyList<MealItemResponse> Items, MacroResponse Macro);
-public sealed record NutritionDayResponse(DateOnly Date, MacroResponse? Target, MacroResponse Consumed, MacroResponse? Remaining, IReadOnlyList<MealResponse> Meals, NutritionDayStatus Status = NutritionDayStatus.Unknown);
+public sealed record NutritionDayResponse(DateOnly Date, MacroResponse? Target, MacroResponse Consumed, MacroResponse? Remaining, IReadOnlyList<MealResponse> Meals,
+    NutritionDayStatus Status = NutritionDayStatus.Unknown, MacroResponse? BaseTarget = null, decimal TrainingBonusCalories = 0, bool HasCompletedWorkout = false);
 public sealed record SaveNutritionDayStatusRequest(NutritionDayStatus Status);
 public sealed record MealPhotoItemDraft(string Name, decimal AmountGrams, decimal CaloriesPer100, decimal ProteinPer100, decimal FatPer100, decimal CarbohydratesPer100);
 public sealed record MealPhotoDraftResponse(string MealName, string? Note, IReadOnlyList<MealPhotoItemDraft> Items);

@@ -3,6 +3,7 @@ using FormaAI.Application.Nutrition;
 using FormaAI.Application.Assistant;
 using FormaAI.Contracts.Nutrition;
 using FormaAI.Domain.Nutrition;
+using FormaAI.Domain.Training;
 using FormaAI.Domain.Users;
 using FormaAI.Infrastructure.Persistence;
 using FormaAI.Infrastructure.External;
@@ -106,10 +107,12 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
             .OrderBy(x => x.OccurredAtUtc).ToListAsync();
         var mealResponses = meals.Select(MealResponse).ToList();
         var consumed = mealResponses.Aggregate(new Macro(), (sum, meal) => sum + ToMacro(meal.Macro));
-        MacroResponse? targetMacro = target is null ? null : await TargetForDay(userId, date, target);
+        var adjusted = target is null ? null : await TargetForDay(userId, date, target);
+        MacroResponse? targetMacro = adjusted?.Target;
         MacroResponse? remaining = target is null ? null : MacroResponse(ToMacro(targetMacro!) - consumed);
         var status = await db.NutritionDayReviews.Where(x => x.UserId == userId && x.LocalDate == date).Select(x => x.Status).SingleOrDefaultAsync();
-        return new NutritionDayResponse(date, targetMacro, MacroResponse(consumed), remaining, mealResponses, status);
+        return new NutritionDayResponse(date, targetMacro, MacroResponse(consumed), remaining, mealResponses, status,
+            target is null ? null : MacroResponse(target), adjusted?.BonusCalories ?? 0, adjusted?.HasCompletedWorkout ?? false);
     }
 
     [HttpPut("nutrition/days/{date}/status")]
@@ -258,23 +261,21 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private async Task<DateOnly> LocalToday(string userId) => await LocalDate(userId, DateTime.UtcNow);
 
-    private async Task<MacroResponse> TargetForDay(string userId, DateOnly date, NutritionTarget target)
+    private async Task<DayTarget> TargetForDay(string userId, DateOnly date, NutritionTarget target)
     {
-        var hasPlannedWorkout = await db.TrainingPlans
-            .AnyAsync(x => x.UserId == userId && x.IsActive && x.StartsOn <= date && x.Days.Any(day => day.DayOfWeek == date.DayOfWeek));
-        if (!hasPlannedWorkout) return MacroResponse(target);
-
-        var intensity = await db.UserProfiles.Where(x => x.UserId == userId)
-            .Select(x => x.TrainingActivityLevel).SingleAsync();
-        var extraCalories = intensity switch
-        {
-            ActivityLevel.Light => 180m,
-            ActivityLevel.Moderate => 300m,
-            ActivityLevel.High => 450m,
-            _ => 100m
-        };
-        return new MacroResponse(target.CaloriesKcal + extraCalories, target.ProteinG, target.FatG,
-            target.CarbohydratesG + decimal.Round(extraCalories / 4m));
+        var profile = await db.UserProfiles.Where(x => x.UserId == userId)
+            .Select(x => new { x.TimeZoneId, x.TrainingActivityLevel }).SingleAsync();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(profile.TimeZoneId);
+        var from = TimeZoneInfo.ConvertTimeToUtc(date.ToDateTime(TimeOnly.MinValue), zone);
+        var to = TimeZoneInfo.ConvertTimeToUtc(date.AddDays(1).ToDateTime(TimeOnly.MinValue), zone);
+        var sessions = await db.WorkoutSessions.Include(x => x.Exercises).ThenInclude(x => x.Sets)
+            .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed && x.FinishedAtUtc >= from && x.FinishedAtUtc < to)
+            .ToListAsync();
+        var bonus = sessions.Sum(x => NutritionCalculator.TrainingBonus(profile.TrainingActivityLevel,
+            x.FinishedAtUtc!.Value - x.StartedAtUtc, x.Exercises.SelectMany(e => e.Sets).Count(s => s.Type == SetType.Working)));
+        var adjusted = new MacroResponse(target.CaloriesKcal + bonus, target.ProteinG, target.FatG,
+            target.CarbohydratesG + decimal.Round(bonus / 4m));
+        return new DayTarget(adjusted, bonus, sessions.Count > 0);
     }
     private async Task<DateOnly> LocalDate(string userId, DateTime utc)
     {
@@ -288,6 +289,7 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
     private static MacroResponse MacroResponse(NutritionTarget x) => new(x.CaloriesKcal, x.ProteinG, x.FatG, x.CarbohydratesG);
     private static MacroResponse MacroResponse(Macro x) => new(x.CaloriesKcal, x.ProteinG, x.FatG, x.CarbohydratesG);
     private static Macro ToMacro(MacroResponse x) => new(x.CaloriesKcal, x.ProteinG, x.FatG, x.CarbohydratesG);
+    private sealed record DayTarget(MacroResponse Target, decimal BonusCalories, bool HasCompletedWorkout);
     private static MealResponse MealResponse(Meal meal)
     {
         var items = meal.Items.Select(x => new MealItemResponse(x.Id, x.ProductId, x.ProductNameSnapshot, x.AmountGrams, new MacroResponse(x.CaloriesKcal, x.ProteinG, x.FatG, x.CarbohydratesG), x.IsEstimated)).ToList();

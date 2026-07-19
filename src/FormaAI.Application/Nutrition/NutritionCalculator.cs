@@ -1,4 +1,5 @@
 using FormaAI.Domain.Nutrition;
+using FormaAI.Domain.Users;
 
 namespace FormaAI.Application.Nutrition;
 
@@ -24,4 +25,18 @@ public static class NutritionCalculator
         product.ProteinPer100 * amountGrams / 100,
         product.FatPer100 * amountGrams / 100,
         product.CarbohydratesPer100 * amountGrams / 100);
+
+    public static decimal TrainingBonus(ActivityLevel? intensity, TimeSpan duration, int workingSets)
+    {
+        if (duration <= TimeSpan.Zero && workingSets == 0) return 0;
+        var kcalPerMinute = intensity switch
+        {
+            ActivityLevel.Light => 4m,
+            ActivityLevel.Moderate => 5.5m,
+            ActivityLevel.High => 7m,
+            _ => 3m
+        };
+        var minutes = Math.Clamp((decimal)duration.TotalMinutes, 0, 180);
+        return Math.Clamp(decimal.Round(minutes * kcalPerMinute + workingSets * 2m), 50, 900);
+    }
 }

@@ -1,6 +1,7 @@
 @page "/workout/{Id:guid}"
 @implements IAsyncDisposable
 @inject TrainingClient TrainingApi
+@inject NutritionClient NutritionApi
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -37,6 +38,10 @@
                     <div><span>Objętość</span><strong>@SessionVolume.ToString("0") kg</strong></div>
                     <div><span>Powtórzenia</span><strong>@TotalRepetitions</strong></div>
                 </div>
+                @if (_trainingCalories > 0)
+                {
+                    <div class="workout-calorie-result"><MudIcon Icon="@Icons.Material.Outlined.LocalFireDepartment" /><span>Dodatkowe kalorie na dziś</span><strong>+@_trainingCalories.ToString("0") kcal</strong></div>
+                }
 
                 @if (_newRecords.Count > 0)
                 {
@@ -206,6 +211,7 @@
     private int _timerStartSeconds;
     private bool _timerRunning;
     private TimeSpan _elapsed;
+    private decimal _trainingCalories;
 
     private IReadOnlyList<WorkoutExerciseResponse> OrderedExercises => _session?.Exercises.OrderBy(x => x.Order).ToList() ?? [];
     private WorkoutExerciseResponse? ActiveExercise => OrderedExercises.ElementAtOrDefault(_activeExerciseIndex);
@@ -222,7 +228,11 @@
     {
         await Reload();
         _completed = _session!.Status == SessionStatus.Completed;
-        if (_completed) _progressions = await TrainingApi.GetProgressions(Id);
+        if (_completed)
+        {
+            _progressions = await TrainingApi.GetProgressions(Id);
+            await LoadTrainingCalories();
+        }
         _elapsed = (_session.FinishedAtUtc ?? DateTime.UtcNow) - _session.StartedAtUtc;
         _catalog = await TrainingApi.GetExercises();
 
@@ -371,6 +381,7 @@
         _completed = true;
         _timerRunning = false;
         _progressions = await TrainingApi.GetProgressions(Id);
+        await LoadTrainingCalories();
     }
 
     private async Task Decide(ExerciseProgressionResponse item, ProgressionDecision decision)
@@ -398,6 +409,13 @@
     private static string FormatTime(int seconds) => $"{seconds / 60:00}:{seconds % 60:00}";
     private static string FormatElapsed(TimeSpan elapsed) => $"{(int)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
     private static decimal SuggestedWeight(decimal weight) => Math.Ceiling((weight + (weight < 30 ? 1.25m : 2.5m)) * 4m) / 4m;
+
+    private async Task LoadTrainingCalories()
+    {
+        var completedAt = (_session!.FinishedAtUtc ?? DateTime.UtcNow).ToLocalTime();
+        var day = await NutritionApi.GetDay(DateOnly.FromDateTime(completedAt));
+        _trainingCalories = day.TrainingBonusCalories;
+    }
 
     public ValueTask DisposeAsync()
     {
