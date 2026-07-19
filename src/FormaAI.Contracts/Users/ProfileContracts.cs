@@ -39,7 +39,7 @@ public sealed record UpdateUserProfileRequest(
     [Range(50, 280)] decimal? HeightCm,
     [Range(20, 500)] decimal? StartingWeightKg,
     BodyGoal? Goal,
-    [Range(1, 14)] int? PlannedTrainingsPerWeek,
+    [Range(0, 14)] int? PlannedTrainingsPerWeek,
     DateOnly? BirthDate = null,
     BiologicalSex? Sex = null,
     ActivityLevel? ActivityLevel = null,

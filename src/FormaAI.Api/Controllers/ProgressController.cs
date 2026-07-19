@@ -26,6 +26,29 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         return Created($"api/v1/body-measurements/{measurement.Id}", MeasurementResponse(measurement));
     }
 
+    [HttpPut("body-measurements/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<BodyMeasurementResponse>> UpdateMeasurement(Guid id, SaveBodyMeasurementRequest request)
+    {
+        var measurement = await db.BodyMeasurements.SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
+        if (measurement is null) return NotFound();
+        measurement.Update(request.LocalDate, request.WeightKg, request.WaistCm, request.Notes,
+            request.ChestCm, request.HipsCm, request.ArmCm, request.ThighCm);
+        await db.SaveChangesAsync();
+        return MeasurementResponse(measurement);
+    }
+
+    [HttpDelete("body-measurements/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteMeasurement(Guid id)
+    {
+        var measurement = await db.BodyMeasurements.SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
+        if (measurement is null) return NotFound();
+        db.BodyMeasurements.Remove(measurement);
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpGet("progress/weight")]
     public async Task<ActionResult<WeightProgressResponse>> Weight([FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {

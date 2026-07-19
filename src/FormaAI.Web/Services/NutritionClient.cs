@@ -47,6 +47,9 @@ public sealed class NutritionClient(HttpClient http)
     public Task<ProductResponse> SaveProduct(SaveProductRequest request) =>
         Send<ProductResponse>(HttpMethod.Post, "api/v1/products", request);
 
+    public Task<ProductResponse> UpdateProduct(Guid id, SaveProductRequest request) =>
+        Send<ProductResponse>(HttpMethod.Put, $"api/v1/products/{id}", request);
+
     public Task<MealResponse> SaveMeal(SaveMealRequest request) =>
         Send<MealResponse>(HttpMethod.Post, "api/v1/meals", request);
 

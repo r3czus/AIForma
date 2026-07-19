@@ -66,19 +66,19 @@
                         case 4:
                             <section class="goal-step goal-step-narrow">
                                 <div class="profile-section-heading"><span class="card-kicker">Parametry ciała</span><h2>Jaki masz wzrost?</h2><p>Podaj wzrost w centymetrach.</p></div>
-                                <MudNumericField @bind-Value="_heightCm" Label="Wzrost (cm)" Min="50m" Max="280m" Immediate="true" />
+                                <label class="mobile-number-field"><span>Wzrost (cm)</span><input type="text" inputmode="decimal" autocomplete="off" @bind="_heightInput" @bind:event="oninput" placeholder="np. 180" /></label>
                             </section>
                             break;
                         case 5:
                             <section class="goal-step goal-step-narrow">
                                 <div class="profile-section-heading"><span class="card-kicker">Punkt wyjścia</span><h2>Jaka jest Twoja aktualna masa?</h2><p>Najlepiej podaj pomiar wykonany rano.</p></div>
-                                <MudNumericField @bind-Value="_currentWeightKg" Label="Obecna masa (kg)" Min="20m" Max="500m" Immediate="true" />
+                                <label class="mobile-number-field"><span>Obecna masa (kg)</span><input type="text" inputmode="decimal" autocomplete="off" @bind="_currentWeightInput" @bind:event="oninput" placeholder="np. 82,5" /></label>
                             </section>
                             break;
                         case 6:
                             <section class="goal-step goal-step-narrow">
                                 <div class="profile-section-heading"><span class="card-kicker">Meta</span><h2>Jaka jest Twoja docelowa masa?</h2><p>@TargetWeightHint</p></div>
-                                <MudNumericField @bind-Value="_targetWeightKg" Label="Masa docelowa (kg)" Min="20m" Max="500m" Immediate="true" />
+                                <label class="mobile-number-field"><span>Masa docelowa (kg)</span><input type="text" inputmode="decimal" autocomplete="off" @bind="_targetWeightInput" @bind:event="oninput" placeholder="np. 78" /></label>
                                 @if (_currentWeightKg is not null && _targetWeightKg is not null)
                                 {
                                     <span class="goal-weight-difference">@WeightDifference</span>
@@ -105,12 +105,13 @@
                                     <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Moderate)" aria-pressed="@(_trainingActivity == ActivityLevel.Moderate)" @onclick="() => _trainingActivity = ActivityLevel.Moderate"><strong>Średnia</strong><span>3–5 regularnych treningów</span></button>
                                     <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.High)" aria-pressed="@(_trainingActivity == ActivityLevel.High)" @onclick="() => _trainingActivity = ActivityLevel.High"><strong>Wysoka</strong><span>5+ ciężkich sesji</span></button>
                                 </div>
+                                <label class="mobile-number-field training-count-field"><span>Ile treningów planujesz w tygodniu?</span><input type="text" inputmode="numeric" autocomplete="off" @bind="_plannedTrainingsInput" @bind:event="oninput" placeholder="np. 4" /></label>
                             </section>
                             break;
                         case 9:
                             <section class="goal-result">
                                 <span class="card-kicker">Twój wynik</span>
-                                <p>To dzienny punkt odniesienia. Od niego aplikacja liczy kalorie pozostałe do zjedzenia.</p>
+                                <p>To cel na dzień bez treningu. W dni przypisane do aktywnego planu aplikacja automatycznie doda energię odpowiednią do intensywności treningów.</p>
                                 <div class="goal-result-dials">
                                     <label class="goal-result-dial energy">
                                         <span>Kalorie</span>
@@ -218,6 +219,10 @@
     private decimal? _startingWeightKg;
     private decimal? _targetWeightKg;
     private int? _plannedTrainings;
+    private string _heightInput = string.Empty;
+    private string _currentWeightInput = string.Empty;
+    private string _targetWeightInput = string.Empty;
+    private string _plannedTrainingsInput = string.Empty;
     private int _toleranceKcal = 100;
     private string _timeZoneId = "Europe/Warsaw";
     private List<string> _mealSlots = [];
@@ -281,6 +286,10 @@
         _currentWeightKg = weight?.CurrentAverageKg ?? _profile.StartingWeightKg;
         _measurementWeightKg = _currentWeightKg ?? 75;
         _plannedTrainings = _profile.PlannedTrainingsPerWeek;
+        _heightInput = NumberText(_heightCm);
+        _currentWeightInput = NumberText(_currentWeightKg);
+        _targetWeightInput = NumberText(_targetWeightKg);
+        _plannedTrainingsInput = (_plannedTrainings ?? 0).ToString();
         _toleranceKcal = _profile.CalorieToleranceKcal;
         _timeZoneId = _profile.TimeZoneId;
         _mealSlots = _profile.MealSlots?.ToList() ?? ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
@@ -307,6 +316,13 @@
 
     private void NextGoalStep()
     {
+        var numberError = ParseCurrentStep();
+        if (numberError is not null)
+        {
+            Snackbar.Add(numberError, Severity.Info);
+            return;
+        }
+
         var error = _goalStep switch
         {
             1 when _goal is null => "Wybierz cel.",
@@ -342,6 +358,30 @@
         _goalStep++;
     }
 
+    private string? ParseCurrentStep()
+    {
+        if (_goalStep == 4 && !TryDecimal(_heightInput, 50, 280, out _heightCm)) return "Podaj wzrost od 50 do 280 cm.";
+        if (_goalStep == 5 && !TryDecimal(_currentWeightInput, 20, 500, out _currentWeightKg)) return "Podaj masę od 20 do 500 kg.";
+        if (_goalStep == 6 && !TryDecimal(_targetWeightInput, 20, 500, out _targetWeightKg)) return "Podaj masę docelową od 20 do 500 kg.";
+        if (_goalStep == 8)
+        {
+            if (!int.TryParse(_plannedTrainingsInput, out var count) || count is < 0 or > 14) return "Podaj liczbę treningów od 0 do 14.";
+            _plannedTrainings = count;
+        }
+        return null;
+    }
+
+    private static bool TryDecimal(string text, decimal min, decimal max, out decimal? value)
+    {
+        value = null;
+        var normalized = text.Trim().Replace(',', '.');
+        if (!decimal.TryParse(normalized, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var parsed) || parsed < min || parsed > max) return false;
+        value = parsed;
+        return true;
+    }
+
+    private static string NumberText(decimal? value) => value?.ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo("pl-PL")) ?? string.Empty;
+
     private void CalculateTarget()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
@@ -349,9 +389,8 @@
         var age = today.Year - birth.Year - (today < birth.AddYears(today.Year - birth.Year) ? 1 : 0);
         var bmr = 10m * _currentWeightKg!.Value + 6.25m * _heightCm!.Value - 5m * age + (_sex == BiologicalSex.Male ? 5m : -161m);
         var factor = _workActivity switch { ActivityLevel.Low => 1.2m, ActivityLevel.Light => 1.32m, ActivityLevel.Moderate => 1.45m, _ => 1.6m };
-        var trainingCalories = _trainingActivity switch { ActivityLevel.Low => 0m, ActivityLevel.Light => 120m, ActivityLevel.Moderate => 250m, _ => 400m };
         var adjustment = _goal switch { BodyGoal.Reduction => -400m, BodyGoal.MuscleGain => 250m, _ => 0m };
-        _targetCalories = Math.Round(Math.Max(1200m, bmr * factor + trainingCalories + adjustment));
+        _targetCalories = Math.Round(Math.Max(1200m, bmr * factor + adjustment));
         _proteinG = Math.Round(_currentWeightKg.Value * 2m);
         _fatG = Math.Round(_currentWeightKg.Value * .9m);
         _carbsG = Math.Round(Math.Max(0m, (_targetCalories.Value - _proteinG * 4m - _fatG * 9m) / 4m));

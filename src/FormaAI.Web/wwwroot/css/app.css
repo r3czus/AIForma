@@ -555,8 +555,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .product-detail-panel > header > div { display: flex; flex-direction: column; min-width: 0; }
 .product-detail-panel > header strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.8rem; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .product-detail-panel > header span { color: var(--muted); margin-top: 4px; }
+.product-detail-actions { align-items: center; display: flex; gap: 4px; }
 .product-detail-favorite { align-items: center; background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 50%; color: var(--ink); cursor: pointer; display: flex; height: 46px; justify-content: center; width: 46px; }
 .product-detail-favorite.selected { background: var(--fuel-soft); border-color: var(--fuel); color: var(--fuel); }
+.product-detail-editor { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 16px; margin: 14px 0; padding: 14px; }
 .product-portion-list { margin: 10px 0 16px; }
 .product-portion-list label { align-items: center; border-bottom: 1px solid var(--rule); cursor: pointer; display: grid; gap: 10px; grid-template-columns: auto minmax(0, 1fr) auto auto; min-height: 56px; }
 .product-portion-list label.selected { color: var(--fuel); }
@@ -712,6 +714,9 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .meal-photo-capture span { color: var(--muted); font-size: .78rem; line-height: 1.45; max-width: 420px; }
 .meal-photo-capture input { height: 1px; opacity: 0; overflow: hidden; position: absolute; width: 1px; }
 .meal-photo-capture.busy { cursor: wait; opacity: .72; }
+.ai-analysis-status { align-items: center; background: var(--action-soft); border: 1px solid var(--action); border-radius: 16px; display: flex; gap: 13px; margin: 14px 0; padding: 14px 16px; }
+.ai-analysis-status > div { display: flex; flex-direction: column; gap: 3px; }
+.ai-analysis-status span { color: var(--muted); font-size: .75rem; line-height: 1.4; }
 .ai-meal-draft { border-top: 1px solid var(--rule-strong); margin-top: 22px; padding-top: 22px; }
 .ai-draft-heading { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 14px; }
 .ai-draft-heading h3 { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.55rem; margin: 0; }
@@ -971,6 +976,14 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .measurement-page-heading p { color: var(--muted); margin: 0; }
 .measurement-entry-card { border: 1px solid var(--rule); border-radius: 22px; padding: 24px; }
 .measurement-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.measurement-history { border: 1px solid var(--rule); border-radius: 22px; margin-top: 18px; padding: 22px 24px; }
+.measurement-history-heading, .measurement-history-row { align-items: center; display: flex; justify-content: space-between; }
+.measurement-history-heading { border-bottom: 1px solid var(--rule); padding-bottom: 14px; }
+.measurement-history-heading > span, .measurement-history-row span { color: var(--muted); font-size: .82rem; }
+.measurement-history-row { border-bottom: 1px solid var(--rule); gap: 12px; padding: 14px 0; }
+.measurement-history-row:last-child { border-bottom: 0; }
+.measurement-history-row > div:first-child { display: grid; gap: 3px; }
+.measurement-history-actions { display: flex; }
 
 .profile-page { max-width: 880px !important; }
 .profile-summary { align-items: center; background: var(--inverse-surface); border-radius: 24px 7px 24px 24px; color: var(--inverse-ink); display: grid; gap: 14px; grid-template-columns: auto 1fr auto; margin: 22px 0; padding: 18px 20px; }
@@ -1004,6 +1017,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .goal-choice span { color: var(--muted); font-size: .76rem; line-height: 1.4; }
 .activity-choice-grid .goal-choice { min-height: 112px; }
 .goal-weight-difference { background: var(--recovery-soft); border-radius: 10px; color: #277353; display: inline-block; font-size: .8rem; font-weight: 700; margin-top: 14px; padding: 9px 12px; }
+.mobile-number-field { color: var(--muted); display: grid; font-size: .76rem; gap: 7px; margin-top: 18px; }
+.mobile-number-field input { appearance: none; background: transparent; border: 0; border-bottom: 1px solid var(--rule-strong); border-radius: 0; color: var(--ink); font: inherit; font-size: 1.2rem; min-height: 48px; outline: 0; padding: 8px 2px; width: 100%; }
+.mobile-number-field input:focus { border-bottom-color: var(--action); box-shadow: 0 2px 0 var(--action); }
+.training-count-field { max-width: 280px; }
 .goal-wizard-actions { border-top: 1px solid var(--rule); display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; padding-top: 18px; }
 .goal-result { margin: 0 auto; max-width: 640px; padding: 10px 0 4px; text-align: center; }
 .goal-result > p { color: var(--muted); font-size: .82rem; line-height: 1.55; margin: 14px auto 24px; max-width: 480px; }

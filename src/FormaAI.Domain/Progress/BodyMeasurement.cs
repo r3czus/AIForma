@@ -31,4 +31,17 @@ public sealed class BodyMeasurement
     public decimal? ArmCm { get; private set; }
     public decimal? ThighCm { get; private set; }
     public string? Notes { get; private set; }
+
+    public void Update(DateOnly localDate, decimal weightKg, decimal? waistCm, string? notes,
+        decimal? chestCm, decimal? hipsCm, decimal? armCm, decimal? thighCm)
+    {
+        LocalDate = localDate;
+        WeightKg = weightKg;
+        WaistCm = waistCm;
+        ChestCm = chestCm;
+        HipsCm = hipsCm;
+        ArmCm = armCm;
+        ThighCm = thighCm;
+        Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+    }
 }

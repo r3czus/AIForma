@@ -49,4 +49,23 @@ public sealed class ProgressClient(HttpClient http)
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<BodyMeasurementResponse>())!;
     }
+
+    public async Task<BodyMeasurementResponse> UpdateMeasurement(Guid id, SaveBodyMeasurementRequest body)
+    {
+        var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        var request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/body-measurements/{id}") { Content = JsonContent.Create(body) };
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+        using var response = await http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<BodyMeasurementResponse>())!;
+    }
+
+    public async Task DeleteMeasurement(Guid id)
+    {
+        var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        var request = new HttpRequestMessage(HttpMethod.Delete, $"api/v1/body-measurements/{id}");
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+        using var response = await http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+    }
 }

@@ -28,6 +28,37 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">Zapisz pomiary</MudButton>
         </div>
     </MudPaper>
+
+    <section class="measurement-history">
+        <div class="measurement-history-heading">
+            <div><span class="page-kicker">Historia</span><MudText Typo="Typo.h5">Zapisane pomiary</MudText></div>
+            <span>@_measurements.Count wpisów</span>
+        </div>
+        @if (_loadingHistory)
+        {
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        }
+        else if (_measurements.Count == 0)
+        {
+            <p class="empty-copy">Pierwszy zapisany pomiar pojawi się tutaj.</p>
+        }
+        else
+        {
+            @foreach (var item in _measurements.OrderByDescending(x => x.LocalDate))
+            {
+                <article class="measurement-history-row">
+                    <div>
+                        <strong>@item.WeightKg.ToString("0.0") kg</strong>
+                        <span>@item.LocalDate.ToString("dd.MM.yyyy") · @Measurements(item)</span>
+                    </div>
+                    <div class="measurement-history-actions">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="@(() => Edit(item))" aria-label="Edytuj pomiar" />
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="@(() => Delete(item.Id))" aria-label="Usuń pomiar" />
+                    </div>
+                </article>
+            }
+        }
+    </section>
 </MudContainer>
 
 @code {
@@ -40,10 +71,14 @@
     private decimal? _thighCm;
     private string? _notes;
     private bool _saving;
+    private bool _loadingHistory = true;
+    private Guid? _editingId;
+    private IReadOnlyList<BodyMeasurementResponse> _measurements = [];
 
     protected override async Task OnInitializedAsync()
     {
         if (await Account.GetCurrentUser() is null) Navigation.NavigateTo("/");
+        else await LoadHistory();
     }
 
     private void BackToProgress() => Navigation.NavigateTo("/progress");
@@ -54,14 +89,69 @@
         _saving = true;
         try
         {
-            await ProgressApi.SaveMeasurement(new SaveBodyMeasurementRequest(DateOnly.FromDateTime(_date.Value), _weightKg, _waistCm, _notes, _chestCm, _hipsCm, _armCm, _thighCm));
-            Snackbar.Add("Pomiary zapisane.", Severity.Success);
-            Navigation.NavigateTo("/progress");
+            var request = new SaveBodyMeasurementRequest(DateOnly.FromDateTime(_date.Value), _weightKg, _waistCm, _notes, _chestCm, _hipsCm, _armCm, _thighCm);
+            if (_editingId.HasValue) await ProgressApi.UpdateMeasurement(_editingId.Value, request);
+            else await ProgressApi.SaveMeasurement(request);
+            Snackbar.Add(_editingId.HasValue ? "Pomiar zaktualizowany." : "Pomiary zapisane.", Severity.Success);
+            ClearForm();
+            await LoadHistory();
         }
         catch (HttpRequestException)
         {
             Snackbar.Add("Nie udało się zapisać pomiarów.", Severity.Error);
         }
         finally { _saving = false; }
+    }
+
+    private async Task LoadHistory()
+    {
+        _loadingHistory = true;
+        _measurements = await ProgressApi.GetBodyMeasurements(DateOnly.FromDateTime(DateTime.Today.AddYears(-2)), DateOnly.FromDateTime(DateTime.Today));
+        _loadingHistory = false;
+    }
+
+    private void Edit(BodyMeasurementResponse item)
+    {
+        _editingId = item.Id;
+        _date = item.LocalDate.ToDateTime(TimeOnly.MinValue);
+        _weightKg = item.WeightKg;
+        _waistCm = item.WaistCm;
+        _chestCm = item.ChestCm;
+        _hipsCm = item.HipsCm;
+        _armCm = item.ArmCm;
+        _thighCm = item.ThighCm;
+        _notes = item.Notes;
+    }
+
+    private async Task Delete(Guid id)
+    {
+        try
+        {
+            await ProgressApi.DeleteMeasurement(id);
+            if (_editingId == id) ClearForm();
+            await LoadHistory();
+            Snackbar.Add("Pomiar usunięty.", Severity.Success);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się usunąć pomiaru.", Severity.Error);
+        }
+    }
+
+    private void ClearForm()
+    {
+        _editingId = null;
+        _date = DateTime.Today;
+        _waistCm = _chestCm = _hipsCm = _armCm = _thighCm = null;
+        _notes = null;
+    }
+
+    private static string Measurements(BodyMeasurementResponse item)
+    {
+        var values = new List<string>();
+        if (item.WaistCm.HasValue) values.Add($"talia {item.WaistCm:0.#} cm");
+        if (item.ChestCm.HasValue) values.Add($"klatka {item.ChestCm:0.#} cm");
+        if (item.HipsCm.HasValue) values.Add($"biodra {item.HipsCm:0.#} cm");
+        return values.Count == 0 ? "bez obwodów" : string.Join(" · ", values);
     }
 }

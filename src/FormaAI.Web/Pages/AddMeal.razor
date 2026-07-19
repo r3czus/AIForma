@@ -148,8 +148,26 @@
                             <header>
                                 <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="CloseProduct" aria-label="Wróć do listy produktów" />
                                 <div><strong>@product.Name</strong><span>@(string.IsNullOrWhiteSpace(product.Brand) ? "Produkt własny" : product.Brand)</span></div>
-                                <button type="button" class="product-detail-favorite @(IsFavorite(product.Id) ? "selected" : null)" @onclick="() => ToggleFavorite(product.Id)" aria-label="@(IsFavorite(product.Id) ? "Usuń z ulubionych" : "Dodaj do ulubionych")"><MudIcon Icon="@(IsFavorite(product.Id) ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" /></button>
+                                <div class="product-detail-actions">
+                                    @if (product.IsOwn) { <MudIconButton Icon="@Icons.Material.Outlined.Edit" OnClick="ToggleProductEditor" aria-label="Edytuj produkt" /> }
+                                    <button type="button" class="product-detail-favorite @(IsFavorite(product.Id) ? "selected" : null)" @onclick="() => ToggleFavorite(product.Id)" aria-label="@(IsFavorite(product.Id) ? "Usuń z ulubionych" : "Dodaj do ulubionych")"><MudIcon Icon="@(IsFavorite(product.Id) ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" /></button>
+                                </div>
                             </header>
+
+                            @if (_editingProduct)
+                            {
+                                <section class="product-detail-editor">
+                                    <MudTextField @bind-Value="_productEdit.Name" Label="Nazwa produktu" />
+                                    <MudTextField @bind-Value="_productEdit.Brand" Label="Marka (opcjonalnie)" />
+                                    <div class="field-grid">
+                                        <MudNumericField @bind-Value="_productEdit.Calories" Label="Kalorie / 100 g" Min="0m" HideSpinButtons="true" />
+                                        <MudNumericField @bind-Value="_productEdit.Protein" Label="Białko / 100 g" Min="0m" HideSpinButtons="true" />
+                                        <MudNumericField @bind-Value="_productEdit.Fat" Label="Tłuszcze / 100 g" Min="0m" HideSpinButtons="true" />
+                                        <MudNumericField @bind-Value="_productEdit.Carbs" Label="Węglowodany / 100 g" Min="0m" HideSpinButtons="true" />
+                                    </div>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_savingProduct || string.IsNullOrWhiteSpace(_productEdit.Name))" OnClick="SaveProductChanges">@(_savingProduct ? "Zapisuję…" : "Zapisz dane produktu")</MudButton>
+                                </section>
+                            }
 
                             <div class="product-portion-list">
                                 @foreach (var option in ProductPortions(product))
@@ -194,6 +212,14 @@
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@(_aiBusy || string.IsNullOrWhiteSpace(_mealDescription))" OnClick="AnalyzeText" StartIcon="@Icons.Material.Outlined.AutoAwesome">
                         @(_aiBusy ? "AI analizuje opis…" : "Policz i przygotuj posiłek")
                     </MudButton>
+                }
+
+                @if (_aiBusy)
+                {
+                    <div class="ai-analysis-status" role="status" aria-live="polite">
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                        <div><strong>AI analizuje posiłek</strong><span>Rozpoznaję składniki i liczę wartości. Zwykle zajmuje to kilka sekund.</span></div>
+                    </div>
                 }
 
                 @if (_aiDraft is not null)
@@ -243,6 +269,7 @@
     private string _selectedMealSlot = "Śniadanie";
     private readonly MealForm _meal = new();
     private readonly ProductForm _product = new();
+    private readonly ProductForm _productEdit = new();
     private string _productSearch = string.Empty;
     private ProductResponse? _productDetails;
     private decimal _detailAmount = 100;
@@ -255,6 +282,7 @@
     private bool _saving;
     private bool _savingProduct;
     private bool _catalogLoading;
+    private bool _editingProduct;
     private Guid? _editingMealId;
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
     private IReadOnlyList<ProductResponse> VisibleProducts => _catalogScope switch
@@ -320,9 +348,37 @@
     {
         _productDetails = product;
         _detailAmount = _meal.Items.FirstOrDefault(x => x.ProductId == product.Id)?.AmountGrams ?? DefaultPortion(product);
+        _productEdit.Load(product);
+        _editingProduct = false;
     }
 
-    private void CloseProduct() => _productDetails = null;
+    private void CloseProduct() { _productDetails = null; _editingProduct = false; }
+    private void ToggleProductEditor() => _editingProduct = !_editingProduct;
+
+    private async Task SaveProductChanges()
+    {
+        if (_productDetails is null || string.IsNullOrWhiteSpace(_productEdit.Name)) return;
+        _savingProduct = true;
+        try
+        {
+            var saved = await Nutrition.UpdateProduct(_productDetails.Id, _productEdit.Request());
+            _products = ReplaceProduct(_products, saved);
+            _searchResults = ReplaceProduct(_searchResults, saved);
+            var selected = _meal.Items.FirstOrDefault(x => x.ProductId == saved.Id);
+            if (selected is not null) selected.Name = saved.Name;
+            _productDetails = saved;
+            _editingProduct = false;
+            Snackbar.Add("Dane produktu zostały poprawione.", Severity.Success);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się zapisać zmian produktu.", Severity.Error);
+        }
+        finally { _savingProduct = false; }
+    }
+
+    private static IReadOnlyList<ProductResponse> ReplaceProduct(IReadOnlyList<ProductResponse> items, ProductResponse saved) =>
+        items.Select(x => x.Id == saved.Id ? saved : x).ToList();
 
     private void ConfirmProduct(ProductResponse product)
     {
@@ -464,6 +520,18 @@
         public decimal Fat { get; set; }
         public decimal Carbs { get; set; }
 
+        public SaveProductRequest Request() => new(Name.Trim(), Brand, Calories, Protein, Fat, Carbs, 100, ServingUnit.Gram);
+
+        public void Load(ProductResponse product)
+        {
+            Name = product.Name;
+            Brand = product.Brand;
+            Calories = product.CaloriesPer100;
+            Protein = product.ProteinPer100;
+            Fat = product.FatPer100;
+            Carbs = product.CarbohydratesPer100;
+        }
+
         public void Clear()
         {
             Name = string.Empty;
@@ -474,7 +542,7 @@
     private sealed class MealDraftItem(Guid productId, string name, decimal amountGrams)
     {
         public Guid ProductId { get; } = productId;
-        public string Name { get; } = name;
+        public string Name { get; set; } = name;
         public decimal AmountGrams { get; set; } = amountGrams;
     }
     private sealed record ProductPortion(decimal AmountGrams, string Name);
