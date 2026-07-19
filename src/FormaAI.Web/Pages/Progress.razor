@@ -130,7 +130,7 @@
                     }
                     @foreach (var day in _nutrition.Days)
                     {
-                        <button type="button" class="nutrition-day @DayClass(day)" title="@DayTitle(day)" @onclick="() => SelectDay(day)"><b>@day.Date.Day</b></button>
+                        <button type="button" class="nutrition-day @DayClass(day)" title="@DayTitle(day)" @onclick="() => SelectDay(day)"><b>@day.Date.Day</b>@if (day.Achievements?.Count > 0) { <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" /> }</button>
                     }
                 </div>
                 @if (_selectedDay is not null)
@@ -157,6 +157,13 @@
                             }
                             else { <p>Bez ukończonego treningu</p> }
                         </section>
+                        @if (_selectedDay.Achievements?.Count > 0)
+                        {
+                            <section class="day-summary-achievements">
+                                <div><MudIcon Icon="@Icons.Material.Filled.EmojiEvents" /><span>Osiągnięte tego dnia</span></div>
+                                @foreach (var achievement in _selectedDay.Achievements) { <strong>@achievement</strong> }
+                            </section>
+                        }
                     </div>
                 }
                 <div class="calendar-legend">
@@ -456,7 +463,8 @@
         var diet = !day.HasMeals || day.TargetKcal is null
             ? "diet-empty"
             : day.IsWithinTarget ? "diet-on" : day.ConsumedKcal < day.TargetKcal ? "diet-under" : "diet-over";
-        return $"{workout} {diet}";
+        var achievement = day.Achievements?.Count > 0 ? "achievement-earned" : string.Empty;
+        return $"{workout} {diet} {achievement}";
     }
 
     private static string DayTitle(NutritionAdherencePoint day)
@@ -464,7 +472,8 @@
         var workout = day.HasCompletedWorkout ? "trening ukończony" : "bez ukończonego treningu";
         if (!day.HasMeals) return $"{day.Date:dd.MM}: {workout}; brak zapisanych posiłków";
         var diet = day.IsWithinTarget ? "dieta w zakresie" : day.ConsumedKcal < day.TargetKcal ? "dieta poniżej zakresu" : "dieta powyżej zakresu";
-        return $"{day.Date:dd.MM}: {workout}; {diet} ({day.ConsumedKcal:0} z {day.TargetKcal:0} kcal)";
+        var achievement = day.Achievements?.Count > 0 ? $"; osiągnięcia: {string.Join(", ", day.Achievements)}" : string.Empty;
+        return $"{day.Date:dd.MM}: {workout}; {diet} ({day.ConsumedKcal:0} z {day.TargetKcal:0} kcal){achievement}";
     }
 
     private void ToggleBodyMetric(string metric)

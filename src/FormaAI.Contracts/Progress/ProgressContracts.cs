@@ -14,7 +14,8 @@ public sealed record ConsistencyPoint(DateOnly WeekStarting, int CompletedWorkou
 public sealed record ConsistencyResponse(int CompletedWorkouts, int PlannedWorkouts, decimal CompletionPercent, IReadOnlyList<ConsistencyPoint> Weeks);
 public sealed record NutritionAdherencePoint(DateOnly Date, decimal? TargetKcal, decimal ConsumedKcal, bool HasMeals, bool IsWithinTarget, bool HasCompletedWorkout,
     decimal ProteinG = 0, decimal FatG = 0, decimal CarbohydratesG = 0, decimal? TargetProteinG = null, decimal? TargetFatG = null, decimal? TargetCarbohydratesG = null,
-    string? WorkoutName = null, int WorkoutMinutes = 0, int WorkoutExercises = 0, int WorkoutSets = 0, decimal WorkoutVolumeKg = 0);
+    string? WorkoutName = null, int WorkoutMinutes = 0, int WorkoutExercises = 0, int WorkoutSets = 0, decimal WorkoutVolumeKg = 0,
+    IReadOnlyList<string>? Achievements = null);
 public sealed record NutritionAdherenceResponse(DateOnly Month, int ToleranceKcal, int DaysOnTarget, int LoggedDays, IReadOnlyList<NutritionAdherencePoint> Days);
 public sealed record TrainingWeekSummaryResponse(int CompletedWorkouts, int PlannedWorkouts, int TotalMinutes, int WorkingSets,
     decimal SetCompletionPercent, decimal TotalVolumeKg, decimal? VolumeChangePercent);

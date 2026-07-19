@@ -9,7 +9,7 @@
 <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap measurement-page">
     <header class="measurement-page-heading">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="BackToProgress" aria-label="Wróć do progresu" />
-        <div><span class="page-kicker">Dane ciała</span><MudText Typo="Typo.h4">Dodaj pomiary</MudText><p>Wpisz tylko te wartości, które dziś mierzysz. Masa ciała jest wymagana.</p></div>
+        <div><span class="page-kicker">Dane ciała</span><MudText Typo="Typo.h4">@(_editingId.HasValue ? "Edytuj pomiar" : "Dodaj pomiary")</MudText><p>Wpisz tylko te wartości, które dziś mierzysz. Masa ciała jest wymagana.</p></div>
     </header>
 
     <MudPaper Class="measurement-entry-card" Elevation="0">
@@ -24,8 +24,8 @@
         </div>
         <MudTextField @bind-Value="_notes" Label="Notatka" MaxLength="500" />
         <div class="measurement-actions">
-            <MudButton Variant="Variant.Text" OnClick="BackToProgress">Anuluj</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">Zapisz pomiary</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="Cancel">Anuluj</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">@(_editingId.HasValue ? "Zapisz zmiany" : "Zapisz pomiary")</MudButton>
         </div>
     </MudPaper>
 
@@ -33,6 +33,12 @@
         <div class="measurement-history-heading">
             <div><span class="page-kicker">Historia</span><MudText Typo="Typo.h5">Zapisane pomiary</MudText></div>
             <span>@_measurements.Count wpisów</span>
+        </div>
+        <div class="measurement-range" role="group" aria-label="Zakres historii pomiarów">
+            @foreach (var range in Ranges)
+            {
+                <MudButton Size="Size.Small" Variant="@(_rangeDays == range.Days ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="() => ChangeRange(range.Days)">@range.Label</MudButton>
+            }
         </div>
         @if (_loadingHistory)
         {
@@ -50,6 +56,7 @@
                     <div>
                         <strong>@item.WeightKg.ToString("0.0") kg</strong>
                         <span>@item.LocalDate.ToString("dd.MM.yyyy") · @Measurements(item)</span>
+                        @if (!string.IsNullOrWhiteSpace(item.Notes)) { <small>@item.Notes</small> }
                     </div>
                     <div class="measurement-history-actions">
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="@(() => Edit(item))" aria-label="Edytuj pomiar" />
@@ -72,8 +79,10 @@
     private string? _notes;
     private bool _saving;
     private bool _loadingHistory = true;
+    private int _rangeDays = 90;
     private Guid? _editingId;
     private IReadOnlyList<BodyMeasurementResponse> _measurements = [];
+    private static readonly (int Days, string Label)[] Ranges = [(30, "30 dni"), (90, "90 dni"), (180, "180 dni"), (365, "Rok")];
 
     protected override async Task OnInitializedAsync()
     {
@@ -82,6 +91,11 @@
     }
 
     private void BackToProgress() => Navigation.NavigateTo("/progress");
+    private void Cancel()
+    {
+        if (_editingId.HasValue) ClearForm();
+        else BackToProgress();
+    }
 
     private async Task Save()
     {
@@ -106,8 +120,23 @@
     private async Task LoadHistory()
     {
         _loadingHistory = true;
-        _measurements = await ProgressApi.GetBodyMeasurements(DateOnly.FromDateTime(DateTime.Today.AddYears(-2)), DateOnly.FromDateTime(DateTime.Today));
-        _loadingHistory = false;
+        try
+        {
+            var to = DateOnly.FromDateTime(DateTime.Today);
+            _measurements = await ProgressApi.GetBodyMeasurements(to.AddDays(-(_rangeDays - 1)), to);
+        }
+        catch (HttpRequestException)
+        {
+            _measurements = [];
+            Snackbar.Add("Nie udało się pobrać zapisanych pomiarów.", Severity.Error);
+        }
+        finally { _loadingHistory = false; }
+    }
+
+    private async Task ChangeRange(int days)
+    {
+        _rangeDays = days;
+        await LoadHistory();
     }
 
     private void Edit(BodyMeasurementResponse item)
@@ -152,6 +181,8 @@
         if (item.WaistCm.HasValue) values.Add($"talia {item.WaistCm:0.#} cm");
         if (item.ChestCm.HasValue) values.Add($"klatka {item.ChestCm:0.#} cm");
         if (item.HipsCm.HasValue) values.Add($"biodra {item.HipsCm:0.#} cm");
+        if (item.ArmCm.HasValue) values.Add($"ramię {item.ArmCm:0.#} cm");
+        if (item.ThighCm.HasValue) values.Add($"udo {item.ThighCm:0.#} cm");
         return values.Count == 0 ? "bez obwodów" : string.Join(" · ", values);
     }
 }

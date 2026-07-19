@@ -126,18 +126,24 @@ public sealed class CoachingController(AppDbContext db, IAssistantModel assistan
     public async Task<IReadOnlyList<AchievementResponse>> Achievements()
     {
         var userId = UserId();
-        var result = new List<AchievementResponse>();
         var sessions = await db.WorkoutSessions.Where(x => x.UserId == userId && x.Status == SessionStatus.Completed).OrderBy(x => x.FinishedAtUtc).Select(x => x.FinishedAtUtc!.Value).ToListAsync();
         var measurements = await db.BodyMeasurements.Where(x => x.UserId == userId).OrderBy(x => x.LocalDate).Select(x => x.LocalDate).ToListAsync();
         var photos = await db.ProgressPhotos.Where(x => x.UserId == userId).OrderBy(x => x.LocalDate).Select(x => x.LocalDate).ToListAsync();
-        if (sessions.Count > 0) result.Add(new("first-workout", "Pierwszy trening", "Pierwsza ukończona sesja jest początkiem historii progresu.", DateOnly.FromDateTime(sessions[0]), "Trening"));
-        foreach (var threshold in new[] { 10, 25, 50, 100 }) if (sessions.Count >= threshold) result.Add(new($"workouts-{threshold}", $"{threshold} treningów za Tobą", $"Ukończyłeś {threshold} zapisanych sesji.", DateOnly.FromDateTime(sessions[threshold - 1]), "Regularność"));
-        if (measurements.Count > 0) result.Add(new("first-measurement", "Pierwszy pomiar", "Masz punkt odniesienia dla trendu sylwetki.", measurements[0], "Sylwetka"));
-        if (photos.Count > 0) result.Add(new("first-photo", "Pierwsze zdjęcie progresu", "Możesz porównywać zmiany poza samą masą ciała.", photos[0], "Sylwetka"));
         var completeDays = await db.NutritionDayReviews.Where(x => x.UserId == userId && x.Status == NutritionDayStatus.Complete).OrderBy(x => x.LocalDate).Select(x => x.LocalDate).ToListAsync();
-        if (completeDays.Count > 0) result.Add(new("first-complete-diary", "Pierwszy kompletny dzień", "Dane żywieniowe tego dnia są świadomie zamknięte.", completeDays[0], "Jedzenie"));
-        if (completeDays.Count >= 7) result.Add(new("seven-complete-days", "7 kompletnych dni", "Siedem wiarygodnych dni daje znacznie lepszy obraz odżywiania.", completeDays[6], "Jedzenie"));
-        return result.OrderByDescending(x => x.EarnedOn).ToList();
+
+        var result = new List<AchievementResponse>
+        {
+            new("first-workout", "Pierwszy trening", "Pierwsza ukończona sesja rozpoczyna historię progresu.", DateAt(sessions, 1), "Trening", "Ukończ pierwszy trening."),
+            new("first-measurement", "Pierwszy pomiar", "Masz punkt odniesienia dla trendu sylwetki.", DateAt(measurements, 1), "Sylwetka", "Zapisz pierwszy pomiar ciała."),
+            new("first-photo", "Pierwsze zdjęcie progresu", "Możesz porównywać zmiany poza samą masą ciała.", DateAt(photos, 1), "Sylwetka", "Dodaj pierwsze zdjęcie progresu."),
+            new("first-complete-diary", "Pierwszy kompletny dzień", "Dane żywieniowe tego dnia są świadomie zamknięte.", DateAt(completeDays, 1), "Jedzenie", "Oznacz dzień dziennika jako kompletny."),
+            new("seven-complete-days", "7 kompletnych dni", "Siedem wiarygodnych dni daje lepszy obraz odżywiania.", DateAt(completeDays, 7), "Jedzenie", "Zamknij 7 dni dziennika jako kompletne.")
+        };
+
+        foreach (var threshold in new[] { 10, 25, 50, 100 })
+            result.Add(new($"workouts-{threshold}", $"{threshold} treningów za Tobą", $"Ukończyłeś {threshold} zapisanych sesji.", DateAt(sessions, threshold), "Regularność", $"Ukończ {threshold} treningów."));
+
+        return result.OrderByDescending(x => x.EarnedOn.HasValue).ThenByDescending(x => x.EarnedOn).ThenBy(x => x.Title).ToList();
     }
 
     [HttpGet("photos")]
@@ -208,6 +214,8 @@ public sealed class CoachingController(AppDbContext db, IAssistantModel assistan
     }
 
     private static DateOnly StartOfWeek(DateOnly date, DayOfWeek firstDay) => date.AddDays(-(7 + (int)date.DayOfWeek - (int)firstDay) % 7);
+    private static DateOnly? DateAt(IReadOnlyList<DateOnly> dates, int count) => dates.Count >= count ? dates[count - 1] : null;
+    private static DateOnly? DateAt(IReadOnlyList<DateTime> dates, int count) => dates.Count >= count ? DateOnly.FromDateTime(dates[count - 1]) : null;
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static WeeklyReviewResponse ReviewResponse(WeeklyReview x) => new(x.Id, x.WeekStarting, x.Energy, x.Sleep, x.Hunger, x.Recovery, x.Stress, x.Notes, x.DeviationReasons, x.Summary);
     private static ProgressPhotoResponse PhotoResponse(ProgressPhoto x) => new(x.Id, x.LocalDate, x.Pose, $"api/v1/coaching/photos/{x.Id}/content");

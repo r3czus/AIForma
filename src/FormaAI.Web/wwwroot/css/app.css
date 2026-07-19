@@ -984,6 +984,8 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .measurement-history-row:last-child { border-bottom: 0; }
 .measurement-history-row > div:first-child { display: grid; gap: 3px; }
 .measurement-history-actions { display: flex; }
+.measurement-range { display: flex; flex-wrap: wrap; gap: 4px; padding: 12px 0 4px; }
+.measurement-history-row small { color: var(--muted); font-size: .72rem; }
 
 .profile-page { max-width: 880px !important; }
 .profile-summary { align-items: center; background: var(--inverse-surface); border-radius: 24px 7px 24px 24px; color: var(--inverse-ink); display: grid; gap: 14px; grid-template-columns: auto 1fr auto; margin: 22px 0; padding: 18px 20px; }
@@ -1472,6 +1474,13 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .achievement-card span { color: var(--muted); font-size: .7rem; text-transform: uppercase; }
 .achievement-card strong { font-size: 1.05rem; margin-top: 4px; }
 .achievement-card p { color: var(--muted); margin: 5px 0 0; }
+.achievement-card.locked { background: var(--surface-soft); border-color: var(--rule); filter: grayscale(1); opacity: .62; }
+.achievement-card.locked .achievement-icon { background: var(--rule); color: var(--muted); }
+.nutrition-day { position: relative; }
+.nutrition-day > .mud-icon-root { background: var(--surface); border-radius: 50%; bottom: -3px; color: var(--fuel); font-size: .72rem; padding: 1px; position: absolute; right: -3px; }
+.day-summary-achievements { border-top: 1px solid var(--rule); grid-column: 1 / -1; padding-top: 14px; }
+.day-summary-achievements > div { align-items: center; color: var(--fuel); display: flex; gap: 7px; margin-bottom: 7px; }
+.day-summary-achievements strong { display: block; font-size: .82rem; }
 .workout-length-picker { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); margin-top: 16px; }
 .workout-length-picker button { background: var(--canvas); border: 1px solid var(--rule); border-radius: 15px; color: var(--ink); cursor: pointer; padding: 11px 8px; }
 .workout-length-picker button.selected { background: var(--action-soft); border-color: var(--action); }

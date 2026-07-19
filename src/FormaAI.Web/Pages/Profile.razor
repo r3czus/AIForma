@@ -18,7 +18,7 @@
             <div>
                 <span class="page-kicker">Twoje ustawienia</span>
                 <MudText Typo="Typo.h4">Profil</MudText>
-                <p>Cel, pomiary i zasady liczenia w jednym miejscu.</p>
+                <p>Cel i zasady liczenia w jednym miejscu.</p>
             </div>
         </header>
 
@@ -153,23 +153,6 @@
                 </MudPaper>
             </MudTabPanel>
 
-            <MudTabPanel Text="Pomiary">
-                <MudPaper Class="profile-section" Elevation="0">
-                    <div class="profile-section-heading"><span class="card-kicker">Dane ciała</span><h2>Zapisz pomiar</h2><p>Mierz się w podobnej porze dnia. Nie musisz uzupełniać wszystkich obwodów.</p></div>
-                    <div class="field-grid">
-                        <MudDatePicker @bind-Date="_measurementDate" Label="Data" />
-                        <MudNumericField @bind-Value="_measurementWeightKg" Label="Masa (kg)" Min="20m" Max="500m" />
-                        <MudNumericField @bind-Value="_waistCm" Label="Talia (cm)" />
-                        <MudNumericField @bind-Value="_chestCm" Label="Klatka (cm)" />
-                        <MudNumericField @bind-Value="_hipsCm" Label="Biodra (cm)" />
-                        <MudNumericField @bind-Value="_armCm" Label="Ramię (cm)" />
-                        <MudNumericField @bind-Value="_thighCm" Label="Udo (cm)" />
-                    </div>
-                    <MudTextField @bind-Value="_measurementNotes" Label="Notatka" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveMeasurement" Class="mt-3">Zapisz pomiar</MudButton>
-                </MudPaper>
-            </MudTabPanel>
-
             <MudTabPanel Text="Ustawienia">
                 <MudPaper Class="profile-section" Elevation="0">
                     <div class="profile-section-heading"><span class="card-kicker">Rytm aplikacji</span><h2>Ustawienia</h2><p>Każda grupa otwiera się osobno. Zapisujesz tylko to, co właśnie zmieniasz.</p></div>
@@ -238,14 +221,6 @@
     private decimal _proteinG;
     private decimal _fatG;
     private decimal _carbsG;
-    private DateTime? _measurementDate = DateTime.Today;
-    private decimal _measurementWeightKg = 75;
-    private decimal? _waistCm;
-    private decimal? _chestCm;
-    private decimal? _hipsCm;
-    private decimal? _armCm;
-    private decimal? _thighCm;
-    private string? _measurementNotes;
     private string _deletePassword = string.Empty;
     private string _deleteConfirmation = string.Empty;
     private int _goalStep = 1;
@@ -284,7 +259,6 @@
         _startingWeightKg = _profile.StartingWeightKg;
         _targetWeightKg = _profile.TargetWeightKg;
         _currentWeightKg = weight?.CurrentAverageKg ?? _profile.StartingWeightKg;
-        _measurementWeightKg = _currentWeightKg ?? 75;
         _plannedTrainings = _profile.PlannedTrainingsPerWeek;
         _heightInput = NumberText(_heightCm);
         _currentWeightInput = NumberText(_currentWeightKg);
@@ -424,15 +398,6 @@
     private static string ThemeName(string theme) => theme switch { "dark" => "Ciemny", "light" => "Jasny", _ => "Zgodny z telefonem" };
 
     private static string ChoiceClass(bool selected) => selected ? "goal-choice selected" : "goal-choice";
-
-    private async Task SaveMeasurement() => await Run(async () =>
-    {
-        if (_measurementDate is null) return;
-        await ProgressApi.SaveMeasurement(new SaveBodyMeasurementRequest(DateOnly.FromDateTime(_measurementDate.Value), _measurementWeightKg, _waistCm, _measurementNotes, _chestCm, _hipsCm, _armCm, _thighCm));
-        _currentWeightKg = _measurementWeightKg;
-        _measurementNotes = null;
-        Snackbar.Add("Pomiar zapisany.", Severity.Success);
-    }, "Nie udało się zapisać pomiaru.");
 
     private async Task Logout()
     {

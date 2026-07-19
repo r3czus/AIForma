@@ -8,8 +8,22 @@
 <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page achievements-page">
     <header class="module-heading compact-heading"><MudIconButton Icon="@Icons.Material.Outlined.ArrowBack" Href="/progress" aria-label="Wróć" /><div><span class="page-kicker">Kamienie milowe</span><MudText Typo="Typo.h4">Twoje osiągnięcia</MudText><p>To zapis faktycznych działań, nie punkty za samo otwieranie aplikacji.</p></div></header>
     @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" /></div> }
-    else if (_items.Count == 0) { <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.EmojiEvents" /><div><strong>Pierwsze osiągnięcie jest przed Tobą</strong><span>Ukończ trening, zamknij dziennik albo dodaj pomiar.</span></div></div> }
-    else { <div class="achievement-list">@foreach (var item in _items) { <article class="achievement-card"><div class="achievement-icon"><MudIcon Icon="@Icon(item.Category)" /></div><div><span>@item.Category · @item.EarnedOn.ToString("dd.MM.yyyy")</span><strong>@item.Title</strong><p>@item.Detail</p></div></article> }</div> }
+    else
+    {
+        <div class="achievement-list">
+            @foreach (var item in _items)
+            {
+                <article class="achievement-card @(item.EarnedOn.HasValue ? "earned" : "locked")">
+                    <div class="achievement-icon"><MudIcon Icon="@Icon(item.Category)" /></div>
+                    <div>
+                        <span>@item.Category · @(item.EarnedOn?.ToString("dd.MM.yyyy") ?? "do zdobycia")</span>
+                        <strong>@item.Title</strong>
+                        <p>@(item.EarnedOn.HasValue ? item.Detail : item.Requirement)</p>
+                    </div>
+                </article>
+            }
+        </div>
+    }
 </MudContainer>
 
 @code {

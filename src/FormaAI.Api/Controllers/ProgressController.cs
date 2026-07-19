@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FormaAI.Application.Progress;
 using FormaAI.Contracts.Progress;
+using FormaAI.Domain.Nutrition;
 using FormaAI.Domain.Progress;
 using FormaAI.Domain.Training;
 using FormaAI.Infrastructure.Persistence;
@@ -133,6 +134,24 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
                 .Include(x => x.Exercises).ThenInclude(x => x.Sets)
                 .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed && x.FinishedAtUtc >= fromUtc && x.FinishedAtUtc < toUtc)
                 .ToListAsync();
+        var allSessions = await db.WorkoutSessions.Where(x => x.UserId == userId && x.Status == SessionStatus.Completed)
+            .OrderBy(x => x.FinishedAtUtc).Select(x => x.FinishedAtUtc!.Value).ToListAsync();
+        var measurements = await db.BodyMeasurements.Where(x => x.UserId == userId).OrderBy(x => x.LocalDate).Select(x => x.LocalDate).ToListAsync();
+        var photos = await db.ProgressPhotos.Where(x => x.UserId == userId).OrderBy(x => x.LocalDate).Select(x => x.LocalDate).ToListAsync();
+        var completeDays = await db.NutritionDayReviews.Where(x => x.UserId == userId && x.Status == NutritionDayStatus.Complete)
+            .OrderBy(x => x.LocalDate).Select(x => x.LocalDate).ToListAsync();
+        var achievements = new List<(DateOnly? Date, string Title)>
+        {
+            (DateAt(allSessions, 1), "Pierwszy trening"),
+            (DateAt(allSessions, 10), "10 treningów za Tobą"),
+            (DateAt(allSessions, 25), "25 treningów za Tobą"),
+            (DateAt(allSessions, 50), "50 treningów za Tobą"),
+            (DateAt(allSessions, 100), "100 treningów za Tobą"),
+            (DateAt(measurements, 1), "Pierwszy pomiar"),
+            (DateAt(photos, 1), "Pierwsze zdjęcie progresu"),
+            (DateAt(completeDays, 1), "Pierwszy kompletny dzień"),
+            (DateAt(completeDays, 7), "7 kompletnych dni")
+        };
 
         var days = Enumerable.Range(0, end.Day)
             .Select(offset => start.AddDays(offset))
@@ -149,7 +168,8 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
                     items.Sum(x => x.ProteinG), items.Sum(x => x.FatG), items.Sum(x => x.CarbohydratesG), target?.ProteinG, target?.FatG, target?.CarbohydratesG,
                     sessions.Count == 1 ? sessions[0].NameSnapshot : sessions.Count > 1 ? $"{sessions.Count} treningi" : null,
                     (int)Math.Round(sessions.Sum(x => (x.FinishedAtUtc!.Value - x.StartedAtUtc).TotalMinutes)),
-                    sessions.Sum(x => x.Exercises.Count), sets.Count, sets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions)));
+                    sessions.Sum(x => x.Exercises.Count), sets.Count, sets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions)),
+                    achievements.Where(x => x.Date == date).Select(x => x.Title).ToList());
             }).ToList();
 
         return new NutritionAdherenceResponse(start, tolerance, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);
@@ -281,6 +301,9 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         var offset = ((int)date.DayOfWeek + 6) % 7;
         return date.AddDays(-offset);
     }
+
+    private static DateOnly? DateAt(IReadOnlyList<DateOnly> dates, int count) => dates.Count >= count ? dates[count - 1] : null;
+    private static DateOnly? DateAt(IReadOnlyList<DateTime> dates, int count) => dates.Count >= count ? DateOnly.FromDateTime(dates[count - 1]) : null;
 
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static BodyMeasurementResponse MeasurementResponse(BodyMeasurement x) => new(x.Id, x.LocalDate, x.WeightKg, x.WaistCm, x.Notes,
