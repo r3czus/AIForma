@@ -4,19 +4,21 @@
   "id": "./",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f7f5fa",
-  "theme_color": "#6750a4",
+  "background_color": "#F2F6F2",
+  "theme_color": "#10251C",
   "prefer_related_applications": false,
   "icons": [
     {
       "src": "icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     }
   ]
 }
