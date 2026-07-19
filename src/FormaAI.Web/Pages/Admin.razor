@@ -38,7 +38,7 @@
                 </MudSelect>
                 <MudTextField @bind-Value="_model" Label="Model" HelperText="Nazwa modelu obsługiwana przez wybrane API" Required="true" />
                 <MudTextField @bind-Value="_apiBaseUrl" Label="Adres bazowy API" HelperText="Pełny adres usługi, zakończony ukośnikiem" Required="true" />
-                <MudTextField @bind-Value="_apiKey" Label="Nowy klucz API" InputType="InputType.Password" HelperText="Pozostaw puste, aby zachować obecny klucz" />
+                <MudTextField @bind-Value="_apiKey" Label="Nowy klucz API" InputType="InputType.Password" Immediate="true" HelperText="Pozostaw puste, aby zachować obecny klucz" />
             </div>
             <MudAlert Severity="Severity.Info" Dense="true" Class="my-3">
                 @(_hasApiKey ? "Klucz API jest zapisany i zaszyfrowany." : "Klucz API nie został jeszcze ustawiony.")
@@ -92,7 +92,7 @@
             _apiKey = null;
             Snackbar.Add("Konfiguracja AI zapisana.", Severity.Success);
         }
-        catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać konfiguracji AI.", Severity.Error); }
+        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Error); }
         finally { _saving = false; }
     }
 

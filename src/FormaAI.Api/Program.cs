@@ -13,13 +13,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 var dataProtection = builder.Services.AddDataProtection().SetApplicationName("FormaAI");
 var keysPath = builder.Configuration["DataProtection:KeysPath"];
-if (!string.IsNullOrWhiteSpace(keysPath)) dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+if (!string.IsNullOrWhiteSpace(keysPath))
+{
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+    if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi();
+}
 var adminEmail = builder.Configuration["Admin:Email"];
 builder.Services.AddAuthorization(options => options.AddPolicy("Admin", policy =>
     policy.RequireAssertion(context =>
         !string.IsNullOrWhiteSpace(adminEmail) &&
         string.Equals(context.User.Identity?.Name, adminEmail, StringComparison.OrdinalIgnoreCase))));
-builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "FormaAI.Antiforgery";
+});
 builder.Services.AddHealthChecks();
 builder.Services.AddRateLimiter(options =>
 {
