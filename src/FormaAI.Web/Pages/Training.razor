@@ -81,7 +81,14 @@
                         <div class="plan-day-preview">
                             @foreach (var day in plan.Days.OrderBy(x => x.SequenceNumber))
                             {
-                                <span><strong>@day.Name</strong> · @(day.DayOfWeek is null ? "rotacyjnie" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń</span>
+                                var dayIndex = plan.Days.OrderBy(x => x.SequenceNumber).ToList().IndexOf(day);
+                                <details class="plan-day-detail">
+                                    <summary><span><strong>Dzień @day.SequenceNumber · @day.Name</strong><small>@(day.DayOfWeek is null ? "rotacyjnie" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń</small></span><MudIcon Icon="@Icons.Material.Outlined.ExpandMore" /></summary>
+                                    <div class="plan-day-exercises">
+                                        @foreach (var exercise in day.Exercises) { <div><strong>@exercise.ExerciseName</strong><span>@exercise.Sets serie · @exercise.MinReps–@exercise.MaxReps powt.</span></div> }
+                                    </div>
+                                    <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditPlanDay(plan, dayIndex)">Edytuj ten dzień</MudButton>
+                                </details>
                             }
                         </div>
                     </MudPaper>
@@ -167,7 +174,11 @@
                                 {
                                     var index = i;
                                     var day = _plan.Days[index];
-                                    <div class="draft-day"><div><strong>@day.Name</strong><span>@(day.DayOfWeek is null ? "Tryb rotacyjny" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń · @day.Exercises.Sum(x => x.Sets) serii</span></div><div class="row-actions"><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditDraftDay(index)" aria-label="Edytuj dzień" /><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" OnClick="() => RemoveDraftDay(index)" aria-label="Usuń dzień" /></div></div>
+                                    <details class="draft-day plan-day-detail">
+                                        <summary><span><strong>Dzień @(index + 1) · @day.Name</strong><small>@(day.DayOfWeek is null ? "Tryb rotacyjny" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń · @day.Exercises.Sum(x => x.Sets) serii</small></span><MudIcon Icon="@Icons.Material.Outlined.ExpandMore" /></summary>
+                                        <div class="plan-day-exercises">@foreach (var exercise in day.Exercises) { <div><strong>@exercise.Name</strong><span>@exercise.Sets serie · @exercise.MinReps–@exercise.MaxReps powt. · RIR @(exercise.Rir?.ToString("0.#") ?? "—")</span></div> }</div>
+                                        <div class="row-actions"><MudButton Size="Size.Small" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditDraftDay(index)">Edytuj dzień</MudButton><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" OnClick="() => RemoveDraftDay(index)" aria-label="Usuń dzień" /></div>
+                                    </details>
                                 }
                             </div>
                             <div class="builder-actions multi"><MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Add" OnClick="AddAnotherDay">Dodaj kolejny dzień</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_plan.Days.Count == 0)" OnClick="SavePlan">@(_editingPlanId is null ? "Zapisz i aktywuj plan" : "Zapisz zmiany planu")</MudButton></div>
@@ -263,6 +274,12 @@
         foreach (var day in plan.Days.OrderBy(x => x.SequenceNumber))
             _plan.Days.Add(new DayDraftItem(day.Name, day.DayOfWeek, day.Exercises.Select(x => new PlannedDraftItem(x.ExerciseId, x.ExerciseName, x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds)).ToList()));
         _editingDayIndex = null; _editingExerciseIndex = null; _planStep = 4; _activeTab = 1;
+    }
+
+    private void EditPlanDay(TrainingPlanResponse plan, int dayIndex)
+    {
+        EditPlan(plan);
+        EditDraftDay(dayIndex);
     }
 
     private async Task DuplicatePlan(TrainingPlanResponse plan)

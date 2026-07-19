@@ -91,9 +91,7 @@
                     {
                         var navIndex = index;
                         var item = OrderedExercises[index];
-                        <button type="button" class="@(index == _activeExerciseIndex ? "active" : null) @(item.Sets.Count >= item.PlannedSets ? "done" : null)" @onclick="() => SelectExercise(navIndex)" aria-label="@item.ExerciseName">
-                            <span>@(index + 1)</span><small>@item.ExerciseName</small>
-                        </button>
+                        <button type="button" class="@(index == _activeExerciseIndex ? "active" : null) @(item.Sets.Count >= item.PlannedSets ? "done" : null)" @onclick="() => SelectExercise(navIndex)" aria-label="@item.ExerciseName" title="@item.ExerciseName"><span></span></button>
                     }
                 </div>
                 <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_activeExerciseIndex >= OrderedExercises.Count - 1)" OnClick="NextExercise" aria-label="Następne ćwiczenie" />

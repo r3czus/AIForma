@@ -159,6 +159,15 @@
                                 <strong>@_selectedDay.WorkoutName</strong>
                                 <p>@Duration(_selectedDay.WorkoutMinutes) · @_selectedDay.WorkoutExercises ćwiczeń · @_selectedDay.WorkoutSets serii</p>
                                 <small>Objętość @_selectedDay.WorkoutVolumeKg.ToString("0") kg</small>
+                                @if (_selectedDay.WorkoutDetails?.Count > 0)
+                                {
+                                    <div class="calendar-workout-exercises">
+                                        @foreach (var exercise in _selectedDay.WorkoutDetails)
+                                        {
+                                            <div><strong>@exercise.Name</strong><span>@exercise.WorkingSets serii · @exercise.VolumeKg.ToString("0") kg</span></div>
+                                        }
+                                    </div>
+                                }
                             }
                             else { <p>Bez ukończonego treningu</p> }
                         </section>

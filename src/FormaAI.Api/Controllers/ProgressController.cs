@@ -169,12 +169,17 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
                     x.Exercises.SelectMany(e => e.Sets).Count(s => s.Type == SetType.Working)));
                 var targetCalories = target?.CaloriesKcal + bonus;
                 var within = logged.Count > 0 && targetCalories is not null && Math.Abs(consumed - targetCalories.Value) <= profile.CalorieToleranceKcal;
+                var workoutDetails = sessions.SelectMany(x => x.Exercises).Select(x =>
+                {
+                    var working = x.Sets.Where(s => s.Type == SetType.Working).ToList();
+                    return new WorkoutDayExerciseResponse(x.ExerciseNameSnapshot, working.Count, working.Sum(s => ProgressMetrics.Volume(s.WeightKg, s.Repetitions)));
+                }).ToList();
                 return new NutritionAdherencePoint(date, targetCalories, consumed, logged.Count > 0, within, sessions.Count > 0,
                     items.Sum(x => x.ProteinG), items.Sum(x => x.FatG), items.Sum(x => x.CarbohydratesG), target?.ProteinG, target?.FatG, target?.CarbohydratesG + bonus / 4m,
                     sessions.Count == 1 ? sessions[0].NameSnapshot : sessions.Count > 1 ? $"{sessions.Count} treningi" : null,
                     (int)Math.Round(sessions.Sum(x => (x.FinishedAtUtc!.Value - x.StartedAtUtc).TotalMinutes)),
                     sessions.Sum(x => x.Exercises.Count), sets.Count, sets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions)),
-                    achievements.Where(x => x.Date == date).Select(x => x.Title).ToList());
+                    achievements.Where(x => x.Date == date).Select(x => x.Title).ToList(), workoutDetails);
             }).ToList();
 
         return new NutritionAdherenceResponse(start, profile.CalorieToleranceKcal, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);

@@ -617,6 +617,18 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 @media (max-width: 520px) { .recent-meal-grid { grid-template-columns: 1fr; } }
 .plan-day-preview { border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: 4px; grid-column: 1 / -1; margin-top: 8px; padding-top: 8px; width: 100%; }
 .plan-day-preview span { color: var(--muted); font-size: .72rem; }
+.plan-day-detail { border-bottom: 1px solid var(--rule); padding: 3px 0; width: 100%; }
+.plan-day-detail:last-child { border-bottom: 0; }
+.plan-day-detail > summary { align-items: center; cursor: pointer; display: flex; justify-content: space-between; list-style: none; min-height: 46px; padding: 6px 4px; }
+.plan-day-detail > summary::-webkit-details-marker { display: none; }
+.plan-day-detail > summary > span { display: grid; gap: 2px; }
+.plan-day-detail > summary strong { color: var(--ink); }
+.plan-day-detail > summary small { color: var(--muted); }
+.plan-day-detail[open] > summary > .mud-icon-root { transform: rotate(180deg); }
+.plan-day-exercises { background: var(--surface-soft); border-radius: 12px; display: grid; margin: 2px 0 7px; padding: 6px 12px; }
+.plan-day-exercises > div { align-items: baseline; border-bottom: 1px solid var(--rule); display: flex; gap: 12px; justify-content: space-between; padding: 9px 0; }
+.plan-day-exercises > div:last-child { border-bottom: 0; }
+.plan-day-exercises span { color: var(--muted); font-size: .68rem; text-align: right; }
 .progression-tip { align-items: center; background: rgba(49, 84, 235, .08); border-left: 3px solid var(--action); display: flex; gap: 8px; margin-top: 8px; padding: 9px 10px; }
 .progression-tip span { font-size: .75rem; }
 .check-in-grid { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -793,10 +805,9 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .day-exercise-row small { color: var(--muted); font-size: .7rem; margin-top: 2px; }
 .exercise-order { align-items: center; background: var(--action); border-radius: 50%; color: white; display: inline-flex; font-family: "IBM Plex Mono", monospace; font-size: .65rem; height: 25px; justify-content: center; width: 25px; }
 .plan-review { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; }
-.draft-day { align-items: center; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; padding: 13px 12px; }
+.draft-day { border-bottom: 1px solid var(--rule); display: block; padding: 7px 12px; }
 .draft-day:last-child { border-bottom: 0; }
-.draft-day > div { display: flex; flex-direction: column; }
-.draft-day > .row-actions { flex-direction: row; }
+.draft-day > .row-actions { align-items: center; display: flex; flex-direction: row; justify-content: flex-end; }
 .draft-day span { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .67rem; margin-top: 3px; }
 .exercise-index { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; }
 .exercise-card { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; min-width: 0; padding: 14px; }
@@ -860,14 +871,12 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .saved-set span:last-child { color: var(--muted); text-align: right; }
 .session-actions { display: grid; gap: 8px; margin-top: 24px; }
 .exercise-switcher { align-items: center; background: var(--surface); border: 1px solid var(--rule); border-radius: 18px; display: grid; gap: 8px; grid-template-columns: auto minmax(0, 1fr) auto; margin-bottom: 14px; padding: 8px; }
-.exercise-switcher > div { display: flex; gap: 7px; overflow-x: auto; padding: 2px; scrollbar-width: none; }
+.exercise-switcher > div { display: flex; gap: 12px; justify-content: center; overflow-x: auto; padding: 5px; scrollbar-width: none; }
 .exercise-switcher > div::-webkit-scrollbar { display: none; }
-.exercise-switcher button { align-items: center; background: transparent; border: 0; color: var(--muted); display: flex; flex: 0 0 auto; gap: 6px; max-width: 165px; padding: 6px 8px; text-align: left; }
-.exercise-switcher button span { align-items: center; border: 1px solid var(--rule-strong); border-radius: 50%; display: flex; flex: 0 0 28px; font-family: "IBM Plex Mono", monospace; font-size: .68rem; height: 28px; justify-content: center; }
-.exercise-switcher button small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.exercise-switcher button.active { color: var(--ink); font-weight: 800; }
-.exercise-switcher button.active span { background: var(--action); border-color: var(--action); color: white; }
-.exercise-switcher button.done span { box-shadow: inset 0 -4px 0 #5bbf8a; }
+.exercise-switcher button { align-items: center; background: transparent; border: 0; display: flex; flex: 0 0 24px; height: 24px; justify-content: center; padding: 0; }
+.exercise-switcher button span { background: #fff; border: 1px solid var(--rule-strong); border-radius: 50%; box-shadow: 0 1px 4px rgba(17, 31, 24, .12); display: block; height: 12px; transition: background .18s ease, transform .18s ease; width: 12px; }
+.exercise-switcher button.done span { background: var(--action); border-color: var(--action); }
+.exercise-switcher button.active span { outline: 3px solid var(--action-soft); transform: scale(1.25); }
 .workout-exercise-focus { margin-top: 0; }
 .workout-exercise-focus .mud-typography-h4 { font-size: clamp(1.8rem, 7vw, 3rem); line-height: 1; }
 .exercise-timer-actions { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 18px 0; }
@@ -975,6 +984,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .calendar-day-detail section > div { align-items: center; color: var(--muted); display: flex; font-size: .72rem; gap: 6px; }
 .calendar-day-detail section > strong { display: block; font-family: "IBM Plex Mono", monospace; font-size: 1.05rem; margin-top: 10px; }
 .calendar-day-detail section p, .calendar-day-detail section > small { color: var(--muted); font-size: .7rem; margin: 5px 0; }
+.calendar-workout-exercises { border-top: 1px solid var(--rule); display: grid !important; gap: 0 !important; margin-top: 10px; padding-top: 6px; }
+.calendar-workout-exercises > div { align-items: baseline; display: flex; gap: 12px; justify-content: space-between; padding: 5px 0; }
+.calendar-workout-exercises strong { font-size: .75rem; }
+.calendar-workout-exercises span { color: var(--muted); font-size: .68rem; }
 .measurement-heading { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; }
 .measurement-heading .mud-button-root { flex: 0 0 auto; }
 .weight-trend-chart { display: grid; grid-template-columns: auto 1fr; margin-top: 10px; }
@@ -1268,6 +1281,8 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .builder-actions .mud-button-root, .builder-actions.multi .mud-button-root { margin: 0; width: 100%; }
     .exercise-index { grid-template-columns: 1fr; }
     .plan-row { align-items: flex-start; flex-direction: column; }
+    .plan-day-exercises > div { align-items: flex-start; flex-direction: column; gap: 3px; }
+    .plan-day-exercises span { text-align: left; }
     .workout-heading { top: calc(72px + env(safe-area-inset-top)); }
     .workout-heading .mud-typography-h4 { font-size: 2rem; }
     .workout-console { gap: 16px; grid-template-columns: 1fr auto; padding: 18px 16px; }
