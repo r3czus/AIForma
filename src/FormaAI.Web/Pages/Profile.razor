@@ -99,12 +99,28 @@
                         case 8:
                             <section class="goal-result">
                                 <span class="card-kicker">Twój wynik</span>
-                                <div class="goal-result-energy"><strong>@_targetCalories?.ToString("0")</strong><span>kcal</span></div>
                                 <p>To dzienny punkt odniesienia. Od niego aplikacja liczy kalorie pozostałe do zjedzenia.</p>
-                                <div class="prescription-macros">
-                                    <MudNumericField @bind-Value="_proteinG" Label="Białko (g)" Min="0m" />
-                                    <MudNumericField @bind-Value="_fatG" Label="Tłuszcze (g)" Min="0m" />
-                                    <MudNumericField @bind-Value="_carbsG" Label="Węglowodany (g)" Min="0m" />
+                                <div class="goal-result-dials">
+                                    <label class="goal-result-dial energy">
+                                        <span>Kalorie</span>
+                                        <input type="number" min="0" step="1" @bind="_targetCalories" aria-label="Kalorie dziennie" />
+                                        <small>kcal</small>
+                                    </label>
+                                    <label class="goal-result-dial protein">
+                                        <span>Białko</span>
+                                        <input type="number" min="0" step="1" @bind="_proteinG" aria-label="Białko dziennie" />
+                                        <small>g</small>
+                                    </label>
+                                    <label class="goal-result-dial fat">
+                                        <span>Tłuszcze</span>
+                                        <input type="number" min="0" step="1" @bind="_fatG" aria-label="Tłuszcze dziennie" />
+                                        <small>g</small>
+                                    </label>
+                                    <label class="goal-result-dial carbs">
+                                        <span>Węglowodany</span>
+                                        <input type="number" min="0" step="1" @bind="_carbsG" aria-label="Węglowodany dziennie" />
+                                        <small>g</small>
+                                    </label>
                                 </div>
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveNutritionTarget">Zapisz cel i używaj od dzisiaj</MudButton>
                                 <MudButton Variant="Variant.Text" FullWidth="true" OnClick="() => _goalStep = 1">Przelicz od początku</MudButton>

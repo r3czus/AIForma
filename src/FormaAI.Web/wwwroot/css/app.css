@@ -1000,11 +1000,18 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .goal-weight-difference { background: var(--recovery-soft); border-radius: 10px; color: #277353; display: inline-block; font-size: .8rem; font-weight: 700; margin-top: 14px; padding: 9px 12px; }
 .goal-wizard-actions { border-top: 1px solid var(--rule); display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; padding-top: 18px; }
 .goal-result { margin: 0 auto; max-width: 640px; padding: 10px 0 4px; text-align: center; }
-.goal-result-energy { align-items: baseline; display: flex; justify-content: center; margin: 15px 0 4px; }
-.goal-result-energy strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: clamp(4.7rem, 14vw, 7rem); line-height: .85; }
-.goal-result-energy span { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 1rem; margin-left: 9px; }
 .goal-result > p { color: var(--muted); font-size: .82rem; line-height: 1.55; margin: 14px auto 24px; max-width: 480px; }
-.goal-result .prescription-macros { text-align: left; }
+.goal-result-dials { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 24px; }
+.goal-result-dial { --dial-color: var(--recovery); align-items: center; aspect-ratio: 1; background: white; border: 8px solid #e8eeea; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--dial-color); display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 12px; position: relative; }
+.goal-result-dial::before { border: 4px solid var(--dial-color); border-bottom-color: transparent; border-radius: 50%; content: ""; inset: -8px; position: absolute; transform: rotate(25deg); }
+.goal-result-dial span { color: var(--muted); font-size: .64rem; font-weight: 700; position: relative; }
+.goal-result-dial input { appearance: textfield; background: transparent; border: 0; color: var(--ink); font-family: "Barlow Semi Condensed", sans-serif; font-size: clamp(1.65rem, 4vw, 2.35rem); font-weight: 800; line-height: 1; max-width: 100%; outline: 0; padding: 2px 0 0; position: relative; text-align: center; width: 100%; }
+.goal-result-dial input::-webkit-inner-spin-button { appearance: none; }
+.goal-result-dial:focus-within { box-shadow: inset 0 0 0 2px var(--dial-color), 0 0 0 4px color-mix(in srgb, var(--dial-color) 18%, transparent); }
+.goal-result-dial small { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .65rem; position: relative; }
+.goal-result-dial.protein { --dial-color: var(--action); }
+.goal-result-dial.fat { --dial-color: var(--fuel); }
+.goal-result-dial.carbs { --dial-color: #9b5de5; }
 .nutrition-prescription { background: var(--ink) !important; border-radius: 7px 24px 24px 24px; color: white; margin-bottom: 18px; padding: 24px; }
 .nutrition-prescription > div:first-child { align-items: baseline; display: flex; gap: 7px; margin-bottom: 18px; }
 .nutrition-prescription > div:first-child span { color: #b9c7bf; font-size: .75rem; margin-right: auto; }
@@ -1247,6 +1254,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .goal-step { min-height: 340px; }
     .goal-wizard-actions { align-items: stretch; flex-direction: column-reverse; }
     .goal-wizard-actions .mud-button-root { width: 100%; }
+    .goal-result-dials { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-left: auto; margin-right: auto; max-width: 360px; }
     .prescription-macros { grid-template-columns: 1fr; }
     .assistant-heading { align-items: flex-start; }
     .assistant-availability { align-self: flex-start; }
