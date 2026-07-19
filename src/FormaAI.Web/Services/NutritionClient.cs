@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using FormaAI.Contracts.Nutrition;
 using FormaAI.Contracts.Users;
+using FormaAI.Domain.Nutrition;
 using Microsoft.AspNetCore.Components.Forms;
 
 namespace FormaAI.Web.Services;
@@ -18,6 +19,12 @@ public sealed class NutritionClient(HttpClient http)
 
     public async Task<NutritionDayResponse> GetDay(DateOnly date) =>
         (await http.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{date:yyyy-MM-dd}"))!;
+
+    public async Task SaveDayStatus(DateOnly date, NutritionDayStatus status)
+    {
+        using var response = await Send(HttpMethod.Put, $"api/v1/nutrition/days/{date:yyyy-MM-dd}/status", new SaveNutritionDayStatusRequest(status));
+        response.EnsureSuccessStatusCode();
+    }
 
     public async Task<IReadOnlyList<MealResponse>> GetRecentMeals() =>
         await http.GetFromJsonAsync<List<MealResponse>>("api/v1/meals/recent") ?? [];

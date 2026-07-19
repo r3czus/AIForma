@@ -18,6 +18,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Meal> Meals => Set<Meal>();
     public DbSet<MealItem> MealItems => Set<MealItem>();
+    public DbSet<NutritionDayReview> NutritionDayReviews => Set<NutritionDayReview>();
     public DbSet<Exercise> Exercises => Set<Exercise>();
     public DbSet<TrainingPlan> TrainingPlans => Set<TrainingPlan>();
     public DbSet<TrainingDay> TrainingDays => Set<TrainingDay>();
@@ -27,6 +28,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<CompletedSet> CompletedSets => Set<CompletedSet>();
     public DbSet<BodyMeasurement> BodyMeasurements => Set<BodyMeasurement>();
     public DbSet<WeeklyCheckIn> WeeklyCheckIns => Set<WeeklyCheckIn>();
+    public DbSet<WeeklyReview> WeeklyReviews => Set<WeeklyReview>();
+    public DbSet<ProgressPhoto> ProgressPhotos => Set<ProgressPhoto>();
+    public DbSet<TrainingScheduleException> TrainingScheduleExceptions => Set<TrainingScheduleException>();
+    public DbSet<ExerciseProgression> ExerciseProgressions => Set<ExerciseProgression>();
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<PantryItem> PantryItems => Set<PantryItem>();
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
@@ -193,12 +200,74 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             measurement.HasIndex(x => new { x.UserId, x.LocalDate });
         });
 
+        builder.Entity<NutritionDayReview>(review =>
+        {
+            review.HasKey(x => x.Id);
+            review.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            review.HasIndex(x => new { x.UserId, x.LocalDate }).IsUnique();
+        });
+
         builder.Entity<WeeklyCheckIn>(checkIn =>
         {
             checkIn.HasKey(x => x.Id);
             checkIn.Property(x => x.UserId).HasMaxLength(450).IsRequired();
             checkIn.Property(x => x.Notes).HasMaxLength(500);
             checkIn.HasIndex(x => new { x.UserId, x.LocalDate }).IsUnique();
+        });
+
+        builder.Entity<WeeklyReview>(review =>
+        {
+            review.HasKey(x => x.Id);
+            review.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            review.Property(x => x.Notes).HasMaxLength(1000);
+            review.Property(x => x.DeviationReasons).HasMaxLength(500);
+            review.Property(x => x.Summary).HasMaxLength(4000);
+            review.HasIndex(x => new { x.UserId, x.WeekStarting }).IsUnique();
+        });
+
+        builder.Entity<ProgressPhoto>(photo =>
+        {
+            photo.HasKey(x => x.Id);
+            photo.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            photo.Property(x => x.StorageName).HasMaxLength(180).IsRequired();
+            photo.Property(x => x.ContentType).HasMaxLength(80).IsRequired();
+            photo.HasIndex(x => new { x.UserId, x.LocalDate, x.Pose });
+        });
+
+        builder.Entity<TrainingScheduleException>(item =>
+        {
+            item.HasKey(x => x.Id);
+            item.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            item.Property(x => x.Reason).HasMaxLength(500);
+            item.HasIndex(x => new { x.UserId, x.OriginalDate, x.TrainingDayId });
+        });
+
+        builder.Entity<ExerciseProgression>(item =>
+        {
+            item.HasKey(x => x.Id);
+            item.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            item.Property(x => x.SuggestedWeightKg).HasPrecision(7, 2);
+            item.Property(x => x.AcceptedWeightKg).HasPrecision(7, 2);
+            item.Property(x => x.Reason).HasMaxLength(500).IsRequired();
+            item.HasIndex(x => new { x.UserId, x.ExerciseId, x.Decision });
+        });
+
+        builder.Entity<PushSubscription>(subscription =>
+        {
+            subscription.HasKey(x => x.Id);
+            subscription.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            subscription.Property(x => x.Endpoint).HasMaxLength(2000).IsRequired();
+            subscription.Property(x => x.P256Dh).HasMaxLength(500).IsRequired();
+            subscription.Property(x => x.Auth).HasMaxLength(500).IsRequired();
+            subscription.HasIndex(x => x.Endpoint).IsUnique();
+        });
+
+        builder.Entity<NotificationDelivery>(delivery =>
+        {
+            delivery.HasKey(x => x.Id);
+            delivery.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            delivery.Property(x => x.EventKey).HasMaxLength(200).IsRequired();
+            delivery.HasIndex(x => new { x.UserId, x.LocalDate, x.EventKey }).IsUnique();
         });
 
         builder.Entity<PantryItem>(item =>

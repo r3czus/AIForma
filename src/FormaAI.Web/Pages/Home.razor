@@ -2,6 +2,7 @@
 @inject AccountClient Account
 @inject NutritionClient Nutrition
 @inject TrainingClient TrainingApi
+@inject ProgressClient ProgressApi
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
@@ -67,6 +68,21 @@
             <div><span>Energia</span><strong>@EnergyStatus</strong></div>
             <div><span>Kierunek</span><strong>@GoalStatus</strong></div>
         </section>
+
+        <MudPaper Class="daily-coach" Elevation="0">
+            <span class="card-kicker">Twój kolejny krok</span>
+            <div class="daily-coach-content">
+                <div>
+                    <h2>@CoachTitle</h2>
+                    <p>@CoachDescription</p>
+                </div>
+                <MudButton Href="@CoachUrl" Variant="Variant.Filled" Color="Color.Primary">@CoachAction</MudButton>
+            </div>
+            <div class="momentum-strip">
+                <strong>@WeekWorkouts / @WeekGoal treningów w tym tygodniu</strong>
+                <span>@MomentumCopy</span>
+            </div>
+        </MudPaper>
 
         <div class="dashboard-grid">
             <main class="dashboard-main">
@@ -213,6 +229,8 @@
     private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
     private TodayWorkoutResponse? _todayWorkout;
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
+    private WorkoutSessionResponse? _activeSession;
+    private ConsistencyResponse? _consistency;
     private Guid? _selectedTrainingDay;
     private bool _loading = true;
     private int _tab;
@@ -227,6 +245,29 @@
         BodyGoal.MuscleGain => "Budowanie masy",
         _ => "Uzupełnij profil"
     };
+    private int WeekGoal => _profile?.PlannedTrainingsPerWeek ?? 0;
+    private int WeekWorkouts => _consistency?.CompletedWorkouts ?? 0;
+    private string MomentumCopy => WeekGoal == 0 ? "Ustaw tygodniowy cel w profilu" : WeekWorkouts >= WeekGoal ? "Cel tygodniowy wykonany" : "Każda ukończona sesja buduje rytm";
+    private string CoachTitle => _activeSession is not null ? "Wróć do rozpoczętego treningu"
+        : _todayWorkout is { AlreadyCompleted: false } ? $"Dzisiaj wypada {_todayWorkout.DayName}"
+        : _day?.Status == NutritionDayStatus.Unknown && DateTime.Now.Hour >= 19 ? "Domknij dzisiejszy dziennik"
+        : _day?.Target is not null && _day.Remaining?.ProteinG > 20 ? $"Zostało około {_day.Remaining.ProteinG:0} g białka"
+        : "Dzisiejszy plan jest pod kontrolą";
+    private string CoachDescription => _activeSession is not null ? "Sesja czeka dokładnie w miejscu, w którym ją przerwałeś."
+        : _todayWorkout is { AlreadyCompleted: false } ? $"Plan ma {_todayWorkout.Exercises.Count} ćwiczeń i zajmie około {EstimateMinutes(_todayWorkout)} minut."
+        : _day?.Status == NutritionDayStatus.Unknown && DateTime.Now.Hour >= 19 ? "Potwierdź kompletność albo oznacz dane jako częściowe — podsumowanie tygodnia będzie dzięki temu wiarygodne."
+        : _day?.Target is not null && _day.Remaining?.ProteinG > 20 ? "Cel nadal jest możliwy do osiągnięcia. Dodaj posiłek albo poproś AI o propozycję."
+        : "Nie musisz dodawać kolejnego obowiązku. Utrzymaj spokojny rytm.";
+    private string CoachAction => _activeSession is not null ? "Wróć do treningu"
+        : _todayWorkout is { AlreadyCompleted: false } ? "Rozpocznij trening"
+        : _day?.Status == NutritionDayStatus.Unknown && DateTime.Now.Hour >= 19 ? "Otwórz dziennik"
+        : _day?.Target is not null && _day.Remaining?.ProteinG > 20 ? "Zaproponuj posiłek"
+        : "Zobacz progres";
+    private string CoachUrl => _activeSession is not null ? $"/workout/{_activeSession.Id}"
+        : _todayWorkout is { AlreadyCompleted: false } ? "/training"
+        : _day?.Status == NutritionDayStatus.Unknown && DateTime.Now.Hour >= 19 ? "/food"
+        : _day?.Target is not null && _day.Remaining?.ProteinG > 20 ? "/food/add?mode=text"
+        : "/progress";
     protected override async Task OnInitializedAsync()
     {
         _user = await Account.GetCurrentUser();
@@ -255,6 +296,10 @@
         _day = await Nutrition.GetDay(DateOnly.FromDateTime(DateTime.Now));
         _todayWorkout = await TrainingApi.GetToday();
         _plans = await TrainingApi.GetPlans();
+        _activeSession = await TrainingApi.GetActiveSession();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var offset = (7 + (int)today.DayOfWeek - (int)(_profile?.WeekStartsOn ?? DayOfWeek.Monday)) % 7;
+        _consistency = await ProgressApi.GetConsistency(today.AddDays(-offset), today);
     }
 
     private async Task StartWorkout()

@@ -1392,3 +1392,70 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .meal-schedule-row .time-field { grid-column: 2; }
     .meal-schedule-row > .mud-icon-button { grid-column: 3; grid-row: 1 / 3; }
 }
+
+.daily-coach { background: var(--surface); border: 1px solid var(--rule); border-left: 5px solid var(--action); border-radius: 22px; margin: 18px 0; padding: 22px; }
+.daily-coach-content { align-items: center; display: grid; gap: 16px; grid-template-columns: 52px 1fr auto; }
+.daily-coach-content > .mud-icon-root { background: var(--action-soft); border-radius: 16px; color: var(--action); font-size: 1.7rem; padding: 12px; }
+.momentum-strip { display: flex; gap: 8px; margin: 0 0 18px; overflow-x: auto; }
+.momentum-strip span { background: var(--surface); border: 1px solid var(--rule); border-radius: 999px; flex: 0 0 auto; font-size: .78rem; padding: 8px 12px; }
+.day-close-card { background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; margin-top: 14px; padding: 18px; }
+.day-close-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.progress-hub { display: grid; gap: 10px; margin-bottom: 22px; }
+.progress-hub > a { align-items: center; background: var(--surface); border: 1px solid var(--rule); border-radius: 18px; color: var(--ink); display: grid; gap: 14px; grid-template-columns: auto 1fr auto; padding: 15px 17px; text-decoration: none; }
+.progress-hub > a > .mud-icon-root:first-child { background: var(--action-soft); border-radius: 12px; color: var(--action); padding: 9px; }
+.progress-hub strong, .progress-hub span { display: block; }
+.progress-hub span { color: var(--muted); font-size: .78rem; margin-top: 2px; }
+.compact-heading { align-items: flex-start; display: grid; grid-template-columns: auto 1fr; }
+.review-progress { display: grid; gap: 6px; grid-template-columns: repeat(4, 1fr); margin-bottom: 14px; }
+.review-progress i { background: var(--rule); border-radius: 999px; height: 5px; }
+.review-progress i.active { background: var(--action); }
+.weekly-review-card { padding: 24px; }
+.review-days { display: grid; gap: 2px; margin: 18px 0; }
+.review-day { align-items: center; border-bottom: 1px solid var(--rule); display: grid; gap: 12px; grid-template-columns: 1fr minmax(145px, 190px); padding: 10px 0; }
+.review-day strong, .review-day span { display: block; }
+.review-day span { color: var(--muted); font-size: .75rem; }
+.review-facts { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); margin: 20px 0; }
+.review-facts > div { background: var(--canvas); border: 1px solid var(--rule); border-radius: 16px; padding: 16px; }
+.review-facts strong, .review-facts span { display: block; }
+.review-facts strong { font-family: var(--display-font); font-size: 1.4rem; }
+.review-facts span { color: var(--muted); font-size: .72rem; }
+.checkin-grid { display: grid; gap: 10px; margin: 18px 0; }
+.checkin-score { align-items: center; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; padding: 10px 0; }
+.coach-summary { background: var(--action-soft); border-radius: 18px; color: var(--ink); display: grid; gap: 12px; grid-template-columns: auto 1fr; margin: 18px 0; padding: 18px; }
+.photo-upload-card { display: grid; gap: 16px; padding: 22px; }
+.photo-filters { display: flex; gap: 8px; margin: 22px 0 10px; }
+.comparison-hint { color: var(--muted); font-size: .82rem; }
+.photo-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); }
+.progress-photo { background: var(--surface); border: 2px solid transparent; border-radius: 18px; cursor: pointer; overflow: hidden; }
+.progress-photo.selected { border-color: var(--action); }
+.progress-photo img { aspect-ratio: 3 / 4; display: block; object-fit: cover; width: 100%; }
+.progress-photo > div { align-items: center; display: flex; justify-content: space-between; padding: 8px 10px; }
+.achievement-list { display: grid; gap: 12px; }
+.achievement-card { align-items: start; background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; display: grid; gap: 15px; grid-template-columns: auto 1fr; padding: 18px; }
+.achievement-icon { background: var(--fuel-soft); border-radius: 15px; color: var(--fuel); padding: 12px; }
+.achievement-card span, .achievement-card strong { display: block; }
+.achievement-card span { color: var(--muted); font-size: .7rem; text-transform: uppercase; }
+.achievement-card strong { font-size: 1.05rem; margin-top: 4px; }
+.achievement-card p { color: var(--muted); margin: 5px 0 0; }
+.workout-length-picker { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); margin-top: 16px; }
+.workout-length-picker button { background: var(--canvas); border: 1px solid var(--rule); border-radius: 15px; color: var(--ink); cursor: pointer; padding: 11px 8px; }
+.workout-length-picker button.selected { background: var(--action-soft); border-color: var(--action); }
+.workout-length-picker strong, .workout-length-picker span { display: block; }
+.workout-length-picker span { color: var(--muted); font-size: .68rem; margin-top: 2px; }
+.progression-review { background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; margin: 18px 0; padding: 18px; }
+.progression-review article { align-items: center; border-top: 1px solid var(--rule); display: grid; gap: 10px; grid-template-columns: 1fr auto; padding: 14px 0; }
+.progression-review article span, .progression-review article strong { display: block; }
+.progression-review article span { color: var(--muted); font-size: .75rem; }
+.progression-values { text-align: right; }
+.progression-actions { display: flex; gap: 5px; grid-column: 1 / -1; }
+.schedule-options { border-top: 1px solid var(--rule); margin-top: 14px; padding-top: 12px; }
+.schedule-options summary { color: var(--muted); cursor: pointer; font-size: .8rem; }
+.schedule-options > div { align-items: end; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+@media (max-width: 640px) {
+    .daily-coach-content { grid-template-columns: auto 1fr; }
+    .daily-coach-content .mud-button-root { grid-column: 1 / -1; }
+    .review-facts { grid-template-columns: 1fr; }
+    .review-day { grid-template-columns: 1fr; }
+    .photo-grid { gap: 8px; }
+}

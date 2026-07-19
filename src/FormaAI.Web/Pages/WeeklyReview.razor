@@ -1,0 +1,72 @@
+@page "/progress/weekly"
+@inject AccountClient Account
+@inject CoachingClient Coaching
+@inject NutritionClient Nutrition
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Zamknięcie tygodnia · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page weekly-review-page">
+    <header class="module-heading compact-heading">
+        <MudIconButton Icon="@Icons.Material.Outlined.ArrowBack" Href="/progress" aria-label="Wróć" />
+        <div><span class="page-kicker">Tygodniowy rytuał</span><MudText Typo="Typo.h4">Zamknij tydzień</MudText><p>Sprawdź jakość danych, regenerację i wybierz jedną rzecz na kolejny tydzień.</p></div>
+    </header>
+
+    @if (_loading)
+    {
+        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Przygotowujemy tydzień</span></div>
+    }
+    else if (_data is not null)
+    {
+        <div class="review-progress">@for (var i = 1; i <= 4; i++) { <i class="@(i <= _step ? "active" : null)"></i> }</div>
+        <MudPaper Class="progress-card weekly-review-card" Elevation="0">
+            @if (_step == 1)
+            {
+                <span class="card-kicker">Krok 1 z 4 · jakość danych</span><MudText Typo="Typo.h5">Czy dziennik mówi prawdę?</MudText>
+                <p>Niepełny dzień nie jest porażką. Oznaczenie go pozwala Coachowi nie wyciągać błędnych wniosków.</p>
+                <div class="review-days">
+                    @foreach (var day in _data.Days)
+                    {
+                        <div class="review-day"><div><strong>@DayName(day.Date)</strong><span>@day.Meals posiłków · @day.Calories.ToString("0") kcal</span></div><MudSelect T="NutritionDayStatus" Value="day.Status" ValueChanged="value => SetStatus(day.Date, value)" Dense="true"><MudSelectItem Value="NutritionDayStatus.Complete">Kompletny</MudSelectItem><MudSelectItem Value="NutritionDayStatus.Partial">Częściowy</MudSelectItem><MudSelectItem Value="NutritionDayStatus.NoData">Brak danych</MudSelectItem></MudSelect></div>
+                    }
+                </div>
+            }
+            else if (_step == 2)
+            {
+                <span class="card-kicker">Krok 2 z 4 · fakty</span><MudText Typo="Typo.h5">Co wydarzyło się w tygodniu?</MudText>
+                <div class="review-facts"><div><strong>@_data.CompletedWorkouts / @_data.PlannedWorkouts</strong><span>ukończone treningi</span></div><div><strong>@_data.Measurements</strong><span>nowe pomiary</span></div><div><strong>@_data.Days.Count(x => x.Status == NutritionDayStatus.Complete)</strong><span>kompletne dni</span></div></div>
+                <MudTextField @bind-Value="_reasons" Label="Co utrudniało realizację planu?" Placeholder="Np. delegacja, gorszy sen, brak czasu" Lines="3" MaxLength="500" />
+            }
+            else if (_step == 3)
+            {
+                <span class="card-kicker">Krok 3 z 4 · samopoczucie</span><MudText Typo="Typo.h5">Jak działał organizm?</MudText><p>Oceń ostatni tydzień od 1 do 5.</p>
+                <div class="checkin-grid">
+                    <div class="checkin-score"><span>Energia</span><MudRating @bind-SelectedValue="_energy" MaxValue="5" Color="Color.Primary" /></div>
+                    <div class="checkin-score"><span>Sen</span><MudRating @bind-SelectedValue="_sleep" MaxValue="5" Color="Color.Primary" /></div>
+                    <div class="checkin-score"><span>Głód</span><MudRating @bind-SelectedValue="_hunger" MaxValue="5" Color="Color.Primary" /></div>
+                    <div class="checkin-score"><span>Regeneracja</span><MudRating @bind-SelectedValue="_recovery" MaxValue="5" Color="Color.Primary" /></div>
+                    <div class="checkin-score"><span>Stres</span><MudRating @bind-SelectedValue="_stress" MaxValue="5" Color="Color.Primary" /></div>
+                </div>
+                <MudTextField @bind-Value="_notes" Label="Co warto zapamiętać?" Lines="3" MaxLength="1000" />
+            }
+            else
+            {
+                <span class="card-kicker">Krok 4 z 4 · decyzja</span><MudText Typo="Typo.h5">Podsumowanie tygodnia</MudText>
+                @if (_saved is null) { <p>Coach oprze odpowiedź na statusach dni, treningach i Twoim check-inie. Zmiany planu nadal będą wymagały Twojej zgody.</p> }
+                else { <div class="coach-summary"><MudIcon Icon="@Icons.Material.Filled.AutoAwesome" /><p>@_saved.Summary</p></div> }
+            }
+            <div class="builder-actions multi"><MudButton Variant="Variant.Text" Disabled="@(_step == 1)" OnClick="() => _step--">Wstecz</MudButton>@if (_step < 4) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => _step++">Dalej</MudButton> } else { <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">@(_saved is null ? "Zapisz i podsumuj" : "Gotowe")</MudButton> }</div>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private WeeklyReviewDataResponse? _data; private WeeklyReviewResponse? _saved; private bool _loading = true; private bool _saving; private int _step = 1;
+    private int _energy = 3, _sleep = 3, _hunger = 3, _recovery = 3, _stress = 3; private string? _notes; private string? _reasons;
+    private DateOnly WeekStart => DateOnly.FromDateTime(DateTime.Today).AddDays(-((7 + (int)DateTime.Today.DayOfWeek - (int)DayOfWeek.Monday) % 7));
+    protected override async Task OnInitializedAsync() { if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; } _data = await Coaching.GetWeekly(WeekStart); _loading = false; }
+    private async Task SetStatus(DateOnly date, NutritionDayStatus status) { await Nutrition.SaveDayStatus(date, status); _data = await Coaching.GetWeekly(WeekStart); }
+    private async Task Save() { if (_saved is not null) { Navigation.NavigateTo("/progress"); return; } _saving = true; try { _saved = await Coaching.SaveWeekly(new(WeekStart, _energy, _sleep, _hunger, _recovery, _stress, _notes, _reasons)); Snackbar.Add("Tydzień został podsumowany.", Severity.Success); } finally { _saving = false; } }
+    private static string DayName(DateOnly date) => date.ToString("ddd, d MMM", new System.Globalization.CultureInfo("pl-PL"));
+}

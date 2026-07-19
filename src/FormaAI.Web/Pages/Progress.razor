@@ -22,6 +22,11 @@
     }
     else
     {
+        <section class="progress-hub" aria-label="Narzędzia progresu">
+            <a href="/progress/weekly"><MudIcon Icon="@Icons.Material.Outlined.FactCheck" /><div><strong>Zamknij tydzień</strong><span>Sprawdź dane i regenerację</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+            <a href="/progress/photos"><MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" /><div><strong>Zdjęcia progresu</strong><span>Prywatne porównania sylwetki</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+            <a href="/progress/achievements"><MudIcon Icon="@Icons.Material.Outlined.EmojiEvents" /><div><strong>Osiągnięcia</strong><span>Kamienie milowe z realnych danych</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+        </section>
         <div class="progress-range" role="group" aria-label="Zakres danych">
             @foreach (var days in new[] { 30, 90, 180, 365 })
             {

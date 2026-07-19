@@ -107,7 +107,20 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
         var consumed = mealResponses.Aggregate(new Macro(), (sum, meal) => sum + ToMacro(meal.Macro));
         MacroResponse? targetMacro = target is null ? null : MacroResponse(target);
         MacroResponse? remaining = target is null ? null : MacroResponse(ToMacro(targetMacro!) - consumed);
-        return new NutritionDayResponse(date, targetMacro, MacroResponse(consumed), remaining, mealResponses);
+        var status = await db.NutritionDayReviews.Where(x => x.UserId == userId && x.LocalDate == date).Select(x => x.Status).SingleOrDefaultAsync();
+        return new NutritionDayResponse(date, targetMacro, MacroResponse(consumed), remaining, mealResponses, status);
+    }
+
+    [HttpPut("nutrition/days/{date}/status")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveDayStatus(DateOnly date, SaveNutritionDayStatusRequest request)
+    {
+        var userId = UserId();
+        var review = await db.NutritionDayReviews.SingleOrDefaultAsync(x => x.UserId == userId && x.LocalDate == date);
+        if (review is null) db.NutritionDayReviews.Add(new NutritionDayReview(userId, date, request.Status));
+        else review.Change(request.Status);
+        await db.SaveChangesAsync();
+        return NoContent();
     }
 
     [HttpGet("meals/recent")]

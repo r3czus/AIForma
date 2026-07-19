@@ -13,6 +13,7 @@ builder.Services.AddScoped<AccountClient>();
 builder.Services.AddScoped<NutritionClient>();
 builder.Services.AddScoped<TrainingClient>();
 builder.Services.AddScoped<ProgressClient>();
+builder.Services.AddScoped<CoachingClient>();
 builder.Services.AddScoped<PantryClient>();
 builder.Services.AddScoped<AssistantClient>();
 builder.Services.AddScoped<AdminClient>();

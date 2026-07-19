@@ -106,6 +106,18 @@
                         </section>
                     }
                     <MudButton Variant="Variant.Outlined" FullWidth="true" StartIcon="@Icons.Material.Outlined.Restore" OnClick="CopyPreviousDay" Class="mt-3">Kopiuj posiłki z poprzedniego dnia</MudButton>
+                    <section class="day-close-card">
+                        <div>
+                            <span class="card-kicker">Jakość danych</span>
+                            <h3>@DayStatusTitle</h3>
+                            <p>Oznacz dzień świadomie. Jeden posiłek nie oznacza jeszcze kompletnego dziennika.</p>
+                        </div>
+                        <div class="day-close-actions">
+                            <MudButton Variant="@StatusVariant(NutritionDayStatus.Complete)" Color="Color.Success" OnClick="() => SetDayStatus(NutritionDayStatus.Complete)">Dziennik kompletny</MudButton>
+                            <MudButton Variant="@StatusVariant(NutritionDayStatus.Partial)" Color="Color.Warning" OnClick="() => SetDayStatus(NutritionDayStatus.Partial)">Zapisałem część</MudButton>
+                            <MudButton Variant="@StatusVariant(NutritionDayStatus.NoData)" Color="Color.Default" OnClick="() => SetDayStatus(NutritionDayStatus.NoData)">Brak danych</MudButton>
+                        </div>
+                    </section>
                 }
         </div>
 
@@ -316,6 +328,13 @@
     private IEnumerable<ProductResponse> FilteredProducts => string.IsNullOrWhiteSpace(_productSearch)
         ? _products
         : _products.Where(x => x.Name.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) || (x.Brand?.Contains(_productSearch, StringComparison.OrdinalIgnoreCase) ?? false));
+    private string DayStatusTitle => _day?.Status switch
+    {
+        NutritionDayStatus.Complete => "Ten dzień jest zamknięty",
+        NutritionDayStatus.Partial => "Dane są częściowe",
+        NutritionDayStatus.NoData => "Dzień oznaczony jako brak danych",
+        _ => "Czy wszystko zostało zapisane?"
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -456,6 +475,15 @@
         await Reload();
         Snackbar.Add(copied == 0 ? "Poprzedniego dnia nie było posiłków do skopiowania." : $"Skopiowano {copied} posiłków.", copied == 0 ? Severity.Info : Severity.Success);
     }
+
+    private async Task SetDayStatus(NutritionDayStatus status)
+    {
+        await Nutrition.SaveDayStatus(_date, status);
+        await Reload();
+        Snackbar.Add("Status dnia zapisany.", Severity.Success);
+    }
+
+    private Variant StatusVariant(NutritionDayStatus status) => _day?.Status == status ? Variant.Filled : Variant.Outlined;
 
     private async Task AnalyzePhoto(InputFileChangeEventArgs args)
     {

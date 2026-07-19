@@ -3,6 +3,7 @@ namespace FormaAI.Domain.Nutrition;
 public enum ServingUnit { Gram, Milliliter, Piece }
 public enum ProductSource { Manual, OpenFoodFacts, System }
 public enum MealSource { Manual, AssistantDraft, Template }
+public enum NutritionDayStatus { Unknown, Complete, Partial, NoData }
 
 public sealed class NutritionTarget
 {
@@ -155,4 +156,30 @@ public sealed class MealItem
     public decimal FatG { get; private set; }
     public decimal CarbohydratesG { get; private set; }
     public bool IsEstimated { get; private set; }
+}
+
+public sealed class NutritionDayReview
+{
+    private NutritionDayReview() { }
+
+    public NutritionDayReview(string userId, DateOnly localDate, NutritionDayStatus status)
+    {
+        Id = Guid.NewGuid();
+        UserId = userId;
+        LocalDate = localDate;
+        Status = status;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public Guid Id { get; private set; }
+    public string UserId { get; private set; } = null!;
+    public DateOnly LocalDate { get; private set; }
+    public NutritionDayStatus Status { get; private set; }
+    public DateTime UpdatedAtUtc { get; private set; }
+
+    public void Change(NutritionDayStatus status)
+    {
+        Status = status;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
 }

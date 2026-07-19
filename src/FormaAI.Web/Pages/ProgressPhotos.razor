@@ -1,0 +1,39 @@
+@page "/progress/photos"
+@inject AccountClient Account
+@inject CoachingClient Coaching
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Zdjęcia progresu · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page photos-page">
+    <header class="module-heading compact-heading"><MudIconButton Icon="@Icons.Material.Outlined.ArrowBack" Href="/progress" aria-label="Wróć" /><div><span class="page-kicker">Prywatna historia</span><MudText Typo="Typo.h4">Zdjęcia progresu</MudText><p>Porównuj tę samą pozę i podobne warunki. Zdjęcia wymagają zalogowania i nie są publicznymi plikami.</p></div></header>
+    <MudPaper Class="progress-card photo-upload-card" Elevation="0">
+        <div class="field-grid"><MudDatePicker Label="Data zdjęcia" @bind-Date="_date" DateFormat="dd.MM.yyyy" /><MudSelect T="ProgressPhotoPose" @bind-Value="_pose" Label="Poza"><MudSelectItem Value="ProgressPhotoPose.Front">Przód</MudSelectItem><MudSelectItem Value="ProgressPhotoPose.Side">Bok</MudSelectItem><MudSelectItem Value="ProgressPhotoPose.Back">Tył</MudSelectItem></MudSelect></div>
+        <MudFileUpload T="IBrowserFile" FilesChanged="SelectFile" Accept="image/*" MaximumFileCount="1"><ActivatorContent><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.AddAPhoto">@(_file is null ? "Wybierz zdjęcie" : _file.Name)</MudButton></ActivatorContent></MudFileUpload>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_file is null || _saving)" OnClick="Save">Zapisz prywatne zdjęcie</MudButton>
+    </MudPaper>
+    @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" /></div> }
+    else
+    {
+        <div class="photo-filters">@foreach (var pose in Enum.GetValues<ProgressPhotoPose>()) { <MudButton Size="Size.Small" Variant="@(pose == _filter ? Variant.Filled : Variant.Text)" OnClick="() => _filter = pose">@PoseName(pose)</MudButton> }</div>
+        @if (Filtered.Count == 0) { <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" /><div><strong>Brak zdjęć dla tej pozy</strong><span>Dodaj pierwsze zdjęcie, żeby rozpocząć porównanie.</span></div></div> }
+        else
+        {
+            <p class="comparison-hint">Wybierz maksymalnie dwa zdjęcia, aby zestawić je obok siebie.</p>
+            <div class="photo-grid">@foreach (var item in Filtered) { <article class="progress-photo @(_selected.Contains(item.Id) ? "selected" : null)" @onclick="() => Toggle(item.Id)"><img src="@item.Url" alt="Zdjęcie progresu: @PoseName(item.Pose), @item.LocalDate" loading="lazy" /><div><strong>@item.LocalDate.ToString("dd.MM.yyyy")</strong><span @onclick:stopPropagation><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" OnClick="() => Delete(item.Id)" /></span></div></article> }</div>
+        }
+    }
+</MudContainer>
+
+@code {
+    private IReadOnlyList<ProgressPhotoResponse> _photos = []; private readonly HashSet<Guid> _selected = []; private IBrowserFile? _file; private DateTime? _date = DateTime.Today; private ProgressPhotoPose _pose; private ProgressPhotoPose _filter; private bool _loading = true; private bool _saving;
+    private IReadOnlyList<ProgressPhotoResponse> Filtered => _photos.Where(x => x.Pose == _filter).OrderBy(x => x.LocalDate).ToList();
+    protected override async Task OnInitializedAsync() { if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; } await Reload(); _loading = false; }
+    private void SelectFile(IBrowserFile? file) => _file = file;
+    private async Task Save() { if (_file is null || _date is null) return; _saving = true; try { await Coaching.AddPhoto(_file, DateOnly.FromDateTime(_date.Value), _pose); _file = null; _filter = _pose; await Reload(); Snackbar.Add("Zdjęcie zapisane prywatnie.", Severity.Success); } finally { _saving = false; } }
+    private void Toggle(Guid id) { if (!_selected.Remove(id)) { if (_selected.Count == 2) _selected.Remove(_selected.First()); _selected.Add(id); } }
+    private async Task Delete(Guid id) { await Coaching.DeletePhoto(id); _selected.Remove(id); await Reload(); }
+    private async Task Reload() => _photos = await Coaching.GetPhotos();
+    private static string PoseName(ProgressPhotoPose pose) => pose switch { ProgressPhotoPose.Front => "Przód", ProgressPhotoPose.Side => "Bok", _ => "Tył" };
+}
