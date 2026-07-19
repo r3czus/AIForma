@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">FormaAI</title>
+  <desc id="desc">Minimalistyczny znak F zbudowany z trzech poziomów progresu</desc>
+  <rect width="512" height="512" rx="112" fill="#2457E6"/>
+  <path fill="#FFFFFF" d="M150 130c0-15.5 12.5-28 28-28h200c15.5 0 28 12.5 28 28v20c0 15.5-12.5 28-28 28H226v49h119c15.5 0 28 12.5 28 28v18c0 15.5-12.5 28-28 28H226v105c0 15.5-12.5 28-28 28h-20c-15.5 0-28-12.5-28-28V130Z"/>
+  <path fill="#BFD0FF" d="m226 301 74-74h45c15.5 0 28 12.5 28 28v18c0 15.5-12.5 28-28 28H226Z"/>
+</svg>

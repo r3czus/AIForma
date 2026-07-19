@@ -5,20 +5,20 @@
   "start_url": "./",
   "display": "standalone",
   "background_color": "#F2F6F2",
-  "theme_color": "#10251C",
+  "theme_color": "#2457E6",
   "prefer_related_applications": false,
   "icons": [
     {
       "src": "icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
