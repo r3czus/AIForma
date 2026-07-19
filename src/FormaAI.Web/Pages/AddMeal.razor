@@ -157,15 +157,17 @@
                             @if (_editingProduct)
                             {
                                 <section class="product-detail-editor">
-                                    <MudTextField @bind-Value="_productEdit.Name" Label="Nazwa produktu" />
-                                    <MudTextField @bind-Value="_productEdit.Brand" Label="Marka (opcjonalnie)" />
-                                    <div class="field-grid">
+                                    <div class="product-name-fields">
+                                        <MudTextField @bind-Value="_productEdit.Name" Label="Nazwa produktu" />
+                                        <MudTextField @bind-Value="_productEdit.Brand" Label="Marka (opcjonalnie)" />
+                                    </div>
+                                    <div class="product-macro-fields">
                                         <MudNumericField @bind-Value="_productEdit.Calories" Label="Kalorie / 100 g" Min="0m" HideSpinButtons="true" />
                                         <MudNumericField @bind-Value="_productEdit.Protein" Label="Białko / 100 g" Min="0m" HideSpinButtons="true" />
                                         <MudNumericField @bind-Value="_productEdit.Fat" Label="Tłuszcze / 100 g" Min="0m" HideSpinButtons="true" />
                                         <MudNumericField @bind-Value="_productEdit.Carbs" Label="Węglowodany / 100 g" Min="0m" HideSpinButtons="true" />
                                     </div>
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_savingProduct || string.IsNullOrWhiteSpace(_productEdit.Name))" OnClick="SaveProductChanges">@(_savingProduct ? "Zapisuję…" : "Zapisz dane produktu")</MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(_savingProduct || string.IsNullOrWhiteSpace(_productEdit.Name))" OnClick="SaveProductChanges">@(_savingProduct ? "Zapisuję…" : "Zapisz dane produktu")</MudButton>
                                 </section>
                             }
 

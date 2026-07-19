@@ -572,6 +572,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .product-detail-favorite { align-items: center; background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 50%; color: var(--ink); cursor: pointer; display: flex; height: 46px; justify-content: center; width: 46px; }
 .product-detail-favorite.selected { background: var(--fuel-soft); border-color: var(--fuel); color: var(--fuel); }
 .product-detail-editor { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 16px; margin: 14px 0; padding: 14px; }
+.product-name-fields { display: grid; gap: 4px; }
+.product-macro-fields { display: grid; gap: 10px 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 8px 0 14px; }
+.product-macro-fields > * { min-width: 0; }
+.product-detail-editor .mud-input-control { min-width: 0; width: 100%; }
 .product-portion-list { margin: 10px 0 16px; }
 .product-portion-list label { align-items: center; border-bottom: 1px solid var(--rule); cursor: pointer; display: grid; gap: 10px; grid-template-columns: auto minmax(0, 1fr) auto auto; min-height: 56px; }
 .product-portion-list label.selected { color: var(--fuel); }
@@ -1245,6 +1249,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .product-detail-backdrop { align-items: stretch; background: var(--surface); padding: 0; }
     .product-detail-panel { border: 0; border-radius: 0; max-height: 100dvh; max-width: none; min-height: 100dvh; padding: calc(14px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
     .product-detail-panel > header strong { font-size: 1.55rem; }
+    .product-macro-fields { grid-template-columns: 1fr; }
     .product-custom-portion { grid-template-columns: 1fr; }
     .product-macro-rings { gap: 8px; }
     .product-macro-rings i { height: 84px; width: 84px; }
