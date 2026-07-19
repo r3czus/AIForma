@@ -30,48 +30,99 @@
 
         <MudTabs Class="module-tabs profile-tabs" PanelClass="profile-panel">
             <MudTabPanel Text="Cel i kalorie">
-                <MudPaper Class="profile-section" Elevation="0">
-                    <div class="profile-section-heading"><span class="card-kicker">Punkt wyjścia</span><h2>Wylicz dzienny cel</h2><p>Wzór uwzględnia wiek, wzrost, obecną masę, aktywność i kierunek zmiany wagi.</p></div>
-                    <div class="field-grid">
-                        <MudDatePicker @bind-Date="_birthDate" Label="Data urodzenia" />
-                        <MudSelect T="BiologicalSex?" @bind-Value="_sex" Label="Płeć">
-                            <MudSelectItem T="BiologicalSex?" Value="BiologicalSex.Female">Kobieta</MudSelectItem>
-                            <MudSelectItem T="BiologicalSex?" Value="BiologicalSex.Male">Mężczyzna</MudSelectItem>
-                        </MudSelect>
-                        <MudNumericField @bind-Value="_heightCm" Label="Wzrost (cm)" Min="50m" Max="280m" />
-                        <MudNumericField @bind-Value="_currentWeightKg" Label="Obecna masa (kg)" Min="20m" Max="500m" />
-                        <MudNumericField @bind-Value="_startingWeightKg" Label="Masa początkowa (kg)" Min="20m" Max="500m" />
-                        <MudNumericField @bind-Value="_targetWeightKg" Label="Masa docelowa (kg)" Min="20m" Max="500m" />
-                        <MudSelect T="ActivityLevel?" @bind-Value="_activity" Label="Aktywność w ciągu dnia">
-                            <MudSelectItem T="ActivityLevel?" Value="ActivityLevel.Low">Niska · głównie siedząco</MudSelectItem>
-                            <MudSelectItem T="ActivityLevel?" Value="ActivityLevel.Light">Lekka · trochę ruchu</MudSelectItem>
-                            <MudSelectItem T="ActivityLevel?" Value="ActivityLevel.Moderate">Średnia · regularny ruch</MudSelectItem>
-                            <MudSelectItem T="ActivityLevel?" Value="ActivityLevel.High">Wysoka · dużo ruchu</MudSelectItem>
-                        </MudSelect>
-                        <MudSelect T="BodyGoal?" @bind-Value="_goal" Label="Cel">
-                            <MudSelectItem T="BodyGoal?" Value="BodyGoal.Reduction">Redukcja</MudSelectItem>
-                            <MudSelectItem T="BodyGoal?" Value="BodyGoal.Maintenance">Utrzymanie</MudSelectItem>
-                            <MudSelectItem T="BodyGoal?" Value="BodyGoal.MuscleGain">Budowanie masy</MudSelectItem>
-                        </MudSelect>
+                <MudPaper Class="goal-wizard" Elevation="0">
+                    <div class="goal-wizard-progress">
+                        <div><span>Cel żywieniowy</span><strong>Krok @_goalStep / 8</strong></div>
+                        <div class="goal-progress-track" aria-hidden="true"><i style="@($"width: {GoalProgress}%")"></i></div>
                     </div>
-                    <div class="profile-actions">
-                        <MudButton Variant="Variant.Outlined" OnClick="SaveProfile">Zapisz dane profilu</MudButton>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CalculateTarget">Wylicz kalorie</MudButton>
-                    </div>
-                </MudPaper>
 
-                @if (_targetCalories is not null)
-                {
-                    <MudPaper Class="nutrition-prescription" Elevation="0">
-                        <div><span>Twój dzienny cel</span><strong>@_targetCalories.Value.ToString("0")</strong><small>kcal</small></div>
-                        <div class="prescription-macros">
-                            <MudNumericField @bind-Value="_proteinG" Label="Białko (g)" Min="0m" />
-                            <MudNumericField @bind-Value="_fatG" Label="Tłuszcze (g)" Min="0m" />
-                            <MudNumericField @bind-Value="_carbsG" Label="Węglowodany (g)" Min="0m" />
+                    @switch (_goalStep)
+                    {
+                        case 1:
+                            <section class="goal-step">
+                                <div class="profile-section-heading"><span class="card-kicker">Kierunek</span><h2>Jaki jest Twój cel?</h2><p>Wybierz kierunek, a dopasujemy dzienne zapotrzebowanie.</p></div>
+                                <div class="goal-choice-grid goal-choice-grid-three">
+                                    <button type="button" class="@ChoiceClass(_goal == BodyGoal.Reduction)" aria-pressed="@(_goal == BodyGoal.Reduction)" @onclick="() => _goal = BodyGoal.Reduction"><MudIcon Icon="@Icons.Material.Outlined.TrendingDown" /><strong>Redukcja</strong><span>Chcę zmniejszyć masę ciała</span></button>
+                                    <button type="button" class="@ChoiceClass(_goal == BodyGoal.Maintenance)" aria-pressed="@(_goal == BodyGoal.Maintenance)" @onclick="() => _goal = BodyGoal.Maintenance"><MudIcon Icon="@Icons.Material.Outlined.Balance" /><strong>Utrzymanie</strong><span>Chcę utrzymać obecną wagę</span></button>
+                                    <button type="button" class="@ChoiceClass(_goal == BodyGoal.MuscleGain)" aria-pressed="@(_goal == BodyGoal.MuscleGain)" @onclick="() => _goal = BodyGoal.MuscleGain"><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><strong>Budowanie masy</strong><span>Chcę zwiększyć masę ciała</span></button>
+                                </div>
+                            </section>
+                            break;
+                        case 2:
+                            <section class="goal-step">
+                                <div class="profile-section-heading"><span class="card-kicker">Podstawowe dane</span><h2>Jaka jest Twoja płeć?</h2><p>Ta informacja jest potrzebna do wzoru podstawowej przemiany materii.</p></div>
+                                <div class="goal-choice-grid">
+                                    <button type="button" class="@ChoiceClass(_sex == BiologicalSex.Male)" aria-pressed="@(_sex == BiologicalSex.Male)" @onclick="() => _sex = BiologicalSex.Male"><MudIcon Icon="@Icons.Material.Outlined.Male" /><strong>Mężczyzna</strong></button>
+                                    <button type="button" class="@ChoiceClass(_sex == BiologicalSex.Female)" aria-pressed="@(_sex == BiologicalSex.Female)" @onclick="() => _sex = BiologicalSex.Female"><MudIcon Icon="@Icons.Material.Outlined.Female" /><strong>Kobieta</strong></button>
+                                </div>
+                            </section>
+                            break;
+                        case 3:
+                            <section class="goal-step goal-step-narrow">
+                                <div class="profile-section-heading"><span class="card-kicker">Metabolizm</span><h2>Twoja data urodzenia</h2><p>Wiek wpływa na podstawowe zapotrzebowanie energetyczne.</p></div>
+                                <MudDatePicker @bind-Date="_birthDate" Label="Data urodzenia" MaxDate="DateTime.Today" />
+                            </section>
+                            break;
+                        case 4:
+                            <section class="goal-step goal-step-narrow">
+                                <div class="profile-section-heading"><span class="card-kicker">Parametry ciała</span><h2>Jaki masz wzrost?</h2><p>Podaj wzrost w centymetrach.</p></div>
+                                <MudNumericField @bind-Value="_heightCm" Label="Wzrost (cm)" Min="50m" Max="280m" Immediate="true" />
+                            </section>
+                            break;
+                        case 5:
+                            <section class="goal-step goal-step-narrow">
+                                <div class="profile-section-heading"><span class="card-kicker">Punkt wyjścia</span><h2>Jaka jest Twoja aktualna masa?</h2><p>Najlepiej podaj pomiar wykonany rano.</p></div>
+                                <MudNumericField @bind-Value="_currentWeightKg" Label="Obecna masa (kg)" Min="20m" Max="500m" Immediate="true" />
+                            </section>
+                            break;
+                        case 6:
+                            <section class="goal-step goal-step-narrow">
+                                <div class="profile-section-heading"><span class="card-kicker">Meta</span><h2>Jaka jest Twoja docelowa masa?</h2><p>@TargetWeightHint</p></div>
+                                <MudNumericField @bind-Value="_targetWeightKg" Label="Masa docelowa (kg)" Min="20m" Max="500m" Immediate="true" />
+                                @if (_currentWeightKg is not null && _targetWeightKg is not null)
+                                {
+                                    <span class="goal-weight-difference">@WeightDifference</span>
+                                }
+                            </section>
+                            break;
+                        case 7:
+                            <section class="goal-step">
+                                <div class="profile-section-heading"><span class="card-kicker">Codzienny ruch</span><h2>Jaki masz poziom aktywności?</h2><p>Wybierz wariant, który najlepiej opisuje większość Twoich tygodni.</p></div>
+                                <div class="goal-choice-grid activity-choice-grid">
+                                    <button type="button" class="@ChoiceClass(_activity == ActivityLevel.Low)" aria-pressed="@(_activity == ActivityLevel.Low)" @onclick="() => _activity = ActivityLevel.Low"><strong>Niski</strong><span>Praca siedząca, mało ruchu</span></button>
+                                    <button type="button" class="@ChoiceClass(_activity == ActivityLevel.Light)" aria-pressed="@(_activity == ActivityLevel.Light)" @onclick="() => _activity = ActivityLevel.Light"><strong>Lekki</strong><span>Trochę ruchu lub 1–3 treningi</span></button>
+                                    <button type="button" class="@ChoiceClass(_activity == ActivityLevel.Moderate)" aria-pressed="@(_activity == ActivityLevel.Moderate)" @onclick="() => _activity = ActivityLevel.Moderate"><strong>Średni</strong><span>Regularny ruch lub 4–5 treningów</span></button>
+                                    <button type="button" class="@ChoiceClass(_activity == ActivityLevel.High)" aria-pressed="@(_activity == ActivityLevel.High)" @onclick="() => _activity = ActivityLevel.High"><strong>Wysoki</strong><span>Praca fizyczna lub częste treningi</span></button>
+                                </div>
+                            </section>
+                            break;
+                        case 8:
+                            <section class="goal-result">
+                                <span class="card-kicker">Twój wynik</span>
+                                <div class="goal-result-energy"><strong>@_targetCalories?.ToString("0")</strong><span>kcal</span></div>
+                                <p>To dzienny punkt odniesienia. Od niego aplikacja liczy kalorie pozostałe do zjedzenia.</p>
+                                <div class="prescription-macros">
+                                    <MudNumericField @bind-Value="_proteinG" Label="Białko (g)" Min="0m" />
+                                    <MudNumericField @bind-Value="_fatG" Label="Tłuszcze (g)" Min="0m" />
+                                    <MudNumericField @bind-Value="_carbsG" Label="Węglowodany (g)" Min="0m" />
+                                </div>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveNutritionTarget">Zapisz cel i używaj od dzisiaj</MudButton>
+                                <MudButton Variant="Variant.Text" FullWidth="true" OnClick="() => _goalStep = 1">Przelicz od początku</MudButton>
+                            </section>
+                            break;
+                    }
+
+                    @if (_goalStep < 8)
+                    {
+                        <div class="goal-wizard-actions">
+                            @if (_goalStep > 1)
+                            {
+                                <MudButton Variant="Variant.Outlined" OnClick="PreviousGoalStep">Wstecz</MudButton>
+                            }
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextGoalStep">@(_goalStep == 7 ? "Wylicz zapotrzebowanie" : "Dalej")</MudButton>
                         </div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveNutritionTarget">Zapisz cel żywieniowy</MudButton>
-                    </MudPaper>
-                }
+                    }
+                </MudPaper>
             </MudTabPanel>
 
             <MudTabPanel Text="Pomiary">
@@ -164,8 +215,24 @@
     private string? _measurementNotes;
     private string _deletePassword = string.Empty;
     private string _deleteConfirmation = string.Empty;
+    private int _goalStep = 1;
     private char Initial => char.ToUpperInvariant(_profile!.Email[0]);
     private string GoalName => _goal switch { BodyGoal.Reduction => "Redukcja", BodyGoal.Maintenance => "Utrzymanie", BodyGoal.MuscleGain => "Budowanie masy", _ => "Cel nieustawiony" };
+    private decimal GoalProgress => _goalStep / 8m * 100m;
+    private string TargetWeightHint => _goal == BodyGoal.Maintenance
+        ? "Przy utrzymaniu możesz podać obecną masę."
+        : "Podaj wagę, do której chcesz dojść.";
+    private string WeightDifference
+    {
+        get
+        {
+            var difference = _targetWeightKg!.Value - _currentWeightKg!.Value;
+            if (Math.Abs(difference) < .05m) return "Chcesz utrzymać obecną masę.";
+            return difference < 0
+                ? $"Chcesz zredukować {Math.Abs(difference):0.#} kg."
+                : $"Chcesz zwiększyć masę o {difference:0.#} kg.";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -194,22 +261,55 @@
             _proteinG = target.ProteinG;
             _fatG = target.FatG;
             _carbsG = target.CarbohydratesG;
+            _goalStep = 8;
         }
         _loading = false;
     }
 
-    private void CalculateTarget()
+    private void PreviousGoalStep() => _goalStep = Math.Max(1, _goalStep - 1);
+
+    private void NextGoalStep()
     {
-        if (_birthDate is null || _sex is null || _activity is null || _goal is null || _heightCm is null || _currentWeightKg is null)
+        var error = _goalStep switch
         {
-            Snackbar.Add("Uzupełnij datę urodzenia, płeć, wzrost, obecną masę, aktywność i cel.", Severity.Info);
+            1 when _goal is null => "Wybierz cel.",
+            2 when _sex is null => "Wybierz płeć.",
+            3 when _birthDate is null => "Podaj datę urodzenia.",
+            4 when _heightCm is null => "Podaj wzrost.",
+            5 when _currentWeightKg is null => "Podaj obecną masę.",
+            6 when _targetWeightKg is null => "Podaj docelową masę.",
+            7 when _activity is null => "Wybierz poziom aktywności.",
+            _ => null
+        };
+
+        if (error is not null)
+        {
+            Snackbar.Add(error, Severity.Info);
             return;
         }
 
+        if (_goalStep == 5)
+        {
+            _startingWeightKg ??= _currentWeightKg;
+            _targetWeightKg ??= _currentWeightKg;
+        }
+
+        if (_goalStep == 7)
+        {
+            CalculateTarget();
+            _goalStep = 8;
+            return;
+        }
+
+        _goalStep++;
+    }
+
+    private void CalculateTarget()
+    {
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var birth = DateOnly.FromDateTime(_birthDate.Value);
+        var birth = DateOnly.FromDateTime(_birthDate!.Value);
         var age = today.Year - birth.Year - (today < birth.AddYears(today.Year - birth.Year) ? 1 : 0);
-        var bmr = 10m * _currentWeightKg.Value + 6.25m * _heightCm.Value - 5m * age + (_sex == BiologicalSex.Male ? 5m : -161m);
+        var bmr = 10m * _currentWeightKg!.Value + 6.25m * _heightCm!.Value - 5m * age + (_sex == BiologicalSex.Male ? 5m : -161m);
         var factor = _activity switch { ActivityLevel.Low => 1.2m, ActivityLevel.Light => 1.375m, ActivityLevel.Moderate => 1.55m, _ => 1.725m };
         var adjustment = _goal switch { BodyGoal.Reduction => -400m, BodyGoal.MuscleGain => 250m, _ => 0m };
         _targetCalories = Math.Round(Math.Max(1200m, bmr * factor + adjustment));
@@ -220,18 +320,27 @@
 
     private async Task SaveProfile() => await Run(async () =>
     {
-        _profile = await Account.UpdateProfile(new UpdateUserProfileRequest(
-            _timeZoneId, _heightCm, _startingWeightKg, _goal, _plannedTrainings,
-            _birthDate is null ? null : DateOnly.FromDateTime(_birthDate.Value), _sex, _activity, _targetWeightKg, _toleranceKcal,
-            _mealSlots.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList()));
+        await SaveProfileData();
         Snackbar.Add("Profil zapisany.", Severity.Success);
     }, "Nie udało się zapisać profilu.");
 
     private async Task SaveNutritionTarget() => await Run(async () =>
     {
+        _startingWeightKg ??= _currentWeightKg;
+        await SaveProfileData();
         await Nutrition.SaveTarget(new SaveNutritionTargetRequest(DateOnly.FromDateTime(DateTime.Today), _targetCalories!.Value, _proteinG, _fatG, _carbsG));
-        Snackbar.Add("Cel żywieniowy zapisany.", Severity.Success);
+        Snackbar.Add("Cel zapisany. Od dziś jest podstawą bilansu kalorii.", Severity.Success);
     }, "Nie udało się zapisać celu żywieniowego.");
+
+    private async Task SaveProfileData()
+    {
+        _profile = await Account.UpdateProfile(new UpdateUserProfileRequest(
+            _timeZoneId, _heightCm, _startingWeightKg, _goal, _plannedTrainings,
+            _birthDate is null ? null : DateOnly.FromDateTime(_birthDate.Value), _sex, _activity, _targetWeightKg, _toleranceKcal,
+            _mealSlots.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList()));
+    }
+
+    private static string ChoiceClass(bool selected) => selected ? "goal-choice selected" : "goal-choice";
 
     private async Task SaveMeasurement() => await Run(async () =>
     {

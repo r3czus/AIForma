@@ -460,6 +460,8 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .meal-slot-heading span { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .62rem; margin-top: 2px; }
 .meal-slot-heading .meal-slot-macros { color: var(--ink); font-size: .66rem; margin-top: 5px; }
 .meal-slot-heading .mud-icon-button { background: var(--fuel); color: white; }
+.meal-slot-unassigned { border-color: #e8a071; }
+.meal-slot-unassigned .meal-slot-heading { background: var(--fuel-soft); }
 .meal-slot .meal-row { padding-left: 16px; padding-right: 8px; }
 .meal-slot .meal-row:last-child { border-bottom: 0; }
 .journal-day-switch { align-items: center; background: var(--surface); border: 1px solid var(--rule); border-radius: 18px; display: grid; grid-template-columns: 48px 1fr 48px; margin: 16px 0; }
@@ -976,6 +978,33 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .profile-section-heading h2 { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.55rem; margin: 0 0 5px; }
 .profile-section-heading p { color: var(--muted); font-size: .8rem; line-height: 1.5; margin: 0; max-width: 620px; }
 .profile-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+.goal-wizard { background: var(--surface) !important; border: 1px solid var(--rule); border-radius: 7px 26px 26px 26px; box-shadow: var(--shadow); margin-bottom: 18px; min-height: 480px; overflow: hidden; padding: 0 28px 28px; }
+.goal-wizard-progress { background: var(--canvas); margin: 0 -28px 30px; padding: 18px 28px 16px; }
+.goal-wizard-progress > div:first-child { align-items: center; display: flex; justify-content: space-between; }
+.goal-wizard-progress span { color: var(--muted); font-size: .72rem; font-weight: 700; }
+.goal-wizard-progress strong { font-family: "IBM Plex Mono", monospace; font-size: .72rem; text-transform: uppercase; }
+.goal-progress-track { background: var(--rule); border-radius: 999px; height: 7px; margin-top: 11px; overflow: hidden; }
+.goal-progress-track i { background: var(--recovery); border-radius: inherit; display: block; height: 100%; transition: width .25s ease; }
+.goal-step { min-height: 310px; }
+.goal-step-narrow { max-width: 430px; }
+.goal-step .profile-section-heading h2 { font-size: clamp(2rem, 5vw, 3rem); }
+.goal-choice-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.goal-choice-grid-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.goal-choice { align-items: flex-start; background: white; border: 1px solid var(--rule); border-radius: 18px; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; font: inherit; gap: 7px; min-height: 146px; padding: 20px; text-align: left; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.goal-choice:hover { border-color: var(--recovery); transform: translateY(-2px); }
+.goal-choice.selected { background: var(--recovery-soft); border-color: var(--recovery); box-shadow: inset 0 0 0 1px var(--recovery); }
+.goal-choice .mud-icon-root { color: var(--recovery); font-size: 2rem; }
+.goal-choice strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.2rem; }
+.goal-choice span { color: var(--muted); font-size: .76rem; line-height: 1.4; }
+.activity-choice-grid .goal-choice { min-height: 112px; }
+.goal-weight-difference { background: var(--recovery-soft); border-radius: 10px; color: #277353; display: inline-block; font-size: .8rem; font-weight: 700; margin-top: 14px; padding: 9px 12px; }
+.goal-wizard-actions { border-top: 1px solid var(--rule); display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; padding-top: 18px; }
+.goal-result { margin: 0 auto; max-width: 640px; padding: 10px 0 4px; text-align: center; }
+.goal-result-energy { align-items: baseline; display: flex; justify-content: center; margin: 15px 0 4px; }
+.goal-result-energy strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: clamp(4.7rem, 14vw, 7rem); line-height: .85; }
+.goal-result-energy span { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 1rem; margin-left: 9px; }
+.goal-result > p { color: var(--muted); font-size: .82rem; line-height: 1.55; margin: 14px auto 24px; max-width: 480px; }
+.goal-result .prescription-macros { text-align: left; }
 .nutrition-prescription { background: var(--ink) !important; border-radius: 7px 24px 24px 24px; color: white; margin-bottom: 18px; padding: 24px; }
 .nutrition-prescription > div:first-child { align-items: baseline; display: flex; gap: 7px; margin-bottom: 18px; }
 .nutrition-prescription > div:first-child span { color: #b9c7bf; font-size: .75rem; margin-right: auto; }
@@ -1209,6 +1238,15 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .profile-section { padding: 20px 16px; }
     .profile-actions { align-items: stretch; flex-direction: column; }
     .profile-actions .mud-button-root { width: 100%; }
+    .goal-wizard { min-height: 520px; padding: 0 16px 20px; }
+    .goal-wizard-progress { margin: 0 -16px 24px; padding: 16px; }
+    .goal-choice-grid, .goal-choice-grid-three { grid-template-columns: 1fr; }
+    .goal-choice { min-height: 96px; padding: 15px 17px; }
+    .goal-choice-grid-three .goal-choice { display: grid; gap: 2px 12px; grid-template-columns: auto 1fr; }
+    .goal-choice-grid-three .goal-choice .mud-icon-root { grid-row: 1 / 3; }
+    .goal-step { min-height: 340px; }
+    .goal-wizard-actions { align-items: stretch; flex-direction: column-reverse; }
+    .goal-wizard-actions .mud-button-root { width: 100%; }
     .prescription-macros { grid-template-columns: 1fr; }
     .assistant-heading { align-items: flex-start; }
     .assistant-availability { align-self: flex-start; }

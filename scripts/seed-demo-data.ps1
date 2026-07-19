@@ -107,10 +107,10 @@ $day = Invoke-Api "GET" "api/v1/nutrition/days/$todayText" $null
 if (@($day.meals).Count -eq 0) {
     $offset = [DateTimeOffset]::Now.Offset
     $meals = @(
-        @{ name = "Owsianka ze skyrem"; hour = 8; items = @(@{ name = "Płatki owsiane"; grams = 70 }, @{ name = "Skyr naturalny"; grams = 150 }, @{ name = "Banan"; grams = 120 }, @{ name = "Masło orzechowe"; grams = 20 }) },
-        @{ name = "Kurczak z ryżem i brokułem"; hour = 13; items = @(@{ name = "Pierś z kurczaka"; grams = 200 }, @{ name = "Ryż basmati ugotowany"; grams = 250 }, @{ name = "Brokuł"; grams = 200 }, @{ name = "Oliwa z oliwek"; grams = 10 }) },
-        @{ name = "Jogurt i banan"; hour = 17; items = @(@{ name = "Jogurt grecki"; grams = 200 }, @{ name = "Banan"; grams = 100 }) },
-        @{ name = "Kolacja białkowa"; hour = 20; items = @(@{ name = "Jajka"; grams = 168 }, @{ name = "Pieczywo żytnie"; grams = 70 }, @{ name = "Twaróg półtłusty"; grams = 150 }) }
+        @{ name = "Śniadanie · Owsianka ze skyrem"; hour = 8; items = @(@{ name = "Płatki owsiane"; grams = 70 }, @{ name = "Skyr naturalny"; grams = 150 }, @{ name = "Banan"; grams = 120 }, @{ name = "Masło orzechowe"; grams = 20 }) },
+        @{ name = "Obiad · Kurczak z ryżem i brokułem"; hour = 13; items = @(@{ name = "Pierś z kurczaka"; grams = 200 }, @{ name = "Ryż basmati ugotowany"; grams = 250 }, @{ name = "Brokuł"; grams = 200 }, @{ name = "Oliwa z oliwek"; grams = 10 }) },
+        @{ name = "Przekąska · Jogurt i banan"; hour = 17; items = @(@{ name = "Jogurt grecki"; grams = 200 }, @{ name = "Banan"; grams = 100 }) },
+        @{ name = "Kolacja · Kolacja białkowa"; hour = 20; items = @(@{ name = "Jajka"; grams = 168 }, @{ name = "Pieczywo żytnie"; grams = 70 }, @{ name = "Twaróg półtłusty"; grams = 150 }) }
     )
     foreach ($meal in $meals) {
         $when = [DateTimeOffset]::new($today.Date.AddHours($meal.hour), $offset).ToString("o")

@@ -17,7 +17,7 @@
             <a href="/food">Otwórz dziennik</a>
         </div>
         <div class="macro-overview">
-            <div class="calorie-ring" style="@($"--progress: {Percent(Day.Consumed.CaloriesKcal, Day.Target.CaloriesKcal)}%")">
+            <div class="calorie-ring" style="@($"--progress: {Percent(Day.Consumed.CaloriesKcal, Day.Target.CaloriesKcal)}%")" aria-label="@EnergyRingLabel">
                 <div>
                     <span>@RemainingCaption</span>
                     <strong>@Math.Abs(Day.Remaining!.CaloriesKcal).ToString("0")</strong>
@@ -42,7 +42,10 @@
 @code {
     [Parameter, EditorRequired] public NutritionDayResponse Day { get; set; } = null!;
 
-    private string RemainingCaption => Day.Remaining!.CaloriesKcal < 0 ? "ponad cel" : "pozostało";
+    private string RemainingCaption => Day.Remaining!.CaloriesKcal < 0 ? "ponad cel" : "do zjedzenia";
+    private string EnergyRingLabel => Day.Remaining!.CaloriesKcal < 0
+        ? $"Cel przekroczony o {Math.Abs(Day.Remaining.CaloriesKcal):0} kilokalorii"
+        : $"Pozostało {Day.Remaining.CaloriesKcal:0} z celu {Day.Target!.CaloriesKcal:0} kilokalorii";
     private int CaloriePercent => Day.Target!.CaloriesKcal <= 0 ? 0 : (int)Math.Round(Day.Consumed.CaloriesKcal / Day.Target.CaloriesKcal * 100);
 
     private static int Percent(decimal value, decimal target) => target <= 0

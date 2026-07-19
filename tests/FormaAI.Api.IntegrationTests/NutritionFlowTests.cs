@@ -23,6 +23,10 @@ public sealed class NutritionFlowTests : IClassFixture<FormaAiFactory>
         var date = DateOnly.FromDateTime(DateTime.UtcNow);
 
         await Send<SaveNutritionTargetRequest, NutritionTargetResponse>(owner, HttpMethod.Post, "api/v1/nutrition-targets", new(date, 2000, 150, 70, 220));
+        var emptyDay = await owner.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{date:yyyy-MM-dd}");
+        Assert.Equal(0, emptyDay!.Consumed.CaloriesKcal);
+        Assert.Equal(2000, emptyDay.Remaining!.CaloriesKcal);
+
         var product = await Send<SaveProductRequest, ProductResponse>(owner, HttpMethod.Post, "api/v1/products", new("Skyr", null, 64.4m, 12.3m, 0.2m, 3.8m, null, ServingUnit.Gram, null, "12345678"));
         var barcode = await owner.GetFromJsonAsync<BarcodeLookupResponse>("api/v1/products/barcode/12345678");
         Assert.True(barcode!.FromLocalDatabase);

@@ -164,6 +164,28 @@
                                 }
                             </section>
                         }
+                        @if (UnassignedMeals.Count > 0)
+                        {
+                            <section class="meal-slot meal-slot-unassigned">
+                                <header class="meal-slot-heading">
+                                    <div>
+                                        <strong>Pozostałe wpisy</strong>
+                                        <span>@UnassignedMeals.Count pozycji · @UnassignedMeals.Sum(x => x.Macro.CaloriesKcal).ToString("0") kcal</span>
+                                        <span class="meal-slot-macros">Wpisy zapisane bez przypisanej sekcji posiłku</span>
+                                    </div>
+                                </header>
+                                @foreach (var meal in UnassignedMeals)
+                                {
+                                    <MudPaper Class="meal-row" Elevation="0">
+                                        <div class="row-copy">
+                                            <MudText Typo="Typo.subtitle1">@meal.Name</MudText>
+                                            <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => x.ProductName))</MudText>
+                                        </div>
+                                        <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
+                                    </MudPaper>
+                                }
+                            </section>
+                        }
                     </section>
                 }
             </main>
@@ -251,6 +273,7 @@
     }
 
     private List<MealResponse> MealsFor(string slot) => _day?.Meals.Where(x => BelongsTo(x.Name, slot)).ToList() ?? [];
+    private List<MealResponse> UnassignedMeals => _day?.Meals.Where(x => !_mealSlots.Any(slot => BelongsTo(x.Name, slot))).ToList() ?? [];
     private static bool BelongsTo(string mealName, string slot) => mealName.Equals(slot, StringComparison.OrdinalIgnoreCase) || mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase);
     private static string DisplayMealName(string mealName, string slot) => mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase) ? mealName[(slot.Length + 3)..] : mealName;
     private static string MealEntryUrl(string slot) => $"/food/add?date={DateOnly.FromDateTime(DateTime.Now):yyyy-MM-dd}&slot={Uri.EscapeDataString(slot)}";
