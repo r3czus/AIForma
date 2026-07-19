@@ -37,6 +37,12 @@ public sealed class UserProfile
     public string ThemePreference { get; private set; } = "system";
     public bool MealRemindersEnabled { get; private set; }
     public int MealReminderMinutesBefore { get; private set; }
+    public bool TrainingRemindersEnabled { get; private set; } = true;
+    public bool MeasurementRemindersEnabled { get; private set; } = true;
+    public bool WeeklySummaryRemindersEnabled { get; private set; } = true;
+    public TimeOnly QuietHoursStart { get; private set; } = new(22, 0);
+    public TimeOnly QuietHoursEnd { get; private set; } = new(7, 0);
+    public int MaxRemindersPerDay { get; private set; } = 3;
 
     public void Update(
         string timeZoneId,
@@ -59,7 +65,13 @@ public sealed class UserProfile
         DayOfWeek weekStartsOn = DayOfWeek.Monday,
         string themePreference = "system",
         bool mealRemindersEnabled = false,
-        int mealReminderMinutesBefore = 0)
+        int mealReminderMinutesBefore = 0,
+        bool trainingRemindersEnabled = true,
+        bool measurementRemindersEnabled = true,
+        bool weeklySummaryRemindersEnabled = true,
+        TimeOnly? quietHoursStart = null,
+        TimeOnly? quietHoursEnd = null,
+        int maxRemindersPerDay = 3)
     {
         TimeZoneId = timeZoneId;
         HeightCm = heightCm;
@@ -96,6 +108,12 @@ public sealed class UserProfile
         ThemePreference = themePreference is "light" or "dark" ? themePreference : "system";
         MealRemindersEnabled = mealRemindersEnabled;
         MealReminderMinutesBefore = Math.Clamp(mealReminderMinutesBefore, 0, 180);
+        TrainingRemindersEnabled = trainingRemindersEnabled;
+        MeasurementRemindersEnabled = measurementRemindersEnabled;
+        WeeklySummaryRemindersEnabled = weeklySummaryRemindersEnabled;
+        QuietHoursStart = quietHoursStart ?? new TimeOnly(22, 0);
+        QuietHoursEnd = quietHoursEnd ?? new TimeOnly(7, 0);
+        MaxRemindersPerDay = Math.Clamp(maxRemindersPerDay, 1, 6);
     }
 
     private static string Clean(string value) => value.Trim().Replace("|", " ").Replace("~", " ");

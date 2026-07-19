@@ -48,7 +48,13 @@ public sealed class ProfileController(
             profile.WeekStartsOn,
             profile.ThemePreference,
             profile.MealRemindersEnabled,
-            profile.MealReminderMinutesBefore);
+            profile.MealReminderMinutesBefore,
+            profile.TrainingRemindersEnabled,
+            profile.MeasurementRemindersEnabled,
+            profile.WeeklySummaryRemindersEnabled,
+            profile.QuietHoursStart,
+            profile.QuietHoursEnd,
+            profile.MaxRemindersPerDay);
     }
 
     [HttpPut]
@@ -84,7 +90,13 @@ public sealed class ProfileController(
             request.WeekStartsOn,
             request.ThemePreference,
             request.MealRemindersEnabled,
-            request.MealReminderMinutesBefore);
+            request.MealReminderMinutesBefore,
+            request.TrainingRemindersEnabled,
+            request.MeasurementRemindersEnabled,
+            request.WeeklySummaryRemindersEnabled,
+            request.QuietHoursStart,
+            request.QuietHoursEnd,
+            request.MaxRemindersPerDay);
         await db.SaveChangesAsync();
 
         var email = (await users.FindByIdAsync(userId))!.Email!;
@@ -111,7 +123,13 @@ public sealed class ProfileController(
             profile.WeekStartsOn,
             profile.ThemePreference,
             profile.MealRemindersEnabled,
-            profile.MealReminderMinutesBefore);
+            profile.MealReminderMinutesBefore,
+            profile.TrainingRemindersEnabled,
+            profile.MeasurementRemindersEnabled,
+            profile.WeeklySummaryRemindersEnabled,
+            profile.QuietHoursStart,
+            profile.QuietHoursEnd,
+            profile.MaxRemindersPerDay);
     }
 
     private static string[] Slots(FormaAI.Domain.Users.UserProfile profile) =>

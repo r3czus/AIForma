@@ -22,6 +22,22 @@ window.formaSettings = (() => {
         return permission;
     }
 
+    function decodeKey(value) {
+        const padding = '='.repeat((4 - value.length % 4) % 4);
+        const raw = atob((value + padding).replace(/-/g, '+').replace(/_/g, '/'));
+        return Uint8Array.from([...raw].map(char => char.charCodeAt(0)));
+    }
+
+    async function enablePushNotifications(publicKey) {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+        if (await Notification.requestPermission() !== 'granted') return null;
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(publicKey) });
+        const json = subscription.toJSON();
+        return { endpoint: json.endpoint, p256Dh: json.keys.p256dh, auth: json.keys.auth };
+    }
+
     async function scheduleMealReminders(meals, minutesBefore) {
         reminderTimers.splice(0).forEach(clearTimeout);
         if (Notification.permission !== 'granted') return;
@@ -44,5 +60,5 @@ window.formaSettings = (() => {
         }
     }
 
-    return { applyTheme, requestNotifications, scheduleMealReminders };
+    return { applyTheme, requestNotifications, enablePushNotifications, scheduleMealReminders };
 })();

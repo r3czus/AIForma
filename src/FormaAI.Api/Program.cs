@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
+using FormaAI.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,6 +56,8 @@ builder.Services.AddHttpClient<GeminiAssistantModel>(client =>
     client.Timeout = TimeSpan.FromSeconds(45);
 });
 builder.Services.AddScoped<IAssistantModel>(services => services.GetRequiredService<GeminiAssistantModel>());
+builder.Services.AddSingleton<VapidKeyStore>();
+builder.Services.AddHostedService<ReminderWorker>();
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(options =>

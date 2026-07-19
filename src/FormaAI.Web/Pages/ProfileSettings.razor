@@ -1,6 +1,7 @@
 @page "/profile/settings/{Section}"
 @inject AccountClient Account
 @inject NutritionClient Nutrition
+@inject CoachingClient Coaching
 @inject NavigationManager Navigation
 @inject IJSRuntime Js
 @inject ISnackbar Snackbar
@@ -63,9 +64,13 @@
                 case "reminders":
                     <section class="settings-stack">
                         <div class="settings-toggle"><div><strong>Przypomnienia o posiłkach</strong><span>Powiadomienie według godzin ustawionych w sekcji „Posiłki i godziny”.</span></div><MudSwitch @bind-Value="_reminders" Color="Color.Primary" /></div>
+                        <div class="settings-toggle"><div><strong>Planowane treningi</strong><span>Przypomnij o sesji i pozwól ją szybko przesunąć.</span></div><MudSwitch @bind-Value="_trainingReminders" Color="Color.Primary" /></div>
+                        <div class="settings-toggle"><div><strong>Pomiary sylwetki</strong><span>Delikatne przypomnienie, gdy pomiar jest już nieaktualny.</span></div><MudSwitch @bind-Value="_measurementReminders" Color="Color.Primary" /></div>
+                        <div class="settings-toggle"><div><strong>Zamknięcie tygodnia</strong><span>Podsumowanie pojawi się w ostatnim dniu Twojego tygodnia.</span></div><MudSwitch @bind-Value="_weeklyReminders" Color="Color.Primary" /></div>
                         <MudSelect T="int" @bind-Value="_reminderMinutes" Label="Ile minut przed posiłkiem?" Disabled="@(!_reminders)">
                             <MudSelectItem Value="0">O ustawionej godzinie</MudSelectItem><MudSelectItem Value="5">5 minut</MudSelectItem><MudSelectItem Value="10">10 minut</MudSelectItem><MudSelectItem Value="15">15 minut</MudSelectItem><MudSelectItem Value="30">30 minut</MudSelectItem>
                         </MudSelect>
+                        <div class="settings-field-grid"><MudTimePicker @bind-Time="_quietFrom" Label="Cisza nocna od" /><MudTimePicker @bind-Time="_quietTo" Label="Cisza nocna do" /><MudNumericField @bind-Value="_maxReminders" Label="Maks. dziennie" Min="1" Max="6" /></div>
                         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Na iPhonie dodaj FormaAI do ekranu początkowego. Wtedy Safari może wyświetlać systemowe powiadomienia aplikacji webowej.</MudAlert>
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.NotificationsActive" OnClick="EnableNotifications">Włącz i przetestuj powiadomienie</MudButton>
                     </section>
@@ -125,6 +130,12 @@
     private string _theme = "system";
     private bool _reminders;
     private int _reminderMinutes;
+    private bool _trainingReminders = true;
+    private bool _measurementReminders = true;
+    private bool _weeklyReminders = true;
+    private TimeSpan? _quietFrom = new(22, 0, 0);
+    private TimeSpan? _quietTo = new(7, 0, 0);
+    private int _maxReminders = 3;
 
     private string Title => Section switch { "nutrition" => "Cele żywieniowe", "meals" => "Posiłki i godziny", "reminders" => "Przypomnienia", "workouts" => "Ustawienia treningów", "calendar" => "Kalendarz i tydzień", _ => "Wygląd" };
     private string Description => Section switch { "nutrition" => "Ustaw własne kalorie i makroskładniki.", "meals" => "Dopasuj dziennik do swojego rytmu dnia.", "reminders" => "Pozwól aplikacji przypomnieć o posiłku.", "workouts" => "Wartości startowe dla nowych ćwiczeń.", "calendar" => "Zdecyduj, kiedy zaczyna i kończy się Twój tydzień.", _ => "Wybierz motyw, w którym najlepiej korzysta Ci się z FormaAI." };
@@ -154,6 +165,12 @@
         _theme = _profile.ThemePreference;
         _reminders = _profile.MealRemindersEnabled;
         _reminderMinutes = _profile.MealReminderMinutesBefore;
+        _trainingReminders = _profile.TrainingRemindersEnabled;
+        _measurementReminders = _profile.MeasurementRemindersEnabled;
+        _weeklyReminders = _profile.WeeklySummaryRemindersEnabled;
+        _quietFrom = _profile.QuietHoursStart?.ToTimeSpan() ?? new TimeSpan(22, 0, 0);
+        _quietTo = _profile.QuietHoursEnd?.ToTimeSpan() ?? new TimeSpan(7, 0, 0);
+        _maxReminders = _profile.MaxRemindersPerDay;
         _meals = (_profile.MealSchedule?.Count > 0 ? _profile.MealSchedule : DefaultMeals())!
             .Select(x => new MealSetting(x.Name, x.Time.ToString("HH:mm"), x.Enabled)).ToList();
         _loading = false;
@@ -174,9 +191,10 @@
 
     private async Task EnableNotifications()
     {
-        var status = await Js.InvokeAsync<string>("formaSettings.requestNotifications");
-        if (status == "granted") { _reminders = true; Snackbar.Add("Powiadomienia działają.", Severity.Success); }
-        else Snackbar.Add("Telefon nie udzielił zgody na powiadomienia.", Severity.Warning);
+        var publicKey = await Coaching.GetPushPublicKey();
+        var subscription = await Js.InvokeAsync<PushSubscriptionRequest?>("formaSettings.enablePushNotifications", publicKey);
+        if (subscription is not null) { await Coaching.SavePushSubscription(subscription); _reminders = true; Snackbar.Add("Powiadomienia działają także po zamknięciu aplikacji.", Severity.Success); }
+        else Snackbar.Add("Telefon nie obsługuje powiadomień albo nie udzielił zgody.", Severity.Warning);
     }
 
     private async Task Save()
@@ -192,7 +210,10 @@
                 _timeZone, _profile!.HeightCm, _profile.StartingWeightKg, _profile.Goal, _plannedTrainings,
                 _profile.BirthDate, _profile.Sex, _workActivity, _profile.TargetWeightKg, _tolerance, slots,
                 _workActivity, _trainingActivity, schedule, _defaultRest, _defaultReps, _defaultSets,
-                _weekStart, _theme, _reminders, _reminderMinutes));
+                _weekStart, _theme, _reminders, _reminderMinutes,
+                _trainingReminders, _measurementReminders, _weeklyReminders,
+                _quietFrom is null ? null : TimeOnly.FromTimeSpan(_quietFrom.Value),
+                _quietTo is null ? null : TimeOnly.FromTimeSpan(_quietTo.Value), _maxReminders));
 
             if (Section == "nutrition")
                 await Nutrition.SaveTarget(new SaveNutritionTargetRequest(DateOnly.FromDateTime(DateTime.Today), _calories, _protein, _fat, _carbs));

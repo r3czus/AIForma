@@ -26,7 +26,13 @@ public sealed record UserProfileResponse(
     DayOfWeek WeekStartsOn = DayOfWeek.Monday,
     string ThemePreference = "system",
     bool MealRemindersEnabled = false,
-    int MealReminderMinutesBefore = 0);
+    int MealReminderMinutesBefore = 0,
+    bool TrainingRemindersEnabled = true,
+    bool MeasurementRemindersEnabled = true,
+    bool WeeklySummaryRemindersEnabled = true,
+    TimeOnly? QuietHoursStart = null,
+    TimeOnly? QuietHoursEnd = null,
+    int MaxRemindersPerDay = 3);
 
 public sealed record UpdateUserProfileRequest(
     [Required] string TimeZoneId,
@@ -49,4 +55,10 @@ public sealed record UpdateUserProfileRequest(
     DayOfWeek WeekStartsOn = DayOfWeek.Monday,
     [RegularExpression("system|light|dark")] string ThemePreference = "system",
     bool MealRemindersEnabled = false,
-    [Range(0, 180)] int MealReminderMinutesBefore = 0);
+    [Range(0, 180)] int MealReminderMinutesBefore = 0,
+    bool TrainingRemindersEnabled = true,
+    bool MeasurementRemindersEnabled = true,
+    bool WeeklySummaryRemindersEnabled = true,
+    TimeOnly? QuietHoursStart = null,
+    TimeOnly? QuietHoursEnd = null,
+    [Range(1, 6)] int MaxRemindersPerDay = 3);
