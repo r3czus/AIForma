@@ -306,10 +306,12 @@
     private string _productSearch = string.Empty;
     private decimal _basePortion = 100;
     private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
+    private DayOfWeek _weekStartsOn = DayOfWeek.Monday;
     private string _selectedMealSlot = "Śniadanie";
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
     private string DayCaption => _date == Today ? "Dzisiaj" : _date == Today.AddDays(-1) ? "Wczoraj" : "Wybrany dzień";
-    private DateOnly WeekStart => _date.AddDays(-(((int)_date.DayOfWeek + 6) % 7));
+    private int DayOffset(DateOnly date) => (7 + (int)date.DayOfWeek - (int)_weekStartsOn) % 7;
+    private DateOnly WeekStart => _date.AddDays(-DayOffset(_date));
     private IEnumerable<DateOnly> WeekDays => Enumerable.Range(0, 7).Select(WeekStart.AddDays);
     private IEnumerable<ProductResponse> FilteredProducts => string.IsNullOrWhiteSpace(_productSearch)
         ? _products
@@ -326,6 +328,7 @@
 
         var profile = await Account.GetProfile();
         _mealSlots = profile.MealSlots?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? _mealSlots;
+        _weekStartsOn = profile.WeekStartsOn;
         _selectedMealSlot = _mealSlots[0];
         await Reload();
         _loading = false;
@@ -372,7 +375,7 @@
     {
         var next = WeekStart.AddDays(offset * 7);
         if (next > Today) return;
-        _date = next.AddDays(Math.Min(((int)_date.DayOfWeek + 6) % 7, Math.Max(0, Today.DayNumber - next.DayNumber)));
+        _date = next.AddDays(Math.Min(DayOffset(_date), Math.Max(0, Today.DayNumber - next.DayNumber)));
         await LoadDay();
     }
 

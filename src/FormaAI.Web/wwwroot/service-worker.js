@@ -2,3 +2,10 @@
 // This is because caching would make development more difficult (changes would not
 // be reflected on the first load after each change).
 self.addEventListener('fetch', () => { });
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+        const openWindow = windows.find(window => 'focus' in window);
+        return openWindow ? openWindow.focus() : clients.openWindow('/food');
+    }));
+});

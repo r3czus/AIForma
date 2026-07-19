@@ -214,6 +214,11 @@
     protected override async Task OnInitializedAsync()
     {
         if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
+        var profile = await Account.GetProfile();
+        _planned.Sets = profile.DefaultSets;
+        _planned.MinReps = profile.DefaultRepetitions;
+        _planned.MaxReps = profile.DefaultRepetitions;
+        _planned.RestSeconds = profile.DefaultRestSeconds;
         await Reload(); _loading = false;
     }
     private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); _activeSession = await TrainingApi.GetActiveSession(); }

@@ -16,7 +16,17 @@ public sealed record UserProfileResponse(
     ActivityLevel? ActivityLevel = null,
     decimal? TargetWeightKg = null,
     int CalorieToleranceKcal = 100,
-    IReadOnlyList<string>? MealSlots = null);
+    IReadOnlyList<string>? MealSlots = null,
+    ActivityLevel? WorkActivityLevel = null,
+    ActivityLevel? TrainingActivityLevel = null,
+    IReadOnlyList<MealScheduleEntry>? MealSchedule = null,
+    int DefaultRestSeconds = 90,
+    int DefaultRepetitions = 10,
+    int DefaultSets = 3,
+    DayOfWeek WeekStartsOn = DayOfWeek.Monday,
+    string ThemePreference = "system",
+    bool MealRemindersEnabled = false,
+    int MealReminderMinutesBefore = 0);
 
 public sealed record UpdateUserProfileRequest(
     [Required] string TimeZoneId,
@@ -29,4 +39,14 @@ public sealed record UpdateUserProfileRequest(
     ActivityLevel? ActivityLevel = null,
     [Range(20, 500)] decimal? TargetWeightKg = null,
     [Range(0, 1000)] int CalorieToleranceKcal = 100,
-    [MinLength(1), MaxLength(10)] IReadOnlyList<string>? MealSlots = null);
+    [MinLength(1), MaxLength(10)] IReadOnlyList<string>? MealSlots = null,
+    ActivityLevel? WorkActivityLevel = null,
+    ActivityLevel? TrainingActivityLevel = null,
+    [MinLength(1), MaxLength(10)] IReadOnlyList<MealScheduleEntry>? MealSchedule = null,
+    [Range(15, 900)] int DefaultRestSeconds = 90,
+    [Range(1, 100)] int DefaultRepetitions = 10,
+    [Range(1, 20)] int DefaultSets = 3,
+    DayOfWeek WeekStartsOn = DayOfWeek.Monday,
+    [RegularExpression("system|light|dark")] string ThemePreference = "system",
+    bool MealRemindersEnabled = false,
+    [Range(0, 180)] int MealReminderMinutesBefore = 0);

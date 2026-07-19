@@ -52,6 +52,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             profile.Property(x => x.StartingWeightKg).HasPrecision(6, 2);
             profile.Property(x => x.TargetWeightKg).HasPrecision(6, 2);
             profile.Property(x => x.MealSlots).HasMaxLength(500).IsRequired();
+            profile.Property(x => x.MealSchedule).HasMaxLength(800).IsRequired();
+            profile.Property(x => x.ThemePreference).HasMaxLength(10).IsRequired();
             profile.HasIndex(x => x.UserId).IsUnique();
         });
 

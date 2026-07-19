@@ -11,6 +11,7 @@ public sealed class UserProfile
         TimeZoneId = timeZoneId;
         CalorieToleranceKcal = 100;
         MealSlots = "Śniadanie|Lunch|Obiad|Przekąska|Kolacja";
+        MealSchedule = "Śniadanie~07:00~1|Lunch~12:00~1|Obiad~15:00~1|Przekąska~18:00~1|Kolacja~21:00~1";
     }
 
     public Guid Id { get; private set; }
@@ -23,9 +24,19 @@ public sealed class UserProfile
     public DateOnly? BirthDate { get; private set; }
     public BiologicalSex? Sex { get; private set; }
     public ActivityLevel? ActivityLevel { get; private set; }
+    public ActivityLevel? WorkActivityLevel { get; private set; }
+    public ActivityLevel? TrainingActivityLevel { get; private set; }
     public decimal? TargetWeightKg { get; private set; }
     public int CalorieToleranceKcal { get; private set; }
     public string MealSlots { get; private set; } = "Śniadanie|Lunch|Obiad|Przekąska|Kolacja";
+    public string MealSchedule { get; private set; } = "Śniadanie~07:00~1|Lunch~12:00~1|Obiad~15:00~1|Przekąska~18:00~1|Kolacja~21:00~1";
+    public int DefaultRestSeconds { get; private set; } = 90;
+    public int DefaultRepetitions { get; private set; } = 10;
+    public int DefaultSets { get; private set; } = 3;
+    public DayOfWeek WeekStartsOn { get; private set; } = DayOfWeek.Monday;
+    public string ThemePreference { get; private set; } = "system";
+    public bool MealRemindersEnabled { get; private set; }
+    public int MealReminderMinutesBefore { get; private set; }
 
     public void Update(
         string timeZoneId,
@@ -38,7 +49,17 @@ public sealed class UserProfile
         ActivityLevel? activityLevel = null,
         decimal? targetWeightKg = null,
         int calorieToleranceKcal = 100,
-        IReadOnlyList<string>? mealSlots = null)
+        IReadOnlyList<string>? mealSlots = null,
+        ActivityLevel? workActivityLevel = null,
+        ActivityLevel? trainingActivityLevel = null,
+        IReadOnlyList<MealScheduleEntry>? mealSchedule = null,
+        int defaultRestSeconds = 90,
+        int defaultRepetitions = 10,
+        int defaultSets = 3,
+        DayOfWeek weekStartsOn = DayOfWeek.Monday,
+        string themePreference = "system",
+        bool mealRemindersEnabled = false,
+        int mealReminderMinutesBefore = 0)
     {
         TimeZoneId = timeZoneId;
         HeightCm = heightCm;
@@ -48,6 +69,8 @@ public sealed class UserProfile
         BirthDate = birthDate;
         Sex = sex;
         ActivityLevel = activityLevel;
+        WorkActivityLevel = workActivityLevel ?? activityLevel;
+        TrainingActivityLevel = trainingActivityLevel;
         TargetWeightKg = targetWeightKg;
         CalorieToleranceKcal = calorieToleranceKcal;
         if (mealSlots is not null)
@@ -55,5 +78,27 @@ public sealed class UserProfile
             var slots = mealSlots.Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).Take(10).ToList();
             if (slots.Count > 0) MealSlots = string.Join('|', slots);
         }
+
+        if (mealSchedule is not null)
+        {
+            var entries = mealSchedule
+                .Where(x => !string.IsNullOrWhiteSpace(x.Name))
+                .Take(10)
+                .Select(x => $"{Clean(x.Name)}~{x.Time:HH\\:mm}~{(x.Enabled ? 1 : 0)}")
+                .ToList();
+            if (entries.Count > 0) MealSchedule = string.Join('|', entries);
+        }
+
+        DefaultRestSeconds = Math.Clamp(defaultRestSeconds, 15, 900);
+        DefaultRepetitions = Math.Clamp(defaultRepetitions, 1, 100);
+        DefaultSets = Math.Clamp(defaultSets, 1, 20);
+        WeekStartsOn = weekStartsOn;
+        ThemePreference = themePreference is "light" or "dark" ? themePreference : "system";
+        MealRemindersEnabled = mealRemindersEnabled;
+        MealReminderMinutesBefore = Math.Clamp(mealReminderMinutesBefore, 0, 180);
     }
+
+    private static string Clean(string value) => value.Trim().Replace("|", " ").Replace("~", " ");
 }
+
+public sealed record MealScheduleEntry(string Name, TimeOnly Time, bool Enabled);

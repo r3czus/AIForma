@@ -32,7 +32,7 @@
             <MudTabPanel Text="Cel i kalorie">
                 <MudPaper Class="goal-wizard" Elevation="0">
                     <div class="goal-wizard-progress">
-                        <div><span>Cel żywieniowy</span><strong>Krok @_goalStep / 8</strong></div>
+                        <div><span>Cel żywieniowy</span><strong>Krok @_goalStep / 9</strong></div>
                         <div class="goal-progress-track" aria-hidden="true"><i style="@($"width: {GoalProgress}%")"></i></div>
                     </div>
 
@@ -87,16 +87,27 @@
                             break;
                         case 7:
                             <section class="goal-step">
-                                <div class="profile-section-heading"><span class="card-kicker">Codzienny ruch</span><h2>Jaki masz poziom aktywności?</h2><p>Wybierz wariant, który najlepiej opisuje większość Twoich tygodni.</p></div>
+                                <div class="profile-section-heading"><span class="card-kicker">Aktywność w pracy</span><h2>Jak wygląda Twój zwykły dzień?</h2><p>Nie wliczaj tu treningów. Chodzi o pracę, kroki i codzienny ruch.</p></div>
                                 <div class="goal-choice-grid activity-choice-grid">
-                                    <button type="button" class="@ChoiceClass(_activity == ActivityLevel.Low)" aria-pressed="@(_activity == ActivityLevel.Low)" @onclick="() => _activity = ActivityLevel.Low"><strong>Niski</strong><span>Praca siedząca, mało ruchu</span></button>
-                                    <button type="button" class="@ChoiceClass(_activity == ActivityLevel.Light)" aria-pressed="@(_activity == ActivityLevel.Light)" @onclick="() => _activity = ActivityLevel.Light"><strong>Lekki</strong><span>Trochę ruchu lub 1–3 treningi</span></button>
-                                    <button type="button" class="@ChoiceClass(_activity == ActivityLevel.Moderate)" aria-pressed="@(_activity == ActivityLevel.Moderate)" @onclick="() => _activity = ActivityLevel.Moderate"><strong>Średni</strong><span>Regularny ruch lub 4–5 treningów</span></button>
-                                    <button type="button" class="@ChoiceClass(_activity == ActivityLevel.High)" aria-pressed="@(_activity == ActivityLevel.High)" @onclick="() => _activity = ActivityLevel.High"><strong>Wysoki</strong><span>Praca fizyczna lub częste treningi</span></button>
+                                    <button type="button" class="@ChoiceClass(_workActivity == ActivityLevel.Low)" aria-pressed="@(_workActivity == ActivityLevel.Low)" @onclick="() => _workActivity = ActivityLevel.Low"><strong>Siedząca</strong><span>Większość dnia przy biurku</span></button>
+                                    <button type="button" class="@ChoiceClass(_workActivity == ActivityLevel.Light)" aria-pressed="@(_workActivity == ActivityLevel.Light)" @onclick="() => _workActivity = ActivityLevel.Light"><strong>Lekko aktywna</strong><span>Spacery i częste wstawanie</span></button>
+                                    <button type="button" class="@ChoiceClass(_workActivity == ActivityLevel.Moderate)" aria-pressed="@(_workActivity == ActivityLevel.Moderate)" @onclick="() => _workActivity = ActivityLevel.Moderate"><strong>Aktywna</strong><span>Dużo chodzenia w pracy</span></button>
+                                    <button type="button" class="@ChoiceClass(_workActivity == ActivityLevel.High)" aria-pressed="@(_workActivity == ActivityLevel.High)" @onclick="() => _workActivity = ActivityLevel.High"><strong>Fizyczna</strong><span>Ciężka praca lub ruch cały dzień</span></button>
                                 </div>
                             </section>
                             break;
                         case 8:
+                            <section class="goal-step">
+                                <div class="profile-section-heading"><span class="card-kicker">Aktywność treningowa</span><h2>Ile wysiłku dają Ci treningi?</h2><p>Ten wybór jest liczony osobno od pracy i codziennego ruchu.</p></div>
+                                <div class="goal-choice-grid activity-choice-grid">
+                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Low)" aria-pressed="@(_trainingActivity == ActivityLevel.Low)" @onclick="() => _trainingActivity = ActivityLevel.Low"><strong>Brak lub lekka</strong><span>0–1 spokojna sesja tygodniowo</span></button>
+                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Light)" aria-pressed="@(_trainingActivity == ActivityLevel.Light)" @onclick="() => _trainingActivity = ActivityLevel.Light"><strong>Lekka</strong><span>2–3 krótsze sesje</span></button>
+                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Moderate)" aria-pressed="@(_trainingActivity == ActivityLevel.Moderate)" @onclick="() => _trainingActivity = ActivityLevel.Moderate"><strong>Średnia</strong><span>3–5 regularnych treningów</span></button>
+                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.High)" aria-pressed="@(_trainingActivity == ActivityLevel.High)" @onclick="() => _trainingActivity = ActivityLevel.High"><strong>Wysoka</strong><span>5+ ciężkich sesji</span></button>
+                                </div>
+                            </section>
+                            break;
+                        case 9:
                             <section class="goal-result">
                                 <span class="card-kicker">Twój wynik</span>
                                 <p>To dzienny punkt odniesienia. Od niego aplikacja liczy kalorie pozostałe do zjedzenia.</p>
@@ -128,14 +139,14 @@
                             break;
                     }
 
-                    @if (_goalStep < 8)
+                    @if (_goalStep < 9)
                     {
                         <div class="goal-wizard-actions">
                             @if (_goalStep > 1)
                             {
                                 <MudButton Variant="Variant.Outlined" OnClick="PreviousGoalStep">Wstecz</MudButton>
                             }
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextGoalStep">@(_goalStep == 7 ? "Wylicz zapotrzebowanie" : "Dalej")</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextGoalStep">@(_goalStep == 8 ? "Wylicz zapotrzebowanie" : "Dalej")</MudButton>
                         </div>
                     }
                 </MudPaper>
@@ -160,23 +171,15 @@
 
             <MudTabPanel Text="Ustawienia">
                 <MudPaper Class="profile-section" Elevation="0">
-                    <div class="profile-section-heading"><span class="card-kicker">Rytm aplikacji</span><h2>Ustawienia</h2></div>
-                    <MudNumericField @bind-Value="_toleranceKcal" Label="Tolerancja zaliczenia kalorii (± kcal)" Min="0" Max="1000" HelperText="Dzień zostanie zaliczony, gdy wynik zmieści się w tym odstępie od celu." />
-                    <MudNumericField @bind-Value="_plannedTrainings" Label="Planowane treningi tygodniowo" Min="1" Max="14" />
-                    <MudTextField @bind-Value="_timeZoneId" Label="Strefa czasowa" HelperText="Np. Europe/Warsaw" />
-                    <div class="meal-slot-settings">
-                        <div class="profile-section-heading"><span class="card-kicker">Dziennik jedzenia</span><h3>Sekcje posiłków</h3><p>Te nazwy pojawią się w dzienniku z przyciskiem dodawania.</p></div>
-                        @for (var i = 0; i < _mealSlots.Count; i++)
-                        {
-                            var index = i;
-                            <div class="meal-slot-edit">
-                                <MudTextField @bind-Value="_mealSlots[index]" Label="Nazwa sekcji" MaxLength="40" />
-                                <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Disabled="@(_mealSlots.Count == 1)" OnClick="() => _mealSlots.RemoveAt(index)" aria-label="Usuń sekcję" />
-                            </div>
-                        }
-                        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" Disabled="@(_mealSlots.Count >= 10)" OnClick="() => _mealSlots.Add(string.Empty)">Dodaj sekcję</MudButton>
-                    </div>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveProfile" Class="mt-3">Zapisz ustawienia</MudButton>
+                    <div class="profile-section-heading"><span class="card-kicker">Rytm aplikacji</span><h2>Ustawienia</h2><p>Każda grupa otwiera się osobno. Zapisujesz tylko to, co właśnie zmieniasz.</p></div>
+                    <nav class="settings-menu" aria-label="Ustawienia aplikacji">
+                        <a href="/profile/settings/nutrition"><MudIcon Icon="@Icons.Material.Outlined.Flag" /><span><strong>Cele żywieniowe</strong><small>@(_targetCalories?.ToString("0") ?? "—") kcal · B @_proteinG.ToString("0") g · T @_fatG.ToString("0") g · W @_carbsG.ToString("0") g</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                        <a href="/profile/settings/meals"><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><span><strong>Posiłki i godziny</strong><small>@_mealSlots.Count aktywnych sekcji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                        <a href="/profile/settings/reminders"><MudIcon Icon="@Icons.Material.Outlined.Notifications" /><span><strong>Przypomnienia</strong><small>@(_mealRemindersEnabled ? "Włączone" : "Wyłączone")</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                        <a href="/profile/settings/workouts"><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><span><strong>Ustawienia treningów</strong><small>@_defaultSets serie · @_defaultRepetitions powt. · @_defaultRestSeconds s przerwy</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                        <a href="/profile/settings/calendar"><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" /><span><strong>Kalendarz i tydzień</strong><small>Początek: @WeekDayName(_weekStartsOn)</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                        <a href="/profile/settings/appearance"><MudIcon Icon="@Icons.Material.Outlined.Palette" /><span><strong>Wygląd</strong><small>@ThemeName(_themePreference)</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                    </nav>
                 </MudPaper>
 
                 <MudPaper Class="profile-section account-section" Elevation="0">
@@ -207,7 +210,8 @@
     private bool _loading = true;
     private DateTime? _birthDate;
     private BiologicalSex? _sex;
-    private ActivityLevel? _activity;
+    private ActivityLevel? _workActivity;
+    private ActivityLevel? _trainingActivity;
     private BodyGoal? _goal;
     private decimal? _heightCm;
     private decimal? _currentWeightKg;
@@ -217,6 +221,14 @@
     private int _toleranceKcal = 100;
     private string _timeZoneId = "Europe/Warsaw";
     private List<string> _mealSlots = [];
+    private IReadOnlyList<MealScheduleEntry> _mealSchedule = [];
+    private int _defaultRestSeconds = 90;
+    private int _defaultRepetitions = 10;
+    private int _defaultSets = 3;
+    private DayOfWeek _weekStartsOn = DayOfWeek.Monday;
+    private string _themePreference = "system";
+    private bool _mealRemindersEnabled;
+    private int _mealReminderMinutesBefore;
     private decimal? _targetCalories;
     private decimal _proteinG;
     private decimal _fatG;
@@ -234,7 +246,7 @@
     private int _goalStep = 1;
     private char Initial => char.ToUpperInvariant(_profile!.Email[0]);
     private string GoalName => _goal switch { BodyGoal.Reduction => "Redukcja", BodyGoal.Maintenance => "Utrzymanie", BodyGoal.MuscleGain => "Budowanie masy", _ => "Cel nieustawiony" };
-    private decimal GoalProgress => _goalStep / 8m * 100m;
+    private decimal GoalProgress => _goalStep / 9m * 100m;
     private string TargetWeightHint => _goal == BodyGoal.Maintenance
         ? "Przy utrzymaniu możesz podać obecną masę."
         : "Podaj wagę, do której chcesz dojść.";
@@ -260,7 +272,8 @@
 
         _birthDate = _profile.BirthDate?.ToDateTime(TimeOnly.MinValue);
         _sex = _profile.Sex;
-        _activity = _profile.ActivityLevel;
+        _workActivity = _profile.WorkActivityLevel ?? _profile.ActivityLevel;
+        _trainingActivity = _profile.TrainingActivityLevel ?? ActivityLevel.Low;
         _goal = _profile.Goal;
         _heightCm = _profile.HeightCm;
         _startingWeightKg = _profile.StartingWeightKg;
@@ -271,13 +284,21 @@
         _toleranceKcal = _profile.CalorieToleranceKcal;
         _timeZoneId = _profile.TimeZoneId;
         _mealSlots = _profile.MealSlots?.ToList() ?? ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
+        _mealSchedule = _profile.MealSchedule ?? [];
+        _defaultRestSeconds = _profile.DefaultRestSeconds;
+        _defaultRepetitions = _profile.DefaultRepetitions;
+        _defaultSets = _profile.DefaultSets;
+        _weekStartsOn = _profile.WeekStartsOn;
+        _themePreference = _profile.ThemePreference;
+        _mealRemindersEnabled = _profile.MealRemindersEnabled;
+        _mealReminderMinutesBefore = _profile.MealReminderMinutesBefore;
         if (target is not null)
         {
             _targetCalories = target.CaloriesKcal;
             _proteinG = target.ProteinG;
             _fatG = target.FatG;
             _carbsG = target.CarbohydratesG;
-            _goalStep = 8;
+            _goalStep = 9;
         }
         _loading = false;
     }
@@ -294,7 +315,8 @@
             4 when _heightCm is null => "Podaj wzrost.",
             5 when _currentWeightKg is null => "Podaj obecną masę.",
             6 when _targetWeightKg is null => "Podaj docelową masę.",
-            7 when _activity is null => "Wybierz poziom aktywności.",
+            7 when _workActivity is null => "Wybierz aktywność w pracy.",
+            8 when _trainingActivity is null => "Wybierz aktywność treningową.",
             _ => null
         };
 
@@ -310,10 +332,10 @@
             _targetWeightKg ??= _currentWeightKg;
         }
 
-        if (_goalStep == 7)
+        if (_goalStep == 8)
         {
             CalculateTarget();
-            _goalStep = 8;
+            _goalStep = 9;
             return;
         }
 
@@ -326,9 +348,10 @@
         var birth = DateOnly.FromDateTime(_birthDate!.Value);
         var age = today.Year - birth.Year - (today < birth.AddYears(today.Year - birth.Year) ? 1 : 0);
         var bmr = 10m * _currentWeightKg!.Value + 6.25m * _heightCm!.Value - 5m * age + (_sex == BiologicalSex.Male ? 5m : -161m);
-        var factor = _activity switch { ActivityLevel.Low => 1.2m, ActivityLevel.Light => 1.375m, ActivityLevel.Moderate => 1.55m, _ => 1.725m };
+        var factor = _workActivity switch { ActivityLevel.Low => 1.2m, ActivityLevel.Light => 1.32m, ActivityLevel.Moderate => 1.45m, _ => 1.6m };
+        var trainingCalories = _trainingActivity switch { ActivityLevel.Low => 0m, ActivityLevel.Light => 120m, ActivityLevel.Moderate => 250m, _ => 400m };
         var adjustment = _goal switch { BodyGoal.Reduction => -400m, BodyGoal.MuscleGain => 250m, _ => 0m };
-        _targetCalories = Math.Round(Math.Max(1200m, bmr * factor + adjustment));
+        _targetCalories = Math.Round(Math.Max(1200m, bmr * factor + trainingCalories + adjustment));
         _proteinG = Math.Round(_currentWeightKg.Value * 2m);
         _fatG = Math.Round(_currentWeightKg.Value * .9m);
         _carbsG = Math.Round(Math.Max(0m, (_targetCalories.Value - _proteinG * 4m - _fatG * 9m) / 4m));
@@ -352,9 +375,14 @@
     {
         _profile = await Account.UpdateProfile(new UpdateUserProfileRequest(
             _timeZoneId, _heightCm, _startingWeightKg, _goal, _plannedTrainings,
-            _birthDate is null ? null : DateOnly.FromDateTime(_birthDate.Value), _sex, _activity, _targetWeightKg, _toleranceKcal,
-            _mealSlots.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList()));
+            _birthDate is null ? null : DateOnly.FromDateTime(_birthDate.Value), _sex, _workActivity, _targetWeightKg, _toleranceKcal,
+            _mealSlots.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList(),
+            _workActivity, _trainingActivity, _mealSchedule, _defaultRestSeconds, _defaultRepetitions, _defaultSets,
+            _weekStartsOn, _themePreference, _mealRemindersEnabled, _mealReminderMinutesBefore));
     }
+
+    private static string WeekDayName(DayOfWeek day) => day switch { DayOfWeek.Sunday => "niedziela", DayOfWeek.Saturday => "sobota", _ => "poniedziałek" };
+    private static string ThemeName(string theme) => theme switch { "dark" => "Ciemny", "light" => "Jasny", _ => "Zgodny z telefonem" };
 
     private static string ChoiceClass(bool selected) => selected ? "goal-choice selected" : "goal-choice";
 

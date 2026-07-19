@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using System.Globalization;
 using FormaAI.Contracts.Users;
+using FormaAI.Domain.Users;
 using FormaAI.Infrastructure.Identity;
 using FormaAI.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -36,7 +38,17 @@ public sealed class ProfileController(
             profile.ActivityLevel,
             profile.TargetWeightKg,
             profile.CalorieToleranceKcal,
-            Slots(profile));
+            Slots(profile),
+            profile.WorkActivityLevel ?? profile.ActivityLevel,
+            profile.TrainingActivityLevel,
+            Schedule(profile),
+            profile.DefaultRestSeconds,
+            profile.DefaultRepetitions,
+            profile.DefaultSets,
+            profile.WeekStartsOn,
+            profile.ThemePreference,
+            profile.MealRemindersEnabled,
+            profile.MealReminderMinutesBefore);
     }
 
     [HttpPut]
@@ -62,7 +74,17 @@ public sealed class ProfileController(
             request.ActivityLevel,
             request.TargetWeightKg,
             request.CalorieToleranceKcal,
-            request.MealSlots);
+            request.MealSlots,
+            request.WorkActivityLevel,
+            request.TrainingActivityLevel,
+            request.MealSchedule,
+            request.DefaultRestSeconds,
+            request.DefaultRepetitions,
+            request.DefaultSets,
+            request.WeekStartsOn,
+            request.ThemePreference,
+            request.MealRemindersEnabled,
+            request.MealReminderMinutesBefore);
         await db.SaveChangesAsync();
 
         var email = (await users.FindByIdAsync(userId))!.Email!;
@@ -79,11 +101,29 @@ public sealed class ProfileController(
             profile.ActivityLevel,
             profile.TargetWeightKg,
             profile.CalorieToleranceKcal,
-            Slots(profile));
+            Slots(profile),
+            profile.WorkActivityLevel ?? profile.ActivityLevel,
+            profile.TrainingActivityLevel,
+            Schedule(profile),
+            profile.DefaultRestSeconds,
+            profile.DefaultRepetitions,
+            profile.DefaultSets,
+            profile.WeekStartsOn,
+            profile.ThemePreference,
+            profile.MealRemindersEnabled,
+            profile.MealReminderMinutesBefore);
     }
 
     private static string[] Slots(FormaAI.Domain.Users.UserProfile profile) =>
         profile.MealSlots.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static MealScheduleEntry[] Schedule(FormaAI.Domain.Users.UserProfile profile) =>
+        profile.MealSchedule
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => value.Split('~'))
+            .Where(parts => parts.Length == 3 && TimeOnly.TryParseExact(parts[1], "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+            .Select(parts => new MealScheduleEntry(parts[0], TimeOnly.ParseExact(parts[1], "HH:mm", CultureInfo.InvariantCulture), parts[2] == "1"))
+            .ToArray();
 
     private static bool IsKnownTimeZone(string id)
     {

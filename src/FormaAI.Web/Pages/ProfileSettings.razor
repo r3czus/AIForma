@@ -1,0 +1,222 @@
+@page "/profile/settings/{Section}"
+@inject AccountClient Account
+@inject NutritionClient Nutrition
+@inject NavigationManager Navigation
+@inject IJSRuntime Js
+@inject ISnackbar Snackbar
+
+<PageTitle>@Title · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page settings-page">
+    <header class="settings-heading">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Href="/profile" aria-label="Wróć do profilu" />
+        <div><span class="page-kicker">Ustawienia profilu</span><h1>@Title</h1><p>@Description</p></div>
+    </header>
+
+    @if (_loading)
+    {
+        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję ustawienia</span></div>
+    }
+    else
+    {
+        <MudPaper Class="settings-sheet" Elevation="0">
+            @switch (Section)
+            {
+                case "nutrition":
+                    <section>
+                        <div class="goal-result-dials settings-goal-dials">
+                            <label class="goal-result-dial energy"><span>Kalorie</span><input type="number" min="0" step="1" @bind="_calories" /><small>kcal</small></label>
+                            <label class="goal-result-dial protein"><span>Białko</span><input type="number" min="0" step="1" @bind="_protein" /><small>g</small></label>
+                            <label class="goal-result-dial fat"><span>Tłuszcze</span><input type="number" min="0" step="1" @bind="_fat" /><small>g</small></label>
+                            <label class="goal-result-dial carbs"><span>Węglowodany</span><input type="number" min="0" step="1" @bind="_carbs" /><small>g</small></label>
+                        </div>
+                        <div class="settings-field-grid">
+                            <MudSelect T="ActivityLevel?" @bind-Value="_workActivity" Label="Aktywność w pracy">
+                                @foreach (var level in ActivityLevels) { <MudSelectItem T="ActivityLevel?" Value="@level.Value">@level.Label</MudSelectItem> }
+                            </MudSelect>
+                            <MudSelect T="ActivityLevel?" @bind-Value="_trainingActivity" Label="Aktywność treningowa">
+                                @foreach (var level in TrainingLevels) { <MudSelectItem T="ActivityLevel?" Value="@level.Value">@level.Label</MudSelectItem> }
+                            </MudSelect>
+                            <MudNumericField @bind-Value="_tolerance" Label="Tolerancja kalorii (± kcal)" Min="0" Max="1000" />
+                        </div>
+                        <p class="settings-note">Wartości w kółkach możesz wpisać ręcznie. Aktywności zostaną użyte przy następnym przeliczeniu celu.</p>
+                    </section>
+                    break;
+                case "meals":
+                    <section>
+                        <p class="settings-note">Włącz wybrane sekcje, nadaj im własne nazwy i ustaw zwykłą porę posiłku.</p>
+                        <div class="meal-schedule-list">
+                            @for (var i = 0; i < _meals.Count; i++)
+                            {
+                                var index = i;
+                                <div class="meal-schedule-row">
+                                    <MudSwitch @bind-Value="_meals[index].Enabled" Color="Color.Primary" aria-label="Włącz posiłek" />
+                                    <MudTextField @bind-Value="_meals[index].Name" Label="Nazwa posiłku" MaxLength="40" />
+                                    <label class="time-field"><span>Godzina</span><input type="time" value="@_meals[index].Time" @onchange="e => UpdateTime(index, e)" /></label>
+                                    <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Disabled="@(_meals.Count == 1)" OnClick="() => _meals.RemoveAt(index)" aria-label="Usuń posiłek" />
+                                </div>
+                            }
+                        </div>
+                        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" Disabled="@(_meals.Count >= 10)" OnClick="AddMeal">Dodaj posiłek</MudButton>
+                    </section>
+                    break;
+                case "reminders":
+                    <section class="settings-stack">
+                        <div class="settings-toggle"><div><strong>Przypomnienia o posiłkach</strong><span>Powiadomienie według godzin ustawionych w sekcji „Posiłki i godziny”.</span></div><MudSwitch @bind-Value="_reminders" Color="Color.Primary" /></div>
+                        <MudSelect T="int" @bind-Value="_reminderMinutes" Label="Ile minut przed posiłkiem?" Disabled="@(!_reminders)">
+                            <MudSelectItem Value="0">O ustawionej godzinie</MudSelectItem><MudSelectItem Value="5">5 minut</MudSelectItem><MudSelectItem Value="10">10 minut</MudSelectItem><MudSelectItem Value="15">15 minut</MudSelectItem><MudSelectItem Value="30">30 minut</MudSelectItem>
+                        </MudSelect>
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Na iPhonie dodaj FormaAI do ekranu początkowego. Wtedy Safari może wyświetlać systemowe powiadomienia aplikacji webowej.</MudAlert>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.NotificationsActive" OnClick="EnableNotifications">Włącz i przetestuj powiadomienie</MudButton>
+                    </section>
+                    break;
+                case "workouts":
+                    <section class="settings-stack">
+                        <MudNumericField @bind-Value="_defaultRest" Label="Domyślna przerwa między seriami (s)" Min="15" Max="900" />
+                        <MudNumericField @bind-Value="_defaultReps" Label="Domyślna liczba powtórzeń" Min="1" Max="100" />
+                        <MudNumericField @bind-Value="_defaultSets" Label="Domyślna liczba serii" Min="1" Max="20" />
+                        <MudNumericField @bind-Value="_plannedTrainings" Label="Planowane treningi tygodniowo" Min="1" Max="14" />
+                        <p class="settings-note">Te wartości będą podpowiadane podczas dodawania ćwiczenia. Nadal możesz zmienić je osobno w planie.</p>
+                    </section>
+                    break;
+                case "calendar":
+                    <section class="settings-stack">
+                        <MudSelect T="DayOfWeek" @bind-Value="_weekStart" Label="Pierwszy dzień tygodnia">
+                            @foreach (var day in WeekDays) { <MudSelectItem Value="@day.Value">@day.Label</MudSelectItem> }
+                        </MudSelect>
+                        <MudTextField @bind-Value="_timeZone" Label="Strefa czasowa" HelperText="Np. Europe/Warsaw" />
+                        <p class="settings-note">Ostatni dzień wybranego tygodnia pokazuje check-in. Od tego ustawienia zaczyna się też tygodniowy widok posiłków.</p>
+                    </section>
+                    break;
+                case "appearance":
+                    <section>
+                        <div class="theme-choice-grid">
+                            <button class="@ThemeClass("system")" @onclick="SelectSystemTheme"><MudIcon Icon="@Icons.Material.Outlined.SettingsBrightness" /><strong>Jak w telefonie</strong><span>Automatycznie dopasuj jasny lub ciemny motyw</span></button>
+                            <button class="@ThemeClass("light")" @onclick="SelectLightTheme"><MudIcon Icon="@Icons.Material.Outlined.LightMode" /><strong>Jasny</strong><span>Jasne tło przez cały czas</span></button>
+                            <button class="@ThemeClass("dark")" @onclick="SelectDarkTheme"><MudIcon Icon="@Icons.Material.Outlined.DarkMode" /><strong>Ciemny</strong><span>Wygodniejszy wieczorem i na siłowni</span></button>
+                        </div>
+                    </section>
+                    break;
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="Save" Class="settings-save">Zapisz ustawienia</MudButton>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public string Section { get; set; } = "appearance";
+    private UserProfileResponse? _profile;
+    private bool _loading = true;
+    private decimal _calories;
+    private decimal _protein;
+    private decimal _fat;
+    private decimal _carbs;
+    private ActivityLevel? _workActivity;
+    private ActivityLevel? _trainingActivity;
+    private int _tolerance = 100;
+    private List<MealSetting> _meals = [];
+    private int _defaultRest = 90;
+    private int _defaultReps = 10;
+    private int _defaultSets = 3;
+    private int? _plannedTrainings;
+    private DayOfWeek _weekStart = DayOfWeek.Monday;
+    private string _timeZone = "Europe/Warsaw";
+    private string _theme = "system";
+    private bool _reminders;
+    private int _reminderMinutes;
+
+    private string Title => Section switch { "nutrition" => "Cele żywieniowe", "meals" => "Posiłki i godziny", "reminders" => "Przypomnienia", "workouts" => "Ustawienia treningów", "calendar" => "Kalendarz i tydzień", _ => "Wygląd" };
+    private string Description => Section switch { "nutrition" => "Ustaw własne kalorie i makroskładniki.", "meals" => "Dopasuj dziennik do swojego rytmu dnia.", "reminders" => "Pozwól aplikacji przypomnieć o posiłku.", "workouts" => "Wartości startowe dla nowych ćwiczeń.", "calendar" => "Zdecyduj, kiedy zaczyna i kończy się Twój tydzień.", _ => "Wybierz motyw, w którym najlepiej korzysta Ci się z FormaAI." };
+    private static readonly (ActivityLevel Value, string Label)[] ActivityLevels = [(ActivityLevel.Low, "Siedząca"), (ActivityLevel.Light, "Lekko aktywna"), (ActivityLevel.Moderate, "Aktywna"), (ActivityLevel.High, "Fizyczna")];
+    private static readonly (ActivityLevel Value, string Label)[] TrainingLevels = [(ActivityLevel.Low, "Brak lub lekka"), (ActivityLevel.Light, "Lekka"), (ActivityLevel.Moderate, "Średnia"), (ActivityLevel.High, "Wysoka")];
+    private static readonly (DayOfWeek Value, string Label)[] WeekDays = [(DayOfWeek.Monday, "Poniedziałek"), (DayOfWeek.Tuesday, "Wtorek"), (DayOfWeek.Wednesday, "Środa"), (DayOfWeek.Thursday, "Czwartek"), (DayOfWeek.Friday, "Piątek"), (DayOfWeek.Saturday, "Sobota"), (DayOfWeek.Sunday, "Niedziela")];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_profile is not null) return;
+        if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
+        _profile = await Account.GetProfile();
+        var target = await Nutrition.GetCurrentTarget();
+        _calories = target?.CaloriesKcal ?? 0;
+        _protein = target?.ProteinG ?? 0;
+        _fat = target?.FatG ?? 0;
+        _carbs = target?.CarbohydratesG ?? 0;
+        _workActivity = _profile.WorkActivityLevel ?? _profile.ActivityLevel;
+        _trainingActivity = _profile.TrainingActivityLevel ?? ActivityLevel.Low;
+        _tolerance = _profile.CalorieToleranceKcal;
+        _defaultRest = _profile.DefaultRestSeconds;
+        _defaultReps = _profile.DefaultRepetitions;
+        _defaultSets = _profile.DefaultSets;
+        _plannedTrainings = _profile.PlannedTrainingsPerWeek;
+        _weekStart = _profile.WeekStartsOn;
+        _timeZone = _profile.TimeZoneId;
+        _theme = _profile.ThemePreference;
+        _reminders = _profile.MealRemindersEnabled;
+        _reminderMinutes = _profile.MealReminderMinutesBefore;
+        _meals = (_profile.MealSchedule?.Count > 0 ? _profile.MealSchedule : DefaultMeals())!
+            .Select(x => new MealSetting(x.Name, x.Time.ToString("HH:mm"), x.Enabled)).ToList();
+        _loading = false;
+    }
+
+    private void AddMeal() => _meals.Add(new MealSetting("Nowy posiłek", "12:00", true));
+    private void UpdateTime(int index, ChangeEventArgs args) => _meals[index].Time = args.Value?.ToString() ?? "12:00";
+    private string ThemeClass(string value) => _theme == value ? "theme-choice selected" : "theme-choice";
+    private Task SelectSystemTheme() => SelectTheme("system");
+    private Task SelectLightTheme() => SelectTheme("light");
+    private Task SelectDarkTheme() => SelectTheme("dark");
+
+    private async Task SelectTheme(string value)
+    {
+        _theme = value;
+        await Js.InvokeVoidAsync("formaSettings.applyTheme", value);
+    }
+
+    private async Task EnableNotifications()
+    {
+        var status = await Js.InvokeAsync<string>("formaSettings.requestNotifications");
+        if (status == "granted") { _reminders = true; Snackbar.Add("Powiadomienia działają.", Severity.Success); }
+        else Snackbar.Add("Telefon nie udzielił zgody na powiadomienia.", Severity.Warning);
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            var schedule = _meals.Where(x => !string.IsNullOrWhiteSpace(x.Name) && TimeOnly.TryParse(x.Time, out _))
+                .Select(x => new MealScheduleEntry(x.Name.Trim(), TimeOnly.Parse(x.Time), x.Enabled)).ToList();
+            var slots = schedule.Where(x => x.Enabled).Select(x => x.Name).ToList();
+            if (slots.Count == 0) { Snackbar.Add("Włącz przynajmniej jeden posiłek.", Severity.Info); return; }
+
+            _profile = await Account.UpdateProfile(new UpdateUserProfileRequest(
+                _timeZone, _profile!.HeightCm, _profile.StartingWeightKg, _profile.Goal, _plannedTrainings,
+                _profile.BirthDate, _profile.Sex, _workActivity, _profile.TargetWeightKg, _tolerance, slots,
+                _workActivity, _trainingActivity, schedule, _defaultRest, _defaultReps, _defaultSets,
+                _weekStart, _theme, _reminders, _reminderMinutes));
+
+            if (Section == "nutrition")
+                await Nutrition.SaveTarget(new SaveNutritionTargetRequest(DateOnly.FromDateTime(DateTime.Today), _calories, _protein, _fat, _carbs));
+            if (Section == "reminders" && _reminders)
+                await Js.InvokeVoidAsync("formaSettings.scheduleMealReminders", schedule, _reminderMinutes);
+            await Js.InvokeVoidAsync("formaSettings.applyTheme", _theme);
+            Snackbar.Add("Ustawienia zapisane.", Severity.Success);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się zapisać ustawień.", Severity.Error);
+        }
+    }
+
+    private static IReadOnlyList<MealScheduleEntry> DefaultMeals() =>
+    [
+        new("Śniadanie", new TimeOnly(7, 0), true), new("Lunch", new TimeOnly(12, 0), true),
+        new("Obiad", new TimeOnly(15, 0), true), new("Przekąska", new TimeOnly(18, 0), true), new("Kolacja", new TimeOnly(21, 0), true)
+    ];
+
+    private sealed class MealSetting(string name, string time, bool enabled)
+    {
+        public string Name { get; set; } = name;
+        public string Time { get; set; } = time;
+        public bool Enabled { get; set; } = enabled;
+    }
+}
