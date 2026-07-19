@@ -1444,7 +1444,13 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 }
 
 .daily-coach { background: var(--surface); border: 1px solid var(--rule); border-left: 5px solid var(--action); border-radius: 22px; margin: 18px 0; padding: 22px; }
-.daily-coach-content { align-items: center; display: grid; gap: 16px; grid-template-columns: 52px 1fr auto; }
+.daily-coach-content { align-items: center; display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) auto; }
+.daily-coach-content > div { min-width: 0; }
+.daily-coach-content h2 { margin: 7px 0 5px; overflow-wrap: anywhere; }
+.daily-coach-content p { color: var(--muted); line-height: 1.45; margin: 0; max-width: 58ch; }
+.daily-coach .momentum-strip { align-items: center; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 18px 0 0; padding-top: 16px; }
+.daily-coach .momentum-strip strong { font-family: "IBM Plex Mono", monospace; font-size: .86rem; }
+.daily-coach .momentum-strip span { background: transparent; border: 0; color: var(--muted); padding: 0; }
 .daily-coach-content > .mud-icon-root { background: var(--action-soft); border-radius: 16px; color: var(--action); font-size: 1.7rem; padding: 12px; }
 .momentum-strip { display: flex; gap: 8px; margin: 0 0 18px; overflow-x: auto; }
 .momentum-strip span { background: var(--surface); border: 1px solid var(--rule); border-radius: 999px; flex: 0 0 auto; font-size: .78rem; padding: 8px 12px; }
@@ -1455,15 +1461,25 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .progress-hub > a > .mud-icon-root:first-child { background: var(--action-soft); border-radius: 12px; color: var(--action); padding: 9px; }
 .progress-hub strong, .progress-hub span { display: block; }
 .progress-hub span { color: var(--muted); font-size: .78rem; margin-top: 2px; }
+.weekly-review-entry { align-items: center; background: var(--inverse-surface); border-radius: 18px; color: var(--inverse-ink); display: grid; gap: 14px; grid-template-columns: auto 1fr auto; margin-top: 14px; padding: 17px 18px; text-decoration: none; }
+.weekly-review-entry > .mud-icon-root:first-child { color: var(--action); }
+.weekly-review-entry strong, .weekly-review-entry small { display: block; }
+.weekly-review-entry small { color: #b9c7bf; margin-top: 3px; }
 .compact-heading { align-items: flex-start; display: grid; grid-template-columns: auto 1fr; }
 .review-progress { display: grid; gap: 6px; grid-template-columns: repeat(4, 1fr); margin-bottom: 14px; }
 .review-progress i { background: var(--rule); border-radius: 999px; height: 5px; }
 .review-progress i.active { background: var(--action); }
 .weekly-review-card { padding: 24px; }
 .review-days { display: grid; gap: 2px; margin: 18px 0; }
-.review-day { align-items: center; border-bottom: 1px solid var(--rule); display: grid; gap: 12px; grid-template-columns: 1fr minmax(145px, 190px); padding: 10px 0; }
+.review-day { align-items: center; border-bottom: 1px solid var(--rule); display: grid; gap: 14px; grid-template-columns: minmax(150px, .65fr) 1fr; padding: 14px 0; }
 .review-day strong, .review-day span { display: block; }
 .review-day span { color: var(--muted); font-size: .75rem; }
+.day-status-picker { display: grid; gap: 5px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.day-status-picker button { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; color: var(--muted); cursor: pointer; font-size: .68rem; min-height: 38px; padding: 6px; }
+.day-status-picker button.selected { background: var(--action-soft); border-color: var(--action); color: var(--action); font-weight: 700; }
+.day-status-picker button.selected.complete { background: var(--recovery-soft); border-color: var(--recovery); color: var(--recovery); }
+.day-status-picker button.selected.partial { background: var(--fuel-soft); border-color: var(--fuel); color: #a44e23; }
+.day-status-picker button.selected.nodata { background: var(--surface-soft); border-color: var(--muted); color: var(--ink); }
 .review-facts { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); margin: 20px 0; }
 .review-facts > div { background: var(--canvas); border: 1px solid var(--rule); border-radius: 16px; padding: 16px; }
 .review-facts strong, .review-facts span { display: block; }
@@ -1510,10 +1526,11 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .schedule-options > div { align-items: end; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
 @media (max-width: 640px) {
-    .daily-coach-content { grid-template-columns: auto 1fr; }
-    .daily-coach-content .mud-button-root { grid-column: 1 / -1; }
+    .daily-coach-content { align-items: stretch; grid-template-columns: 1fr; }
+    .daily-coach-content .mud-button-root { width: 100%; }
     .calorie-target-breakdown, .goal-calorie-split { grid-template-columns: 1fr; }
     .review-facts { grid-template-columns: 1fr; }
     .review-day { grid-template-columns: 1fr; }
+    .day-status-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .photo-grid { gap: 8px; }
 }

@@ -23,7 +23,6 @@
     else
     {
         <section class="progress-hub" aria-label="Narzędzia progresu">
-            <a href="/progress/weekly"><MudIcon Icon="@Icons.Material.Outlined.FactCheck" /><div><strong>Zamknij tydzień</strong><span>Sprawdź dane i regenerację</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
             <a href="/progress/photos"><MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" /><div><strong>Zdjęcia progresu</strong><span>Prywatne porównania sylwetki</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
             <a href="/progress/achievements"><MudIcon Icon="@Icons.Material.Outlined.EmojiEvents" /><div><strong>Osiągnięcia</strong><span>Kamienie milowe z realnych danych</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
         </section>
@@ -76,6 +75,12 @@
                 </div>
             </section>
         }
+
+        <a class="weekly-review-entry" href="/progress/weekly">
+            <MudIcon Icon="@Icons.Material.Outlined.FactCheck" />
+            <div><span class="card-kicker">Po podsumowaniu tygodnia</span><strong>Zamknij tydzień</strong><small>Sprawdź jakość danych, regenerację i wybierz następny krok.</small></div>
+            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+        </a>
 
         @if (DateTime.Today.DayOfWeek == CheckInDay)
         {
@@ -214,19 +219,6 @@
             </MudPaper>
         }
 
-        @if (_muscleVolume.Count > 0)
-        {
-            <MudPaper Class="progress-card" Elevation="0">
-                <div class="progress-card-heading"><span class="card-kicker">Rozkład pracy</span><MudText Typo="Typo.h6">Serie według grup mięśniowych</MudText><p>Sprawdź, czy tygodnie nie przeciążają jednej części ciała kosztem pozostałych.</p></div>
-                <div class="muscle-volume-list">
-                    @foreach (var group in _muscleVolume)
-                    {
-                        <div><span>@MuscleName(group.MuscleGroup)</span><i><b style="@($"width:{MuscleWidth(group.WorkingSets)}")"></b></i><strong>@group.WorkingSets serii · @group.VolumeKg.ToString("0") kg</strong></div>
-                    }
-                </div>
-            </MudPaper>
-        }
-
         @if (_nutrition?.Days.Any(x => x.HasMeals) == true)
         {
             <MudPaper Class="progress-card" Elevation="0">
@@ -250,6 +242,19 @@
             }
             <MudText Typo="Typo.caption">Wykonano @_consistency?.CompletedWorkouts z @_consistency?.PlannedWorkouts planowanych treningów.</MudText>
         </MudPaper>
+
+        @if (_muscleVolume.Count > 0)
+        {
+            <MudPaper Class="progress-card" Elevation="0">
+                <div class="progress-card-heading"><span class="card-kicker">Rozkład pracy</span><MudText Typo="Typo.h6">Serie według grup mięśniowych</MudText><p>Sprawdź, czy tygodnie nie przeciążają jednej części ciała kosztem pozostałych.</p></div>
+                <div class="muscle-volume-list">
+                    @foreach (var group in _muscleVolume)
+                    {
+                        <div><span>@MuscleName(group.MuscleGroup)</span><i><b style="@($"width:{MuscleWidth(group.WorkingSets)}")"></b></i><strong>@group.WorkingSets serii · @group.VolumeKg.ToString("0") kg</strong></div>
+                    }
+                </div>
+            </MudPaper>
+        }
 
         <MudPaper Class="progress-card" Elevation="0">
             <div class="progress-card-heading"><span class="card-kicker">Dziennik siły</span><MudText Typo="Typo.h6">Progres ćwiczenia</MudText><p>Objętość i szacowany rekord są pokazane osobno, bo pracują na różnych skalach.</p></div>

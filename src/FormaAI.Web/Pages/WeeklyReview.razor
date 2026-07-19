@@ -28,7 +28,15 @@
                 <div class="review-days">
                     @foreach (var day in _data.Days)
                     {
-                        <div class="review-day"><div><strong>@DayName(day.Date)</strong><span>@day.Meals posiłków · @day.Calories.ToString("0") kcal</span></div><MudSelect T="NutritionDayStatus" Value="day.Status" ValueChanged="value => SetStatus(day.Date, value)" Dense="true"><MudSelectItem Value="NutritionDayStatus.Complete">Kompletny</MudSelectItem><MudSelectItem Value="NutritionDayStatus.Partial">Częściowy</MudSelectItem><MudSelectItem Value="NutritionDayStatus.NoData">Brak danych</MudSelectItem></MudSelect></div>
+                        <div class="review-day">
+                            <div><strong>@DayName(day.Date)</strong><span>@day.Meals posiłków · @day.Calories.ToString("0") kcal</span></div>
+                            <div class="day-status-picker" role="group" aria-label="Jakość danych dla @DayName(day.Date)">
+                                @foreach (var option in StatusOptions)
+                                {
+                                    <button type="button" class="@StatusClass(day.Status, option.Value)" aria-pressed="@(day.Status == option.Value)" @onclick="() => SetStatus(day.Date, option.Value)">@option.Label</button>
+                                }
+                            </div>
+                        </div>
                     }
                 </div>
             }
@@ -64,9 +72,17 @@
 @code {
     private WeeklyReviewDataResponse? _data; private WeeklyReviewResponse? _saved; private bool _loading = true; private bool _saving; private int _step = 1;
     private int _energy = 3, _sleep = 3, _hunger = 3, _recovery = 3, _stress = 3; private string? _notes; private string? _reasons;
+    private static readonly (NutritionDayStatus Value, string Label)[] StatusOptions =
+    [
+        (NutritionDayStatus.Unknown, "Niezdecydowano"),
+        (NutritionDayStatus.Complete, "Kompletny"),
+        (NutritionDayStatus.Partial, "Częściowy"),
+        (NutritionDayStatus.NoData, "Brak danych")
+    ];
     private DateOnly WeekStart => DateOnly.FromDateTime(DateTime.Today).AddDays(-((7 + (int)DateTime.Today.DayOfWeek - (int)DayOfWeek.Monday) % 7));
     protected override async Task OnInitializedAsync() { if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; } _data = await Coaching.GetWeekly(WeekStart); _loading = false; }
     private async Task SetStatus(DateOnly date, NutritionDayStatus status) { await Nutrition.SaveDayStatus(date, status); _data = await Coaching.GetWeekly(WeekStart); }
     private async Task Save() { if (_saved is not null) { Navigation.NavigateTo("/progress"); return; } _saving = true; try { _saved = await Coaching.SaveWeekly(new(WeekStart, _energy, _sleep, _hunger, _recovery, _stress, _notes, _reasons)); Snackbar.Add("Tydzień został podsumowany.", Severity.Success); } finally { _saving = false; } }
     private static string DayName(DateOnly date) => date.ToString("ddd, d MMM", new System.Globalization.CultureInfo("pl-PL"));
+    private static string StatusClass(NutritionDayStatus current, NutritionDayStatus option) => current == option ? $"selected {option.ToString().ToLowerInvariant()}" : string.Empty;
 }

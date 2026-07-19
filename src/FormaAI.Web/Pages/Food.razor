@@ -113,6 +113,7 @@
                             <p>Oznacz dzień świadomie. Jeden posiłek nie oznacza jeszcze kompletnego dziennika.</p>
                         </div>
                         <div class="day-close-actions">
+                            <MudButton Variant="@StatusVariant(NutritionDayStatus.Unknown)" Color="Color.Primary" OnClick="() => SetDayStatus(NutritionDayStatus.Unknown)">Niezdecydowano</MudButton>
                             <MudButton Variant="@StatusVariant(NutritionDayStatus.Complete)" Color="Color.Success" OnClick="() => SetDayStatus(NutritionDayStatus.Complete)">Dziennik kompletny</MudButton>
                             <MudButton Variant="@StatusVariant(NutritionDayStatus.Partial)" Color="Color.Warning" OnClick="() => SetDayStatus(NutritionDayStatus.Partial)">Zapisałem część</MudButton>
                             <MudButton Variant="@StatusVariant(NutritionDayStatus.NoData)" Color="Color.Default" OnClick="() => SetDayStatus(NutritionDayStatus.NoData)">Brak danych</MudButton>
@@ -333,7 +334,7 @@
         NutritionDayStatus.Complete => "Ten dzień jest zamknięty",
         NutritionDayStatus.Partial => "Dane są częściowe",
         NutritionDayStatus.NoData => "Dzień oznaczony jako brak danych",
-        _ => "Czy wszystko zostało zapisane?"
+        _ => "Niezdecydowano"
     };
 
     protected override async Task OnInitializedAsync()
