@@ -114,9 +114,12 @@ public sealed class WorkoutSession
     public DateTime? FinishedAtUtc { get; private set; }
     public SessionStatus Status { get; private set; }
     public string? Notes { get; private set; }
+    public bool IsShortened { get; private set; }
+    public int? TimeLimitMinutes { get; private set; }
     public List<WorkoutExercise> Exercises { get; private set; } = [];
     public void Finish(SessionStatus status) { Status = status; FinishedAtUtc = DateTime.UtcNow; }
     public void UpdateNotes(string? notes) => Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+    public void MarkShortened(int minutes) { IsShortened = true; TimeLimitMinutes = minutes; }
 }
 
 public sealed class WorkoutExercise
@@ -145,6 +148,7 @@ public sealed class WorkoutExercise
     public int? RestSeconds { get; private set; }
     public List<CompletedSet> Sets { get; private set; } = [];
     public void ReplaceExercise(Exercise exercise) { ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; }
+    public void Shorten(int sets) => PlannedSets = Math.Min(PlannedSets, sets);
 }
 
 public sealed class CompletedSet

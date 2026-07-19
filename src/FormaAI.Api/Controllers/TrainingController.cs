@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FormaAI.Contracts.Training;
 using FormaAI.Domain.Training;
+using FormaAI.Domain.Progress;
 using FormaAI.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -152,8 +153,12 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         if (plan is null) return NotFound();
         var zoneId = await db.UserProfiles.Where(x => x.UserId == userId).Select(x => x.TimeZoneId).SingleAsync();
         var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(zoneId));
-        var day = plan.Days.FirstOrDefault(x => x.DayOfWeek == localNow.DayOfWeek)
-            ?? plan.Days.Where(x => x.DayOfWeek == null).OrderBy(x => x.SequenceNumber).FirstOrDefault();
+        var localDate = DateOnly.FromDateTime(localNow);
+        var exception = await db.TrainingScheduleExceptions.Where(x => x.UserId == userId && (x.NewDate == localDate || x.OriginalDate == localDate)).OrderByDescending(x => x.NewDate == localDate).FirstOrDefaultAsync();
+        var day = exception?.NewDate == localDate ? plan.Days.FirstOrDefault(x => x.Id == exception.TrainingDayId)
+            : exception is { OriginalDate: var original } && original == localDate && exception.Decision != ScheduleDecision.Completed ? null
+            : plan.Days.FirstOrDefault(x => x.DayOfWeek == localNow.DayOfWeek)
+                ?? plan.Days.Where(x => x.DayOfWeek == null).OrderBy(x => x.SequenceNumber).FirstOrDefault();
         if (day is null) return NotFound();
         var from = TimeZoneInfo.ConvertTimeToUtc(localNow.Date, TimeZoneInfo.FindSystemTimeZoneById(zoneId));
         var completed = await db.WorkoutSessions.AnyAsync(x => x.UserId == userId && x.TrainingDayId == day.Id && x.Status == SessionStatus.Completed && x.StartedAtUtc >= from && x.StartedAtUtc < from.AddDays(1));
@@ -175,7 +180,19 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         var ids = day.Exercises.Select(x => x.ExerciseId).ToList();
         var catalog = await db.Exercises.Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id);
         var session = new WorkoutSession(userId, plan, day);
-        foreach (var planned in day.Exercises.OrderBy(x => x.Order)) session.Exercises.Add(new WorkoutExercise(planned, catalog[planned.ExerciseId]));
+        var plannedExercises = day.Exercises.OrderBy(x => x.Order).ToList();
+        if (request.TimeLimitMinutes is 15 or 30)
+        {
+            session.MarkShortened(request.TimeLimitMinutes.Value);
+            plannedExercises = plannedExercises.Take(request.TimeLimitMinutes == 15 ? 3 : 4).ToList();
+        }
+        foreach (var planned in plannedExercises)
+        {
+            var item = new WorkoutExercise(planned, catalog[planned.ExerciseId]);
+            if (request.TimeLimitMinutes is 15) item.Shorten(2);
+            else if (request.TimeLimitMinutes is 30) item.Shorten(3);
+            session.Exercises.Add(item);
+        }
         db.WorkoutSessions.Add(session);
         await db.SaveChangesAsync();
         return Created($"api/v1/workout-sessions/{session.Id}", SessionResponse(session));
@@ -277,6 +294,51 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     [ValidateAntiForgeryToken]
     public Task<IActionResult> Abandon(Guid id) => Finish(id, SessionStatus.Abandoned);
 
+    [HttpGet("workout-sessions/{id:guid}/progressions")]
+    public async Task<IReadOnlyList<ExerciseProgressionResponse>> Progressions(Guid id)
+    {
+        var userId = UserId();
+        var rows = await db.ExerciseProgressions.Where(x => x.UserId == userId && x.SourceSessionId == id).ToListAsync();
+        var names = await db.Exercises.Where(x => rows.Select(r => r.ExerciseId).Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name);
+        return rows.Select(x => new ExerciseProgressionResponse(x.Id, x.ExerciseId, names.GetValueOrDefault(x.ExerciseId, "Ćwiczenie"), x.SuggestedWeightKg, x.MinReps, x.MaxReps, x.Reason, x.Decision, x.AcceptedWeightKg)).ToList();
+    }
+
+    [HttpPut("exercise-progressions/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<ExerciseProgressionResponse>> DecideProgression(Guid id, DecideProgressionRequest request)
+    {
+        var item = await db.ExerciseProgressions.SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
+        if (item is null) return NotFound();
+        item.Decide(request.Decision, request.WeightKg ?? item.SuggestedWeightKg);
+        await db.SaveChangesAsync();
+        var name = await db.Exercises.Where(x => x.Id == item.ExerciseId).Select(x => x.Name).SingleAsync();
+        return new ExerciseProgressionResponse(item.Id, item.ExerciseId, name, item.SuggestedWeightKg, item.MinReps, item.MaxReps, item.Reason, item.Decision, item.AcceptedWeightKg);
+    }
+
+    [HttpGet("training-schedule")]
+    public async Task<IReadOnlyList<TrainingScheduleExceptionResponse>> TrainingSchedule([FromQuery] DateOnly from, [FromQuery] DateOnly to)
+    {
+        var userId = UserId();
+        var rows = await db.TrainingScheduleExceptions.Where(x => x.UserId == userId && x.OriginalDate <= to && (x.NewDate ?? x.OriginalDate) >= from).ToListAsync();
+        var names = await db.TrainingDays.Where(x => rows.Select(r => r.TrainingDayId).Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name);
+        return rows.Select(x => new TrainingScheduleExceptionResponse(x.Id, x.TrainingDayId, names.GetValueOrDefault(x.TrainingDayId, "Trening"), x.OriginalDate, x.NewDate, x.Decision, x.Reason)).ToList();
+    }
+
+    [HttpPost("training-schedule")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<TrainingScheduleExceptionResponse>> SaveTrainingSchedule(SaveTrainingScheduleExceptionRequest request)
+    {
+        var userId = UserId();
+        var day = await db.TrainingDays.SingleOrDefaultAsync(x => x.Id == request.TrainingDayId && db.TrainingPlans.Any(p => p.Id == x.TrainingPlanId && p.UserId == userId));
+        if (day is null) return NotFound();
+        var old = await db.TrainingScheduleExceptions.SingleOrDefaultAsync(x => x.UserId == userId && x.TrainingDayId == request.TrainingDayId && x.OriginalDate == request.OriginalDate);
+        if (old is not null) db.TrainingScheduleExceptions.Remove(old);
+        var item = new TrainingScheduleException(userId, request.TrainingDayId, request.OriginalDate, request.NewDate, request.Decision, request.Reason);
+        db.TrainingScheduleExceptions.Add(item);
+        await db.SaveChangesAsync();
+        return new TrainingScheduleExceptionResponse(item.Id, item.TrainingDayId, day.Name, item.OriginalDate, item.NewDate, item.Decision, item.Reason);
+    }
+
     [HttpGet("exercises/{id:guid}/history")]
     public async Task<IReadOnlyList<ExerciseHistoryEntry>> ExerciseHistory(Guid id)
     {
@@ -288,10 +350,24 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
 
     private async Task<IActionResult> Finish(Guid id, SessionStatus status)
     {
-        var session = await db.WorkoutSessions.SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
+        var session = await SessionQuery().SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
         if (session is null) return NotFound();
         if (session.Status != SessionStatus.InProgress) return Conflict("Trening jest już zakończony.");
         session.Finish(status);
+        if (status == SessionStatus.Completed)
+        {
+            foreach (var exercise in session.Exercises.Where(x => x.ExerciseId.HasValue))
+            {
+                var sets = exercise.Sets.Where(x => x.Type == SetType.Working).ToList();
+                if (sets.Count == 0) continue;
+                var top = sets.Max(x => x.WeightKg);
+                var reachedTop = sets.Count >= exercise.PlannedSets && sets.All(x => x.Repetitions >= exercise.MaxReps) && sets.All(x => !x.Rir.HasValue || x.Rir >= (exercise.TargetRir ?? 1));
+                var suggested = reachedTop ? Math.Ceiling((top + 2.5m) / 2.5m) * 2.5m : top;
+                var reason = reachedTop ? "Wszystkie serie osiągnęły górny zakres z zapasem."
+                    : sets.Any(x => x.Repetitions < exercise.MinReps) ? "Najpierw ustabilizuj dolny zakres powtórzeń." : "Dodaj powtórzenie, zanim zwiększysz ciężar.";
+                db.ExerciseProgressions.Add(new ExerciseProgression(session.UserId, exercise.ExerciseId!.Value, session.Id, suggested, exercise.MinReps, exercise.MaxReps, reason));
+            }
+        }
         await db.SaveChangesAsync();
         return NoContent();
     }
@@ -339,5 +415,5 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     private static CompletedSetResponse SetResponse(CompletedSet x) => new(x.Id, x.SetNumber, x.WeightKg, x.Repetitions, x.Rir, x.Type, x.CompletedAtUtc, x.Notes);
     private static WorkoutExerciseResponse ExerciseResponse(WorkoutExercise e) => new(e.Id, e.ExerciseId, e.ExerciseNameSnapshot, e.Order, e.PlannedSets, e.MinReps, e.MaxReps, e.TargetRir, e.RestSeconds, e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList());
     private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(x.Id, x.NameSnapshot, x.StartedAtUtc, x.FinishedAtUtc, x.Status,
-        x.Exercises.OrderBy(e => e.Order).Select(e => new WorkoutExerciseResponse(e.Id, e.ExerciseId, e.ExerciseNameSnapshot, e.Order, e.PlannedSets, e.MinReps, e.MaxReps, e.TargetRir, e.RestSeconds, e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList())).ToList());
+        x.Exercises.OrderBy(e => e.Order).Select(e => new WorkoutExerciseResponse(e.Id, e.ExerciseId, e.ExerciseNameSnapshot, e.Order, e.PlannedSets, e.MinReps, e.MaxReps, e.TargetRir, e.RestSeconds, e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList())).ToList(), x.IsShortened, x.TimeLimitMinutes);
 }

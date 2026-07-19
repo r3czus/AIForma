@@ -40,9 +40,21 @@
                     <div><span class="card-kicker">Dzisiaj · @_today.PlanName</span><MudText Typo="Typo.h5">@_today.DayName</MudText></div>
                     <span class="data-chip">@_today.Exercises.Count ćwiczeń</span>
                 </div>
+                @if (!_today.AlreadyCompleted)
+                {
+                    <div class="workout-length-picker" role="group" aria-label="Długość treningu">
+                        <button class="@(_workoutMinutes is null ? "selected" : null)" @onclick="() => _workoutMinutes = null"><strong>Pełny</strong><span>cały plan</span></button>
+                        <button class="@(_workoutMinutes == 30 ? "selected" : null)" @onclick="() => _workoutMinutes = 30"><strong>30 min</strong><span>4 ćwiczenia</span></button>
+                        <button class="@(_workoutMinutes == 15 ? "selected" : null)" @onclick="() => _workoutMinutes = 15"><strong>15 min</strong><span>minimum dnia</span></button>
+                    </div>
+                }
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_today.AlreadyCompleted" OnClick="Start" Class="mt-3">
                     @(_today.AlreadyCompleted ? "Trening wykonany" : "Rozpocznij trening")
                 </MudButton>
+                @if (!_today.AlreadyCompleted)
+                {
+                    <details class="schedule-options"><summary>Nie możesz dzisiaj?</summary><div><MudDatePicker @bind-Date="_moveDate" Label="Przenieś na dzień" MinDate="DateTime.Today.AddDays(1)" /><MudButton Variant="Variant.Outlined" OnClick="MoveWorkout">Przenieś trening</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="SkipWorkout">Pomiń świadomie</MudButton></div></details>
+                }
             </MudPaper>
         }
         else
@@ -210,6 +222,8 @@
     private int? _editingDayIndex;
     private int? _editingExerciseIndex;
     private Guid? _editingLibraryExerciseId;
+    private int? _workoutMinutes;
+    private DateTime? _moveDate = DateTime.Today.AddDays(1);
 
     protected override async Task OnInitializedAsync()
     {
@@ -319,7 +333,9 @@
         _editingLibraryExerciseId = null; _custom.Name = string.Empty; _custom.Description = string.Empty; _custom.IsUnilateral = false;
     }
     private async Task Activate(Guid id) => await Run(async () => { await TrainingApi.Activate(id); await Reload(); });
-    private async Task Start() { var session = await TrainingApi.Start(_today!.TrainingDayId); Navigation.NavigateTo($"/workout/{session.Id}"); }
+    private async Task Start() { var session = await TrainingApi.Start(_today!.TrainingDayId, _workoutMinutes); Navigation.NavigateTo($"/workout/{session.Id}"); }
+    private async Task MoveWorkout() { if (_moveDate is null || _today is null) return; await TrainingApi.SaveSchedule(new(_today.TrainingDayId, DateOnly.FromDateTime(DateTime.Today), DateOnly.FromDateTime(_moveDate.Value), ScheduleDecision.Moved, "Przeniesiono przez użytkownika")); Snackbar.Add("Trening został przeniesiony.", Severity.Success); await Reload(); }
+    private async Task SkipWorkout() { if (_today is null) return; await TrainingApi.SaveSchedule(new(_today.TrainingDayId, DateOnly.FromDateTime(DateTime.Today), null, ScheduleDecision.Skipped, "Pominięto przez użytkownika")); Snackbar.Add("Dzień został oznaczony jako świadomie pominięty.", Severity.Info); await Reload(); }
     private async Task Run(Func<Task> action) { try { await action(); } catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać zmian.", Severity.Error); } }
     private static string DayName(DayOfWeek day) => day switch { DayOfWeek.Monday => "Poniedziałek", DayOfWeek.Tuesday => "Wtorek", DayOfWeek.Wednesday => "Środa", DayOfWeek.Thursday => "Czwartek", DayOfWeek.Friday => "Piątek", DayOfWeek.Saturday => "Sobota", _ => "Niedziela" };
     private string StepClass(int step) => step == _planStep ? "active" : step < _planStep ? "done" : string.Empty;

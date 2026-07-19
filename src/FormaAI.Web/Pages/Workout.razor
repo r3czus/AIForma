@@ -43,6 +43,17 @@
                     <MudAlert Severity="Severity.Success" Class="mt-3">Nowy najlepszy wynik: @string.Join(", ", _newRecords)</MudAlert>
                 }
 
+                @if (_progressions.Count > 0)
+                {
+                    <section class="progression-review">
+                        <div><span class="card-kicker">Następna sesja</span><MudText Typo="Typo.h6">Progres wymaga Twojej decyzji</MudText></div>
+                        @foreach (var item in _progressions)
+                        {
+                            <article><div><strong>@item.ExerciseName</strong><span>@item.Reason</span></div><div class="progression-values"><strong>@item.SuggestedWeightKg.ToString("0.#") kg</strong><span>· @item.MinReps–@item.MaxReps powt.</span></div>@if (item.Decision == ProgressionDecision.Pending) { <div class="progression-actions"><MudButton Size="Size.Small" Color="Color.Success" OnClick="() => Decide(item, ProgressionDecision.Accepted)">Akceptuj</MudButton><MudButton Size="Size.Small" OnClick="() => Decide(item, ProgressionDecision.Changed)">Bez zmiany</MudButton><MudButton Size="Size.Small" Color="Color.Error" OnClick="() => Decide(item, ProgressionDecision.Rejected)">Odrzuć</MudButton></div> } else { <MudChip T="string" Size="Size.Small">@DecisionName(item.Decision)</MudChip> }</article>
+                        }
+                    </section>
+                }
+
                 <div class="workout-result-list">
                     @foreach (var exercise in OrderedExercises)
                     {
@@ -183,6 +194,7 @@
     private readonly Dictionary<Guid, ExerciseHistoryEntry?> _history = [];
     private IReadOnlyList<ExerciseResponse> _catalog = [];
     private readonly List<string> _newRecords = [];
+    private IReadOnlyList<ExerciseProgressionResponse> _progressions = [];
     private Guid? _swapTargetId;
     private Guid? _selectedExerciseId;
     private string? _sessionNotes;
@@ -210,6 +222,7 @@
     {
         await Reload();
         _completed = _session!.Status == SessionStatus.Completed;
+        if (_completed) _progressions = await TrainingApi.GetProgressions(Id);
         _elapsed = (_session.FinishedAtUtc ?? DateTime.UtcNow) - _session.StartedAtUtc;
         _catalog = await TrainingApi.GetExercises();
 
@@ -357,7 +370,22 @@
         _clockCancellation?.Cancel();
         _completed = true;
         _timerRunning = false;
+        _progressions = await TrainingApi.GetProgressions(Id);
     }
+
+    private async Task Decide(ExerciseProgressionResponse item, ProgressionDecision decision)
+    {
+        await TrainingApi.DecideProgression(item.Id, new(decision, decision == ProgressionDecision.Accepted ? item.SuggestedWeightKg : null));
+        _progressions = await TrainingApi.GetProgressions(Id);
+    }
+
+    private static string DecisionName(ProgressionDecision decision) => decision switch
+    {
+        ProgressionDecision.Accepted => "Przyjęto",
+        ProgressionDecision.Changed => "Bez zmiany",
+        ProgressionDecision.Rejected => "Odrzucono",
+        _ => "Oczekuje"
+    };
 
     private async Task Abandon()
     {
