@@ -18,18 +18,18 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     public async Task<IReadOnlyList<ExerciseResponse>> Exercises([FromQuery] string? query)
     {
         var userId = UserId();
-        var exercises = db.Exercises.Where(x => x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId));
+        var exercises = db.Exercises.Include(x => x.MuscleEngagements).Where(x => x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId));
         if (!string.IsNullOrWhiteSpace(query)) exercises = exercises.Where(x => x.Name.Contains(query));
-        return await exercises.OrderBy(x => x.Name).Take(50)
-            .Select(x => new ExerciseResponse(x.Id, x.Name, x.PrimaryMuscleGroup, x.Equipment, x.IsUnilateral, x.OwnerUserId != null, x.Description))
-            .ToListAsync();
+        return (await exercises.OrderBy(x => x.Name).Take(50).ToListAsync()).Select(ExerciseResponse).ToList();
     }
 
     [HttpPost("exercises")]
     [ValidateAntiForgeryToken]
     public async Task<ActionResult<ExerciseResponse>> CreateExercise(SaveExerciseRequest request)
     {
+        if (!ValidEngagements(request)) return ValidationProblem("Wybierz 1–5 unikalnych partii, których suma wynosi 100%.");
         var exercise = new Exercise(UserId(), request.Name, request.MuscleGroup, request.Equipment, request.IsUnilateral, request.Description);
+        exercise.SetMuscleEngagements(Engagements(request));
         db.Exercises.Add(exercise);
         await db.SaveChangesAsync();
         return Created($"api/v1/exercises/{exercise.Id}", ExerciseResponse(exercise));
@@ -39,9 +39,11 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     [ValidateAntiForgeryToken]
     public async Task<ActionResult<ExerciseResponse>> UpdateExercise(Guid id, SaveExerciseRequest request)
     {
-        var exercise = await db.Exercises.SingleOrDefaultAsync(x => x.Id == id && x.OwnerUserId == UserId());
+        if (!ValidEngagements(request)) return ValidationProblem("Wybierz 1–5 unikalnych partii, których suma wynosi 100%.");
+        var exercise = await db.Exercises.Include(x => x.MuscleEngagements).SingleOrDefaultAsync(x => x.Id == id && x.OwnerUserId == UserId());
         if (exercise is null) return NotFound();
         exercise.Update(request.Name, request.MuscleGroup, request.Equipment, request.IsUnilateral, request.Description);
+        exercise.SetMuscleEngagements(Engagements(request));
         await db.SaveChangesAsync();
         return ExerciseResponse(exercise);
     }
@@ -178,7 +180,7 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         if (day is null) return NotFound();
         var plan = await db.TrainingPlans.SingleAsync(x => x.Id == day.TrainingPlanId);
         var ids = day.Exercises.Select(x => x.ExerciseId).ToList();
-        var catalog = await db.Exercises.Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id);
+        var catalog = await db.Exercises.Include(x => x.MuscleEngagements).Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id);
         var session = new WorkoutSession(userId, plan, day);
         var plannedExercises = day.Exercises.OrderBy(x => x.Order).ToList();
         if (request.TimeLimitMinutes is 15 or 30)
@@ -251,7 +253,7 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         var session = await SessionQuery().SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
         if (session is null) return NotFound();
         if (session.Status != SessionStatus.InProgress) return Conflict("Trening jest już zakończony.");
-        var exercise = await db.Exercises.SingleOrDefaultAsync(x => x.Id == request.ExerciseId && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == UserId()));
+        var exercise = await db.Exercises.Include(x => x.MuscleEngagements).SingleOrDefaultAsync(x => x.Id == request.ExerciseId && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == UserId()));
         if (exercise is null || request.MinReps > request.MaxReps) return ValidationProblem("Nieprawidłowe ćwiczenie lub zakres powtórzeń.");
         var item = new WorkoutExercise(exercise, session.Exercises.Count + 1, request.PlannedSets, request.MinReps, request.MaxReps, request.TargetRir, request.RestSeconds);
         session.Exercises.Add(item);
@@ -268,7 +270,7 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         var item = session.Exercises.SingleOrDefault(x => x.Id == workoutExerciseId);
         if (item is null) return NotFound();
         if (item.Sets.Count > 0) return Conflict("Nie można zamienić ćwiczenia po zapisaniu serii.");
-        var exercise = await db.Exercises.SingleOrDefaultAsync(x => x.Id == request.ExerciseId && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == UserId()));
+        var exercise = await db.Exercises.Include(x => x.MuscleEngagements).SingleOrDefaultAsync(x => x.Id == request.ExerciseId && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == UserId()));
         if (exercise is null) return NotFound();
         item.ReplaceExercise(exercise);
         await db.SaveChangesAsync();
@@ -409,9 +411,18 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         return planned.OrderBy(x => x.Order).Select(x => new PlannedExerciseResponse(x.Id, x.ExerciseId, names[x.ExerciseId], x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds)).ToList();
     }
 
-    private IQueryable<WorkoutSession> SessionQuery() => db.WorkoutSessions.Include(x => x.Exercises).ThenInclude(x => x.Sets);
+    private IQueryable<WorkoutSession> SessionQuery() => db.WorkoutSessions.Include(x => x.Exercises).ThenInclude(x => x.Sets).Include(x => x.Exercises).ThenInclude(x => x.MuscleEngagements);
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-    private static ExerciseResponse ExerciseResponse(Exercise x) => new(x.Id, x.Name, x.PrimaryMuscleGroup, x.Equipment, x.IsUnilateral, x.OwnerUserId != null, x.Description);
+    private static bool ValidEngagements(SaveExerciseRequest request)
+    {
+        var rows = request.MuscleEngagements;
+        return rows is null || rows.Count == 0 || rows.Count is >= 1 and <= 5 && rows.All(x => x.Percentage is >= 1 and <= 100)
+            && rows.Sum(x => x.Percentage) == 100 && rows.Select(x => x.MuscleGroup).Distinct().Count() == rows.Count;
+    }
+    private static IEnumerable<(MuscleGroup Group, int Percentage)> Engagements(SaveExerciseRequest request) =>
+        request.MuscleEngagements is { Count: > 0 } ? request.MuscleEngagements.Select(x => (x.MuscleGroup, x.Percentage)) : [(request.MuscleGroup, 100)];
+    private static ExerciseResponse ExerciseResponse(Exercise x) => new(x.Id, x.Name, x.PrimaryMuscleGroup, x.Equipment, x.IsUnilateral, x.OwnerUserId != null, x.Description,
+        x.MuscleEngagements.Count > 0 ? x.MuscleEngagements.OrderByDescending(e => e.Percentage).Select(e => new ExerciseMuscleEngagementResponse(e.MuscleGroup, e.Percentage)).ToList() : [new(x.PrimaryMuscleGroup, 100)]);
     private static CompletedSetResponse SetResponse(CompletedSet x) => new(x.Id, x.SetNumber, x.WeightKg, x.Repetitions, x.Rir, x.Type, x.CompletedAtUtc, x.Notes);
     private static WorkoutExerciseResponse ExerciseResponse(WorkoutExercise e) => new(e.Id, e.ExerciseId, e.ExerciseNameSnapshot, e.Order, e.PlannedSets, e.MinReps, e.MaxReps, e.TargetRir, e.RestSeconds, e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList());
     private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(x.Id, x.NameSnapshot, x.StartedAtUtc, x.FinishedAtUtc, x.Status,

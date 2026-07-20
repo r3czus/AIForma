@@ -973,6 +973,15 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .progress-tools > a > .mud-icon-root:first-child { background: var(--action-soft); border-radius: 11px; color: var(--action); padding: 8px; }
 .progress-tools strong, .progress-tools span { display: block; }
 .progress-tools span { color: var(--muted); font-size: .68rem; }
+.muscle-work-layout { align-items: center; display: grid; gap: 18px; grid-template-columns: minmax(220px, .8fr) 1.2fr; }
+.muscle-engagement-editor { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 18px; margin: 10px 0; padding: 16px; }
+.muscle-engagement-heading, .muscle-engagement-footer { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
+.muscle-engagement-heading strong, .muscle-engagement-heading span { display: block; }
+.muscle-engagement-heading div > span, .muscle-engagement-footer > span { color: var(--muted); font-size: .7rem; }
+.muscle-engagement-heading > span { background: var(--fuel-soft); border-radius: 999px; color: var(--fuel); flex: 0 0 auto; font: 600 .7rem "IBM Plex Mono", monospace; padding: 6px 9px; }
+.muscle-engagement-heading > span.complete { background: var(--recovery-soft); color: var(--recovery); }
+.muscle-engagement-row { align-items: center; border-top: 1px solid var(--rule); display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) 110px auto; padding: 10px 0 2px; }
+.muscle-engagement-footer { border-top: 1px solid var(--rule); margin-top: 8px; padding-top: 8px; }
 .progress-card-heading { margin-bottom: 14px; }
 .progress-card-heading .mud-typography-h6 { margin: 0 0 5px; }
 .progress-card-heading p { color: var(--muted); font-size: .82rem; line-height: 1.5; margin: 0; }
@@ -1623,6 +1632,8 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .progress-card { padding: 18px; }
     .progress-card .mud-chart { max-width: 100%; overflow: hidden; }
     .measurement-heading { align-items: stretch; flex-direction: column; }
+    .muscle-work-layout { grid-template-columns: 1fr; }
+    .muscle-engagement-row { grid-template-columns: minmax(0, 1fr) 92px auto; }
 }
 
 @media (max-width: 390px) {

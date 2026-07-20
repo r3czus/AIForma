@@ -192,24 +192,35 @@
                     <div class="module-form-heading"><span class="card-kicker">Biblioteka</span><h2>@(_editingLibraryExerciseId is null ? "Dodaj własne ćwiczenie" : "Edytuj własne ćwiczenie")</h2><p>Opisz ruch i wybierz sprzęt tak, aby później od razu wiedzieć, czy potrzebujesz maszyny czy wolnego ciężaru.</p></div>
                     <MudTextField @bind-Value="_custom.Name" Label="Nazwa ćwiczenia" Required="true" />
                     <MudTextField @bind-Value="_custom.Description" Label="Opis i wskazówki wykonania" Placeholder="Np. ustaw ławkę pod kątem 30°, łopatki trzymaj ściągnięte" Lines="3" MaxLength="1000" />
-                    <div class="field-grid">
-                        <MudSelect T="MuscleGroup" @bind-Value="_custom.MuscleGroup" Label="Grupa mięśniowa">
-                            @foreach (var group in Enum.GetValues<MuscleGroup>()) { <MudSelectItem Value="@group">@MuscleGroupName(group)</MudSelectItem> }
-                        </MudSelect>
-                        <MudSelect T="Equipment" @bind-Value="_custom.Equipment" Label="Sprzęt / rodzaj obciążenia" HelperText="@EquipmentKind(_custom.Equipment)">
-                            @foreach (var equipment in Enum.GetValues<Equipment>()) { <MudSelectItem Value="@equipment">@EquipmentName(equipment)</MudSelectItem> }
-                        </MudSelect>
-                    </div>
+                    <MudSelect T="Equipment" @bind-Value="_custom.Equipment" Label="Sprzęt / rodzaj obciążenia" HelperText="@EquipmentKind(_custom.Equipment)">
+                        @foreach (var equipment in Enum.GetValues<Equipment>()) { <MudSelectItem Value="@equipment">@EquipmentName(equipment)</MudSelectItem> }
+                    </MudSelect>
+                    <section class="muscle-engagement-editor">
+                        <div class="muscle-engagement-heading"><div><strong>Zaangażowanie partii</strong><span>Ustal udział pracy każdej partii w tym ćwiczeniu.</span></div><span class="@(EngagementTotal == 100 ? "complete" : null)">Razem @EngagementTotal%</span></div>
+                        @for (var i = 0; i < _custom.Engagements.Count; i++)
+                        {
+                            var index = i;
+                            var row = _custom.Engagements[index];
+                            <div class="muscle-engagement-row">
+                                <MudSelect T="MuscleGroup" Value="row.MuscleGroup" ValueChanged="group => ChangeEngagementGroup(index, group)" Label="Partia">
+                                    @foreach (var group in Enum.GetValues<MuscleGroup>()) { <MudSelectItem Value="@group" Disabled="@GroupUsedByOtherRow(group, index)">@MuscleGroupName(group)</MudSelectItem> }
+                                </MudSelect>
+                                <MudNumericField T="int" Value="row.Percentage" ValueChanged="value => ChangeEngagementPercentage(index, value)" Label="Udział %" Min="1" Max="100" />
+                                <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Disabled="@(_custom.Engagements.Count == 1)" OnClick="() => RemoveEngagement(index)" aria-label="Usuń partię" />
+                            </div>
+                        }
+                        <div class="muscle-engagement-footer"><span>@(EngagementRemaining == 0 ? "Suma jest prawidłowa" : EngagementRemaining > 0 ? $"Pozostało {EngagementRemaining}%" : $"Przekroczono o {-EngagementRemaining}%")</span><MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Outlined.Add" Disabled="@(_custom.Engagements.Count >= 5)" OnClick="AddEngagement">Dodaj partię</MudButton></div>
+                    </section>
                     <MudCheckBox @bind-Value="_custom.IsUnilateral" Label="Ćwiczenie jednostronne" />
                     <div class="builder-actions end">
                         @if (_editingLibraryExerciseId is not null) { <MudButton Variant="Variant.Text" OnClick="CancelExerciseEdit">Anuluj</MudButton> }
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(_custom.Name))" OnClick="SaveExercise">@(_editingLibraryExerciseId is null ? "Dodaj do biblioteki" : "Zapisz zmiany")</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(_custom.Name) || EngagementTotal != 100)" OnClick="SaveExercise">@(_editingLibraryExerciseId is null ? "Dodaj do biblioteki" : "Zapisz zmiany")</MudButton>
                     </div>
                 </section>
                 <div class="exercise-index">
                     @foreach (var exercise in _exercises)
                     {
-                        <article class="exercise-card"><div><strong>@exercise.Name</strong>@if (exercise.IsOwn) { <div class="exercise-card-actions"><small>Własne</small><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditLibraryExercise(exercise)" aria-label="Edytuj własne ćwiczenie" /></div> }</div><span>@MuscleGroupName(exercise.MuscleGroup) · @EquipmentName(exercise.Equipment)</span>@if (!string.IsNullOrWhiteSpace(exercise.Description)) { <p>@exercise.Description</p> }</article>
+                        <article class="exercise-card"><div><strong>@exercise.Name</strong>@if (exercise.IsOwn) { <div class="exercise-card-actions"><small>Własne</small><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditLibraryExercise(exercise)" aria-label="Edytuj własne ćwiczenie" /></div> }</div><span>@EngagementLabel(exercise) · @EquipmentName(exercise.Equipment)</span>@if (!string.IsNullOrWhiteSpace(exercise.Description)) { <p>@exercise.Description</p> }</article>
                     }
                 </div>
             </MudTabPanel>
@@ -335,7 +346,9 @@
     });
     private async Task SaveExercise() => await Run(async () =>
     {
-        var request = new SaveExerciseRequest(_custom.Name, _custom.MuscleGroup, _custom.Equipment, _custom.IsUnilateral, _custom.Description);
+        var rows = _custom.Engagements.Select(x => new ExerciseMuscleEngagementRequest(x.MuscleGroup, x.Percentage)).ToList();
+        var primary = _custom.Engagements.OrderByDescending(x => x.Percentage).First().MuscleGroup;
+        var request = new SaveExerciseRequest(_custom.Name, primary, _custom.Equipment, _custom.IsUnilateral, _custom.Description, rows);
         if (_editingLibraryExerciseId is Guid id) await TrainingApi.UpdateExercise(id, request);
         else await TrainingApi.SaveExercise(request);
         CancelExerciseEdit(); await Reload(); Snackbar.Add("Ćwiczenie zapisane w bibliotece.", Severity.Success);
@@ -343,12 +356,25 @@
     private void EditLibraryExercise(ExerciseResponse exercise)
     {
         _editingLibraryExerciseId = exercise.Id; _custom.Name = exercise.Name; _custom.Description = exercise.Description;
-        _custom.MuscleGroup = exercise.MuscleGroup; _custom.Equipment = exercise.Equipment; _custom.IsUnilateral = exercise.IsUnilateral;
+        _custom.Equipment = exercise.Equipment; _custom.IsUnilateral = exercise.IsUnilateral; _custom.Engagements.Clear();
+        _custom.Engagements.AddRange((exercise.MuscleEngagements ?? [new(exercise.MuscleGroup, 100)]).Select(x => new EngagementDraft(x.MuscleGroup, x.Percentage)));
     }
     private void CancelExerciseEdit()
     {
-        _editingLibraryExerciseId = null; _custom.Name = string.Empty; _custom.Description = string.Empty; _custom.IsUnilateral = false;
+        _editingLibraryExerciseId = null; _custom.Name = string.Empty; _custom.Description = string.Empty; _custom.IsUnilateral = false; _custom.Engagements.Clear(); _custom.Engagements.Add(new(MuscleGroup.FullBody, 100));
     }
+    private int EngagementTotal => _custom.Engagements.Sum(x => x.Percentage);
+    private int EngagementRemaining => 100 - EngagementTotal;
+    private void AddEngagement()
+    {
+        var group = Enum.GetValues<MuscleGroup>().FirstOrDefault(x => _custom.Engagements.All(e => e.MuscleGroup != x));
+        _custom.Engagements.Add(new(group, Math.Max(1, EngagementRemaining)));
+    }
+    private void RemoveEngagement(int index) => _custom.Engagements.RemoveAt(index);
+    private void ChangeEngagementGroup(int index, MuscleGroup group) => _custom.Engagements[index].MuscleGroup = group;
+    private void ChangeEngagementPercentage(int index, int percentage) => _custom.Engagements[index].Percentage = percentage;
+    private bool GroupUsedByOtherRow(MuscleGroup group, int index) => _custom.Engagements.Where((_, i) => i != index).Any(x => x.MuscleGroup == group);
+    private static string EngagementLabel(ExerciseResponse exercise) => string.Join(" · ", (exercise.MuscleEngagements ?? [new(exercise.MuscleGroup, 100)]).OrderByDescending(x => x.Percentage).Select(x => $"{MuscleGroupName(x.MuscleGroup)} {x.Percentage}%"));
     private async Task Activate(Guid id) => await Run(async () => { await TrainingApi.Activate(id); await Reload(); });
     private async Task Start() { var session = await TrainingApi.Start(_today!.TrainingDayId, _workoutMinutes); Navigation.NavigateTo($"/workout/{session.Id}"); }
     private async Task MoveWorkout() { if (_moveDate is null || _today is null) return; await TrainingApi.SaveSchedule(new(_today.TrainingDayId, DateOnly.FromDateTime(DateTime.Today), DateOnly.FromDateTime(_moveDate.Value), ScheduleDecision.Moved, "Przeniesiono przez użytkownika")); Snackbar.Add("Trening został przeniesiony.", Severity.Success); await Reload(); }
@@ -394,7 +420,8 @@
     private sealed class PlanDraft { public string Name { get; set; } = "Mój plan"; public string Goal { get; set; } = string.Empty; public DateOnly StartsOn { get; set; } = DateOnly.FromDateTime(DateTime.Now); public List<DayDraftItem> Days { get; } = []; }
     private sealed class DayDraft { public string Name { get; set; } = string.Empty; public DayOfWeek? DayOfWeek { get; set; } public List<PlannedDraftItem> Exercises { get; } = []; }
     private sealed class PlannedDraft { public Guid? ExerciseId { get; set; } public int Sets { get; set; } = 3; public int MinReps { get; set; } = 8; public int MaxReps { get; set; } = 12; public decimal? Rir { get; set; } = 2; public int? RestSeconds { get; set; } = 90; }
-    private sealed class ExerciseDraft { public string Name { get; set; } = string.Empty; public string? Description { get; set; } public MuscleGroup MuscleGroup { get; set; } = MuscleGroup.FullBody; public Equipment Equipment { get; set; } = Equipment.Other; public bool IsUnilateral { get; set; } }
+    private sealed class ExerciseDraft { public string Name { get; set; } = string.Empty; public string? Description { get; set; } public Equipment Equipment { get; set; } = Equipment.Other; public bool IsUnilateral { get; set; } public List<EngagementDraft> Engagements { get; } = [new(MuscleGroup.FullBody, 100)]; }
+    private sealed class EngagementDraft(MuscleGroup muscleGroup, int percentage) { public MuscleGroup MuscleGroup { get; set; } = muscleGroup; public int Percentage { get; set; } = percentage; }
     private sealed record PlannedDraftItem(Guid ExerciseId, string Name, int Sets, int MinReps, int MaxReps, decimal? Rir, int? RestSeconds);
     private sealed record DayDraftItem(string Name, DayOfWeek? DayOfWeek, List<PlannedDraftItem> Exercises);
 }

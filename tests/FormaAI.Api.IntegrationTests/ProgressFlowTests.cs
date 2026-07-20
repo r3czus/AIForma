@@ -29,7 +29,8 @@ public sealed class ProgressFlowTests : IClassFixture<FormaAiFactory>
         Assert.Equal(79m, weight!.CurrentAverageKg);
         Assert.DoesNotContain(weight.Points, x => x.WeightKg == 200m);
 
-        var exercise = await Send<SaveExerciseRequest, ExerciseResponse>(owner, "api/v1/exercises", new("Próba progresu", MuscleGroup.Back, Equipment.Cable, false));
+        var exercise = await Send<SaveExerciseRequest, ExerciseResponse>(owner, "api/v1/exercises", new("Próba progresu", MuscleGroup.Back, Equipment.Cable, false,
+            MuscleEngagements: [new(MuscleGroup.Back, 60), new(MuscleGroup.Biceps, 40)]));
         var plan = await Send<SaveTrainingPlanRequest, TrainingPlanResponse>(owner, "api/v1/training-plans",
             new("Progres", "Test", today, [new("Dzień", DateTime.UtcNow.DayOfWeek, [new(exercise.Id, 2, 8, 10, 2, 60)])]));
         var session = await Send<StartWorkoutRequest, WorkoutSessionResponse>(owner, "api/v1/workout-sessions", new(plan.Days.Single().Id));
@@ -42,6 +43,10 @@ public sealed class ProgressFlowTests : IClassFixture<FormaAiFactory>
         Assert.Equal(66.67m, progress.Points.Single().EstimatedOneRepMaxKg);
         var consistency = await owner.GetFromJsonAsync<ConsistencyResponse>($"api/v1/progress/consistency?from={today.AddDays(-1):yyyy-MM-dd}&to={today.AddDays(1):yyyy-MM-dd}");
         Assert.Equal(1, consistency!.CompletedWorkouts);
+        var muscleWork = await owner.GetFromJsonAsync<List<MuscleVolumePoint>>($"api/v1/progress/muscle-volume?from={today.AddDays(-1):yyyy-MM-dd}&to={today.AddDays(1):yyyy-MM-dd}");
+        var backWork = Assert.Single(muscleWork!, x => x.MuscleGroup == nameof(MuscleGroup.Back));
+        Assert.Equal(0.6m, backWork.WorkingSets);
+        Assert.Equal(60m, backWork.WorkPercent);
 
         var otherProgress = await other.GetFromJsonAsync<WeightProgressResponse>($"api/v1/progress/weight?from={today.AddDays(-10):yyyy-MM-dd}&to={today:yyyy-MM-dd}");
         Assert.Single(otherProgress!.Points);

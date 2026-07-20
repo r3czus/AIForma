@@ -165,7 +165,7 @@
             {
                 <MudPaper Class="progress-card" Elevation="0">
                     <div class="progress-card-heading"><span class="card-kicker">Rozkład pracy</span><MudText Typo="Typo.h6">Zaangażowanie partii</MudText><p>@PeriodLabel</p></div>
-                    <div class="muscle-volume-list">@foreach (var group in _muscleVolume) { <div><span>@MuscleName(group.MuscleGroup)</span><i><b style="@($"width:{MuscleWidth(group.WorkingSets)}")"></b></i><strong>@group.WorkingSets serii · @group.VolumeKg.ToString("0") kg</strong></div> }</div>
+                    <div class="muscle-work-layout"><MudChart ChartType="ChartType.Donut" InputData="@MuscleWorkData" InputLabels="@MuscleWorkLabels" Width="100%" Height="240px" /><div class="muscle-volume-list">@foreach (var group in _muscleVolume) { <div><span>@MuscleName(group.MuscleGroup)</span><i><b style="@($"width:{group.WorkPercent:0.#}%")"></b></i><strong>@group.WorkPercent.ToString("0.#")% · @group.WorkingSets.ToString("0.#") ważonych serii</strong></div> }</div></div>
                 </MudPaper>
             }
         }
@@ -216,6 +216,8 @@
     private string[] ExerciseLabels => _exerciseProgress!.Points.Select(x => x.Date.ToString("dd.MM")).ToArray();
     private List<ChartSeries> BodySeries => BodyMetrics.Where(x => _visibleBodyMetrics.Contains(x.Key)).Select(x => new ChartSeries { Name = x.Label, Data = BodyMetricData(x.Key) }).ToList();
     private string[] BodyLabels => _measurements.Select(x => x.LocalDate.ToString("dd.MM")).ToArray();
+    private double[] MuscleWorkData => _muscleVolume.Select(x => (double)x.WorkPercent).ToArray();
+    private string[] MuscleWorkLabels => _muscleVolume.Select(x => MuscleName(x.MuscleGroup)).ToArray();
 
     protected override async Task OnInitializedAsync()
     {
@@ -294,6 +296,5 @@
     private static string Invariant(decimal value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
     private void ToggleBodyMetric(string key) { if (!_visibleBodyMetrics.Remove(key)) _visibleBodyMetrics.Add(key); else if (_visibleBodyMetrics.Count == 0) _visibleBodyMetrics.Add(key); }
     private double[] BodyMetricData(string key) => _measurements.Select(x => (double)(key switch { "waist" => x.WaistCm, "chest" => x.ChestCm, "hips" => x.HipsCm, "arm" => x.ArmCm, _ => x.ThighCm } ?? 0)).ToArray();
-    private string MuscleWidth(int sets) { var max = _muscleVolume.Max(x => x.WorkingSets); return $"{(max == 0 ? 0 : sets * 100m / max):0.#}%"; }
     private static string MuscleName(string name) => name switch { "Chest" => "Klatka piersiowa", "Back" => "Plecy", "Shoulders" => "Barki", "Biceps" => "Biceps", "Triceps" => "Triceps", "Quadriceps" => "Czworogłowe", "Hamstrings" => "Dwugłowe uda", "Glutes" => "Pośladki", "Calves" => "Łydki", "Core" => "Brzuch", _ => "Całe ciało" };
 }

@@ -4,8 +4,10 @@ using FormaAI.Domain.Progress;
 
 namespace FormaAI.Contracts.Training;
 
-public sealed record ExerciseResponse(Guid Id, string Name, MuscleGroup MuscleGroup, Equipment Equipment, bool IsUnilateral, bool IsOwn, string? Description = null);
-public sealed record SaveExerciseRequest([Required, MaxLength(150)] string Name, MuscleGroup MuscleGroup, Equipment Equipment, bool IsUnilateral, [MaxLength(1000)] string? Description = null);
+public sealed record ExerciseMuscleEngagementResponse(MuscleGroup MuscleGroup, int Percentage);
+public sealed record ExerciseMuscleEngagementRequest(MuscleGroup MuscleGroup, [Range(1, 100)] int Percentage);
+public sealed record ExerciseResponse(Guid Id, string Name, MuscleGroup MuscleGroup, Equipment Equipment, bool IsUnilateral, bool IsOwn, string? Description = null, IReadOnlyList<ExerciseMuscleEngagementResponse>? MuscleEngagements = null);
+public sealed record SaveExerciseRequest([Required, MaxLength(150)] string Name, MuscleGroup MuscleGroup, Equipment Equipment, bool IsUnilateral, [MaxLength(1000)] string? Description = null, IReadOnlyList<ExerciseMuscleEngagementRequest>? MuscleEngagements = null);
 public sealed record PlannedExerciseRequest(Guid ExerciseId, [Range(1, 10)] int Sets, [Range(1, 100)] int MinReps, [Range(1, 100)] int MaxReps, [Range(0, 10)] decimal? TargetRir, [Range(0, 3600)] int? RestSeconds);
 public sealed record TrainingDayRequest([Required, MaxLength(100)] string Name, DayOfWeek? DayOfWeek, [MinLength(1)] IReadOnlyList<PlannedExerciseRequest> Exercises);
 public sealed record SaveTrainingPlanRequest([Required, MaxLength(150)] string Name, [MaxLength(500)] string Goal, DateOnly StartsOn, [MinLength(1)] IReadOnlyList<TrainingDayRequest> Days);

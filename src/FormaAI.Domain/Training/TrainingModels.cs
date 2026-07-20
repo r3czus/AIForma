@@ -21,6 +21,7 @@ public sealed class Exercise
     public string Name { get; private set; } = null!;
     public string? Description { get; private set; }
     public MuscleGroup PrimaryMuscleGroup { get; private set; }
+    public List<ExerciseMuscleEngagement> MuscleEngagements { get; private set; } = [];
     public Equipment Equipment { get; private set; }
     public bool IsUnilateral { get; private set; }
     public bool IsActive { get; private set; }
@@ -32,6 +33,30 @@ public sealed class Exercise
         Name = name.Trim(); PrimaryMuscleGroup = muscleGroup; Equipment = equipment; IsUnilateral = unilateral;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(); UpdatedAtUtc = DateTime.UtcNow;
     }
+
+    public void SetMuscleEngagements(IEnumerable<(MuscleGroup Group, int Percentage)> values)
+    {
+        var items = values.ToList();
+        if (items.Count is < 1 or > 5 || items.Sum(x => x.Percentage) != 100 || items.Any(x => x.Percentage is < 1 or > 100) || items.Select(x => x.Group).Distinct().Count() != items.Count)
+            throw new ArgumentException("Zaangażowanie musi zawierać 1–5 unikalnych partii o łącznym udziale 100%.");
+        MuscleEngagements.Clear();
+        MuscleEngagements.AddRange(items.Select(x => new ExerciseMuscleEngagement(Id, x.Group, x.Percentage)));
+        PrimaryMuscleGroup = items.OrderByDescending(x => x.Percentage).First().Group;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+}
+
+public sealed class ExerciseMuscleEngagement
+{
+    private ExerciseMuscleEngagement() { }
+    public ExerciseMuscleEngagement(Guid exerciseId, MuscleGroup muscleGroup, int percentage)
+    {
+        Id = Guid.NewGuid(); ExerciseId = exerciseId; MuscleGroup = muscleGroup; Percentage = percentage;
+    }
+    public Guid Id { get; private set; }
+    public Guid ExerciseId { get; private set; }
+    public MuscleGroup MuscleGroup { get; private set; }
+    public int Percentage { get; private set; }
 }
 
 public sealed class TrainingPlan
@@ -130,11 +155,13 @@ public sealed class WorkoutExercise
         Id = Guid.NewGuid(); ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Order = planned.Order;
         PlannedSets = planned.Sets; MinReps = planned.MinReps; MaxReps = planned.MaxReps;
         TargetRir = planned.TargetRir; RestSeconds = planned.RestSeconds;
+        Snapshot(exercise);
     }
     public WorkoutExercise(Exercise exercise, int order, int sets, int minReps, int maxReps, decimal? targetRir, int? restSeconds)
     {
         Id = Guid.NewGuid(); ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Order = order;
         PlannedSets = sets; MinReps = minReps; MaxReps = maxReps; TargetRir = targetRir; RestSeconds = restSeconds;
+        Snapshot(exercise);
     }
     public Guid Id { get; private set; }
     public Guid WorkoutSessionId { get; private set; }
@@ -147,8 +174,30 @@ public sealed class WorkoutExercise
     public decimal? TargetRir { get; private set; }
     public int? RestSeconds { get; private set; }
     public List<CompletedSet> Sets { get; private set; } = [];
-    public void ReplaceExercise(Exercise exercise) { ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; }
+    public List<WorkoutExerciseMuscleEngagement> MuscleEngagements { get; private set; } = [];
+    public void ReplaceExercise(Exercise exercise) { ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Snapshot(exercise); }
     public void Shorten(int sets) => PlannedSets = Math.Min(PlannedSets, sets);
+    private void Snapshot(Exercise exercise)
+    {
+        var source = exercise.MuscleEngagements.Count > 0
+            ? exercise.MuscleEngagements.Select(x => (x.MuscleGroup, x.Percentage))
+            : [(exercise.PrimaryMuscleGroup, 100)];
+        MuscleEngagements.Clear();
+        MuscleEngagements.AddRange(source.Select(x => new WorkoutExerciseMuscleEngagement(Id, x.MuscleGroup, x.Percentage)));
+    }
+}
+
+public sealed class WorkoutExerciseMuscleEngagement
+{
+    private WorkoutExerciseMuscleEngagement() { }
+    public WorkoutExerciseMuscleEngagement(Guid workoutExerciseId, MuscleGroup muscleGroup, int percentage)
+    {
+        Id = Guid.NewGuid(); WorkoutExerciseId = workoutExerciseId; MuscleGroup = muscleGroup; Percentage = percentage;
+    }
+    public Guid Id { get; private set; }
+    public Guid WorkoutExerciseId { get; private set; }
+    public MuscleGroup MuscleGroup { get; private set; }
+    public int Percentage { get; private set; }
 }
 
 public sealed class CompletedSet

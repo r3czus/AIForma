@@ -20,11 +20,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<MealItem> MealItems => Set<MealItem>();
     public DbSet<NutritionDayReview> NutritionDayReviews => Set<NutritionDayReview>();
     public DbSet<Exercise> Exercises => Set<Exercise>();
+    public DbSet<ExerciseMuscleEngagement> ExerciseMuscleEngagements => Set<ExerciseMuscleEngagement>();
     public DbSet<TrainingPlan> TrainingPlans => Set<TrainingPlan>();
     public DbSet<TrainingDay> TrainingDays => Set<TrainingDay>();
     public DbSet<PlannedExercise> PlannedExercises => Set<PlannedExercise>();
     public DbSet<WorkoutSession> WorkoutSessions => Set<WorkoutSession>();
     public DbSet<WorkoutExercise> WorkoutExercises => Set<WorkoutExercise>();
+    public DbSet<WorkoutExerciseMuscleEngagement> WorkoutExerciseMuscleEngagements => Set<WorkoutExerciseMuscleEngagement>();
     public DbSet<CompletedSet> CompletedSets => Set<CompletedSet>();
     public DbSet<BodyMeasurement> BodyMeasurements => Set<BodyMeasurement>();
     public DbSet<WeeklyCheckIn> WeeklyCheckIns => Set<WeeklyCheckIn>();
@@ -121,6 +123,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             exercise.Property(x => x.OwnerUserId).HasMaxLength(450);
             exercise.Property(x => x.Name).HasMaxLength(150).IsRequired();
             exercise.Property(x => x.Description).HasMaxLength(1000);
+            exercise.HasMany(x => x.MuscleEngagements).WithOne().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Cascade);
             exercise.HasIndex(x => x.Name);
             var seededAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             exercise.HasData(
@@ -130,6 +133,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
                 new { Id = Guid.Parse("10000000-0000-0000-0000-000000000004"), OwnerUserId = (string?)null, Name = "Wiosłowanie sztangą", PrimaryMuscleGroup = MuscleGroup.Back, Equipment = Equipment.Barbell, IsUnilateral = false, IsActive = true, CreatedAtUtc = seededAt, UpdatedAtUtc = seededAt },
                 new { Id = Guid.Parse("10000000-0000-0000-0000-000000000005"), OwnerUserId = (string?)null, Name = "Wyciskanie nad głowę", PrimaryMuscleGroup = MuscleGroup.Shoulders, Equipment = Equipment.Barbell, IsUnilateral = false, IsActive = true, CreatedAtUtc = seededAt, UpdatedAtUtc = seededAt },
                 new { Id = Guid.Parse("10000000-0000-0000-0000-000000000006"), OwnerUserId = (string?)null, Name = "Podciąganie", PrimaryMuscleGroup = MuscleGroup.Back, Equipment = Equipment.Bodyweight, IsUnilateral = false, IsActive = true, CreatedAtUtc = seededAt, UpdatedAtUtc = seededAt });
+        });
+
+        builder.Entity<ExerciseMuscleEngagement>(engagement =>
+        {
+            engagement.HasKey(x => x.Id);
+            engagement.HasIndex(x => new { x.ExerciseId, x.MuscleGroup }).IsUnique();
+            engagement.ToTable(t => t.HasCheckConstraint("CK_ExerciseMuscleEngagements_Percentage", "[Percentage] >= 1 AND [Percentage] <= 100"));
         });
 
         builder.Entity<TrainingPlan>(plan =>
@@ -175,7 +185,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             workout.Property(x => x.ExerciseNameSnapshot).HasMaxLength(150).IsRequired();
             workout.Property(x => x.TargetRir).HasPrecision(3, 1);
             workout.HasMany(x => x.Sets).WithOne().HasForeignKey(x => x.WorkoutExerciseId).OnDelete(DeleteBehavior.Cascade);
+            workout.HasMany(x => x.MuscleEngagements).WithOne().HasForeignKey(x => x.WorkoutExerciseId).OnDelete(DeleteBehavior.Cascade);
             workout.HasOne<Exercise>().WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<WorkoutExerciseMuscleEngagement>(engagement =>
+        {
+            engagement.HasKey(x => x.Id);
+            engagement.HasIndex(x => new { x.WorkoutExerciseId, x.MuscleGroup }).IsUnique();
+            engagement.ToTable(t => t.HasCheckConstraint("CK_WorkoutExerciseMuscleEngagements_Percentage", "[Percentage] >= 1 AND [Percentage] <= 100"));
         });
 
         builder.Entity<CompletedSet>(set =>

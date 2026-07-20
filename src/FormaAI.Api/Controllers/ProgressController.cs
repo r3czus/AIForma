@@ -228,12 +228,19 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         var rows = await (from set in db.CompletedSets
                           join item in db.WorkoutExercises on set.WorkoutExerciseId equals item.Id
                           join session in db.WorkoutSessions on item.WorkoutSessionId equals session.Id
-                          join exercise in db.Exercises on item.ExerciseId equals exercise.Id
+                          join engagement in db.WorkoutExerciseMuscleEngagements on item.Id equals engagement.WorkoutExerciseId
                           where session.UserId == UserId() && session.Status == SessionStatus.Completed && set.Type == SetType.Working
                               && set.CompletedAtUtc >= fromUtc && set.CompletedAtUtc < toUtc
-                          select new { exercise.PrimaryMuscleGroup, set.WeightKg, set.Repetitions }).ToListAsync();
-        return rows.GroupBy(x => x.PrimaryMuscleGroup).OrderByDescending(x => x.Count())
-            .Select(x => new MuscleVolumePoint(x.Key.ToString(), x.Count(), x.Sum(y => y.WeightKg * y.Repetitions))).ToList();
+                          select new { engagement.MuscleGroup, engagement.Percentage, set.WeightKg, set.Repetitions }).ToListAsync();
+        var groups = rows.GroupBy(x => x.MuscleGroup).Select(x => new
+        {
+            x.Key,
+            Sets = x.Sum(y => y.Percentage / 100m),
+            Volume = x.Sum(y => y.WeightKg * y.Repetitions * y.Percentage / 100m)
+        }).OrderByDescending(x => x.Sets).ToList();
+        var total = groups.Sum(x => x.Sets);
+        return groups.Select(x => new MuscleVolumePoint(x.Key.ToString(), decimal.Round(x.Sets, 1), decimal.Round(x.Volume),
+            total == 0 ? 0 : decimal.Round(x.Sets * 100m / total, 1))).ToList();
     }
 
     [HttpGet("progress/week-summary")]

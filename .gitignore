@@ -6,3 +6,4 @@ TestResults/
 *.user
 *.suo
 .env
+src/FormaAI.Api/App_Data/
