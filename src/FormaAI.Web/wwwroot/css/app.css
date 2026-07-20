@@ -267,9 +267,9 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .auth-intro, .auth-card { min-width: 0; }
 
 .auth-intro {
-    background: var(--ink);
+    background: var(--inverse-surface);
     border-radius: 28px 8px 28px 28px;
-    color: white;
+    color: var(--inverse-ink);
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -294,7 +294,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .auth-intro > * { position: relative; z-index: 1; }
 .auth-intro .page-kicker { color: #9fb2ff; }
 .auth-intro h1 {
-    color: white;
+    color: var(--inverse-ink);
     font-size: clamp(3.7rem, 8vw, 6.5rem);
     margin: 22px 0;
     max-width: 760px;
