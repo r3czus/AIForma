@@ -63,12 +63,6 @@
             <MudButton Href="/assistant" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AutoAwesome">Zapytaj asystenta</MudButton>
         </header>
 
-        <section class="day-pulse" aria-label="Tempo dnia">
-            <div><span>Trening</span><strong>@TrainingStatus</strong></div>
-            <div><span>Energia</span><strong>@EnergyStatus</strong></div>
-            <div><span>Kierunek</span><strong>@GoalStatus</strong></div>
-        </section>
-
         <MudPaper Class="daily-coach" Elevation="0">
             <span class="card-kicker">Twój kolejny krok</span>
             <div class="daily-coach-content">
@@ -242,17 +236,8 @@
     private Guid? _selectedTrainingDay;
     private bool _loading = true;
     private int _tab;
-    private string TrainingStatus => _todayWorkout is null ? "Regeneracja" : _todayWorkout.AlreadyCompleted ? "Wykonany" : _todayWorkout.DayName;
-    private string EnergyStatus => _day?.Target is null ? "Ustaw cel" : $"{_day.Consumed.CaloriesKcal:0} / {_day.Target.CaloriesKcal:0} kcal";
     private static int EstimateMinutes(TodayWorkoutResponse workout) => Math.Max(20,
         (int)Math.Ceiling(workout.Exercises.Sum(x => x.Sets * ((x.RestSeconds ?? 90) + 45)) / 60d));
-    private string GoalStatus => _profile?.Goal switch
-    {
-        BodyGoal.Reduction => "Redukcja",
-        BodyGoal.Maintenance => "Utrzymanie",
-        BodyGoal.MuscleGain => "Budowanie masy",
-        _ => "Uzupełnij profil"
-    };
     private int WeekGoal => _profile?.PlannedTrainingsPerWeek ?? 0;
     private int WeekWorkouts => _consistency?.CompletedWorkouts ?? 0;
     private string MomentumCopy => WeekGoal == 0 ? "Ustaw tygodniowy cel w profilu" : WeekWorkouts >= WeekGoal ? "Cel tygodniowy wykonany" : "Każda ukończona sesja buduje rytm";

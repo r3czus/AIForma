@@ -43,8 +43,8 @@
 
         @if (_tab == 0)
         {
-            <section class="progress-direction">
-                <div><span class="card-kicker">Ocena kierunku</span><h2>@DirectionTitle</h2><p>@DirectionNote</p></div>
+            <section class="progress-direction progress-overview-hero">
+                <div><span class="card-kicker">@RangeKicker</span><h2>@DirectionTitle</h2><p>@DirectionNote</p></div>
                 <div class="direction-score"><strong>@DirectionScore%</strong><span>rytm okresu</span></div>
             </section>
 
@@ -82,11 +82,14 @@
         {
             @if (_summary is not null)
             {
-                <section class="progress-metric-grid" aria-label="Podsumowanie diety">
-                    @Metric("Dni w zakresie", $"{_summary.Nutrition.DaysOnCalories}/{_summary.Nutrition.LoggedDays}", "zapisanych dni")
-                    @Metric("Średnie kalorie", _summary.Nutrition.AverageCalories.ToString("0"), $"cel {_summary.Nutrition.AverageTargetCalories:0}")
-                    @Metric("Bilans do celu", $"{Signed(_summary.Nutrition.AverageCalorieDifference)} kcal", "średnio dziennie")
-                    @Metric("Białko w celu", $"{_summary.Nutrition.DaysOnProtein}/{_summary.Nutrition.LoggedDays}", $"średnio {_summary.Nutrition.AverageProteinG:0} g")
+                <section class="progress-section-hero diet-section-hero" aria-label="Podsumowanie diety">
+                    <div class="progress-section-copy"><span class="card-kicker">@RangeKicker</span><h2>@DietTitle</h2><p>@NutritionNote</p></div>
+                    <div class="progress-section-metrics">
+                        @Metric("W celu", $"{_summary.Nutrition.DaysOnCalories} / {_summary.Nutrition.LoggedDays} dni", "kalorie")
+                        @Metric("Średnio", $"{_summary.Nutrition.AverageCalories:0} kcal", $"cel {_summary.Nutrition.AverageTargetCalories:0}")
+                        @Metric("Białko", $"{_summary.Nutrition.DaysOnProtein} / {_summary.Nutrition.LoggedDays} dni", $"średnio {_summary.Nutrition.AverageProteinG:0} g")
+                        @Metric("Bilans", $"{Signed(_summary.Nutrition.AverageCalorieDifference)} kcal", "dziennie")
+                    </div>
                 </section>
             }
 
@@ -132,14 +135,14 @@
         {
             @if (_summary is not null)
             {
-                <section class="progress-training-glance" aria-label="Wyniki treningów">
-                    <div><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><span>Objętość treningów</span><strong>@_summary.Training.TotalVolumeKg.ToString("0") kg</strong><small>@_summary.Training.WorkingSets serii roboczych</small></div>
-                    <div><MudIcon Icon="@Icons.Material.Outlined.Timer" /><span>Czas treningów</span><strong>@Duration(_summary.Training.TotalMinutes)</strong><small>@_summary.Training.CompletedWorkouts ukończonych sesji</small></div>
-                </section>
-                <section class="progress-metric-grid training-metrics">
-                    @Metric("Realizacja planu", $"{TrainingPlanPercent:0.#}%", $"{_summary.Training.CompletedWorkouts}/{_summary.Training.PlannedWorkouts} sesji")
-                    @Metric("Zmiana objętości", $"{Signed(_summary.Training.VolumeChangePercent)}%", "do poprzedniego okresu")
-                    @Metric("Realizacja serii", $"{_summary.Training.SetCompletionPercent:0.#}%", "serie robocze")
+                <section class="progress-section-hero training-section-hero" aria-label="Wyniki treningów">
+                    <div class="progress-section-copy"><span class="card-kicker">@RangeKicker</span><h2>@TrainingTitle</h2><p>@TrainingNote</p></div>
+                    <div class="progress-section-metrics">
+                        @Metric("Sesje", $"{_summary.Training.CompletedWorkouts} / {_summary.Training.PlannedWorkouts}", "wykonane")
+                        @Metric("Objętość", $"{_summary.Training.TotalVolumeKg:0} kg", $"{Signed(_summary.Training.VolumeChangePercent)}% do poprzedniego okresu")
+                        @Metric("Serie", _summary.Training.WorkingSets.ToString(), $"{_summary.Training.SetCompletionPercent:0.#}% wykonanych")
+                        @Metric("Czas", Duration(_summary.Training.TotalMinutes), "łącznie")
+                    </div>
                 </section>
             }
 
@@ -200,6 +203,9 @@
     private int DirectionScore => (int)Math.Round(((_summary?.Nutrition.CalorieAdherencePercent ?? 0) + TrainingPlanPercent) / 2);
     private string DirectionTitle => DirectionScore >= 75 ? "Dobry rytm" : DirectionScore >= 45 ? "Kierunek jest, rytm do poprawy" : "Wróć do podstaw";
     private string DirectionNote => DirectionScore >= 75 ? "Plan jest realizowany regularnie. Patrz na trend i trzymaj tempo." : "Najwięcej zmieni jeden powtarzalny dzień jedzenia i jedna ukończona sesja.";
+    private string RangeKicker => _rangeDays == 365 ? "Ostatni rok" : $"Ostatnie {_rangeDays} dni";
+    private string DietTitle => (_summary?.Nutrition.CalorieAdherencePercent ?? 0) >= 70 ? "Dobry rytm. Utrzymaj kierunek." : "Regularność wygrywa z perfekcją.";
+    private string TrainingTitle => TrainingPlanPercent >= 80 ? "Plan trzyma tempo." : "Każda ukończona sesja się liczy.";
     private string NutritionNote => _summary?.Nutrition.LoggedDays == 0 ? "Zapisz posiłki, aby policzyć realizację." : $"Średnio {Signed(_summary?.Nutrition.AverageCalorieDifference)} kcal względem celu.";
     private string TrainingNote => _summary?.Training.CompletedWorkouts == 0 ? "Ukończ pierwszą sesję w tym okresie." : $"{_summary?.Training.WorkingSets} serii roboczych · {Duration(_summary?.Training.TotalMinutes ?? 0)}.";
     private decimal WeightChartMax => _weight?.Points.Max(x => x.SevenDayAverageKg) ?? 0;
@@ -262,10 +268,31 @@
     private RenderFragment CalendarBlock() => __builder =>
     {
         <MudPaper Class="progress-card progress-rhythm" Elevation="0">
-            <div class="progress-card-heading"><span class="card-kicker">@(_rangeDays == 7 ? "Rytm tygodnia" : _rangeDays == 30 ? "Kalendarz" : "Regularność miesiąc po miesiącu")</span><MudText Typo="Typo.h6">Dieta i trening</MudText><p>@PeriodLabel</p></div>
-            @if (_rangeDays == 7) { <div class="week-rhythm">@foreach (var day in _nutrition?.Days ?? []) { <button class="@DayClass(day)" @onclick="() => _selectedDay = day"><span>@ShortDay(day.Date.DayOfWeek)</span><b>@day.Date.Day</b><small>@DayStatus(day)</small></button> }</div> }
-            else if (_rangeDays == 30) { <div class="nutrition-calendar">@foreach (var label in CalendarLabels) { <span class="weekday">@label</span> } @for (var i = 0; i < CalendarOffset; i++) { <span></span> } @foreach (var day in _nutrition?.Days ?? []) { <button class="nutrition-day @DayClass(day)" @onclick="() => _selectedDay = day"><b>@day.Date.Day</b></button> }</div> }
-            else { <div class="period-heatmaps">@foreach (var month in (_nutrition?.Days ?? []).GroupBy(x => new { x.Date.Year, x.Date.Month })) { <section><strong>@(new DateOnly(month.Key.Year, month.Key.Month, 1).ToString("MMM", Pl))</strong><div>@foreach (var day in month) { <button class="@DayClass(day)" title="@day.Date.ToString("dd.MM")" @onclick="() => _selectedDay = day"></button> }</div></section> }</div> }
+            <div class="progress-card-heading"><span class="card-kicker">@(_rangeDays <= 30 ? "Rytm okresu" : "Regularność miesiąc po miesiącu")</span><MudText Typo="Typo.h6">Dieta i trening</MudText><p>@PeriodLabel</p></div>
+            @if (_rangeDays <= 30)
+            {
+                <div class="nutrition-calendar @(_rangeDays == 7 ? "week-calendar" : null)">
+                    @foreach (var label in CalendarLabels) { <span class="weekday">@label</span> }
+                    @for (var i = 0; i < CalendarOffset; i++) { <span></span> }
+                    @foreach (var day in _nutrition?.Days ?? []) { <button class="nutrition-day @DayClass(day)" title="@DayStatus(day)" @onclick="() => _selectedDay = day"><b>@day.Date.Day</b></button> }
+                </div>
+            }
+            else
+            {
+                <div class="period-heatmaps">
+                    @foreach (var month in (_nutrition?.Days ?? []).GroupBy(x => new { x.Date.Year, x.Date.Month }))
+                    {
+                        var firstDay = new DateOnly(month.Key.Year, month.Key.Month, 1);
+                        <section>
+                            <strong>@firstDay.ToString("MMMM yyyy", Pl)</strong>
+                            <div class="period-calendar">
+                                @for (var i = 0; i < MonthOffset(firstDay); i++) { <span></span> }
+                                @foreach (var day in month) { <button class="nutrition-day @DayClass(day)" title="@($"{day.Date:dd.MM} · {DayStatus(day)}")" @onclick="() => _selectedDay = day"><b>@day.Date.Day</b></button> }
+                            </div>
+                        </section>
+                    }
+                </div>
+            }
             @if (_selectedDay is not null) { @DayDetail(_selectedDay) }
             <div class="calendar-legend"><span><i class="workout"></i>Trening</span><span><i class="diet-on"></i>W zakresie</span><span><i class="diet-under"></i>Poniżej</span><span><i class="diet-over"></i>Powyżej</span><span><i class="empty"></i>Brak danych</span></div>
         </MudPaper>
@@ -284,6 +311,7 @@
     private RenderFragment Metric(string label, string value, string note) => __builder => { <div><span>@label</span><strong>@value</strong><small>@note</small></div> };
     private RenderFragment ToolLink(string href, string icon, string title, string note) => __builder => { <a href="@href"><MudIcon Icon="@icon" /><div><strong>@title</strong><span>@note</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> };
     private int CalendarOffset => _nutrition is null ? 0 : (7 + (int)_nutrition.Days[0].Date.DayOfWeek - (int)_weekStartsOn) % 7;
+    private int MonthOffset(DateOnly date) => (7 + (int)date.DayOfWeek - (int)_weekStartsOn) % 7;
     private IEnumerable<string> CalendarLabels => Enumerable.Range(0, 7).Select(i => ShortDay((DayOfWeek)(((int)_weekStartsOn + i) % 7)));
     private string TabClass(int tab) => _tab == tab ? "active" : string.Empty;
     private static string DateLabel(DateOnly from, DateOnly to) => from.Year == to.Year && from.Month == to.Month ? $"{from.Day}–{to.ToString("d MMMM yyyy", Pl)}" : $"{from.ToString("d MMM", Pl)} – {to.ToString("d MMM yyyy", Pl)}";
