@@ -16,7 +16,7 @@
             <div><span class="card-kicker">Dzienne paliwo</span><h2>Bilans energii</h2></div>
             <a href="/food">Otwórz dziennik</a>
         </div>
-        <div class="macro-overview">
+        <div class="macro-overview energy-balance-hero">
             <div class="calorie-ring" style="@($"--progress: {Percent(Day.Consumed.CaloriesKcal, Day.Target.CaloriesKcal)}%")" aria-label="@EnergyRingLabel">
                 <div>
                     <span>@RemainingCaption</span>
@@ -24,25 +24,34 @@
                     <small>kcal</small>
                 </div>
             </div>
-            <div class="calorie-score">
-                <span>Spożyte dzisiaj</span>
-                <strong>@Day.Consumed.CaloriesKcal.ToString("0")</strong>
-                <small>cel @Day.Target.CaloriesKcal.ToString("0") kcal</small>
+            <div class="calorie-score energy-balance-copy">
+                <span>@EnergyHeadline</span>
+                <strong>@Math.Abs(Day.Remaining.CaloriesKcal).ToString("0") <small>kcal</small></strong>
+                <p>Zjedzone <b>@Day.Consumed.CaloriesKcal.ToString("0") kcal</b> z dzisiejszego limitu <b>@Day.Target.CaloriesKcal.ToString("0") kcal</b>.</p>
                 <span class="calorie-percent">@CaloriePercent% celu</span>
             </div>
         </div>
         @if (Day.BaseTarget is not null)
         {
             <div class="calorie-target-breakdown">
-                <div><span>Cel bazowy</span><strong>@Day.BaseTarget.CaloriesKcal.ToString("0") kcal</strong></div>
-                <div class="@(Day.TrainingBonusCalories > 0 ? "earned" : null)"><span>Bonus za ukończony trening</span><strong>+@Day.TrainingBonusCalories.ToString("0") kcal</strong></div>
-                <div><span>Dzisiejszy limit</span><strong>@Day.Target.CaloriesKcal.ToString("0") kcal</strong></div>
+                <div class="target-breakdown-card"><span>Cel bazowy</span><strong>@Day.BaseTarget.CaloriesKcal.ToString("0")</strong><small>kcal</small></div>
+                <div class="target-breakdown-card bonus @(Day.TrainingBonusCalories > 0 ? "earned" : null)"><span>Bonus z treningu</span><strong>+@Day.TrainingBonusCalories.ToString("0")</strong><small>kcal</small></div>
+                <div class="target-breakdown-card total"><span>Dzisiejszy limit</span><strong>@Day.Target.CaloriesKcal.ToString("0")</strong><small>kcal</small></div>
             </div>
         }
         <div class="macro-grid">
-            <div class="protein" style="@($"--progress: {Percent(Day.Consumed.ProteinG, Day.Target.ProteinG)}%")"><span>Białko</span><strong>@Day.Consumed.ProteinG.ToString("0.#") g</strong><small>z @Day.Target.ProteinG.ToString("0.#") g</small><i></i></div>
-            <div class="fat" style="@($"--progress: {Percent(Day.Consumed.FatG, Day.Target.FatG)}%")"><span>Tłuszcze</span><strong>@Day.Consumed.FatG.ToString("0.#") g</strong><small>z @Day.Target.FatG.ToString("0.#") g</small><i></i></div>
-            <div class="carbs" style="@($"--progress: {Percent(Day.Consumed.CarbohydratesG, Day.Target.CarbohydratesG)}%")"><span>Węglowodany</span><strong>@Day.Consumed.CarbohydratesG.ToString("0.#") g</strong><small>z @Day.Target.CarbohydratesG.ToString("0.#") g</small><i></i></div>
+            <div class="protein" style="@($"--progress: {Percent(Day.Consumed.ProteinG, Day.Target.ProteinG)}%")">
+                <header><span>Białko</span><small>cel @Day.Target.ProteinG.ToString("0.#") g</small></header>
+                <div class="macro-values"><div><span>Zjedzone</span><strong>@Day.Consumed.ProteinG.ToString("0.#") g</strong></div><div><span>@RemainingLabel(Day.Remaining.ProteinG)</span><strong class="@RemainingClass(Day.Remaining.ProteinG)">@Math.Abs(Day.Remaining.ProteinG).ToString("0.#") g</strong></div></div><i></i>
+            </div>
+            <div class="fat" style="@($"--progress: {Percent(Day.Consumed.FatG, Day.Target.FatG)}%")">
+                <header><span>Tłuszcze</span><small>cel @Day.Target.FatG.ToString("0.#") g</small></header>
+                <div class="macro-values"><div><span>Zjedzone</span><strong>@Day.Consumed.FatG.ToString("0.#") g</strong></div><div><span>@RemainingLabel(Day.Remaining.FatG)</span><strong class="@RemainingClass(Day.Remaining.FatG)">@Math.Abs(Day.Remaining.FatG).ToString("0.#") g</strong></div></div><i></i>
+            </div>
+            <div class="carbs" style="@($"--progress: {Percent(Day.Consumed.CarbohydratesG, Day.Target.CarbohydratesG)}%")">
+                <header><span>Węglowodany</span><small>cel @Day.Target.CarbohydratesG.ToString("0.#") g</small></header>
+                <div class="macro-values"><div><span>Zjedzone</span><strong>@Day.Consumed.CarbohydratesG.ToString("0.#") g</strong></div><div><span>@RemainingLabel(Day.Remaining.CarbohydratesG)</span><strong class="@RemainingClass(Day.Remaining.CarbohydratesG)">@Math.Abs(Day.Remaining.CarbohydratesG).ToString("0.#") g</strong></div></div><i></i>
+            </div>
         </div>
     }
 </MudPaper>
@@ -51,10 +60,13 @@
     [Parameter, EditorRequired] public NutritionDayResponse Day { get; set; } = null!;
 
     private string RemainingCaption => Day.Remaining!.CaloriesKcal < 0 ? "ponad cel" : "do zjedzenia";
+    private string EnergyHeadline => Day.Remaining!.CaloriesKcal < 0 ? "Ponad dzisiejszy limit" : "Możesz jeszcze zjeść";
     private string EnergyRingLabel => Day.Remaining!.CaloriesKcal < 0
         ? $"Cel przekroczony o {Math.Abs(Day.Remaining.CaloriesKcal):0} kilokalorii"
         : $"Pozostało {Day.Remaining.CaloriesKcal:0} z celu {Day.Target!.CaloriesKcal:0} kilokalorii";
     private int CaloriePercent => Day.Target!.CaloriesKcal <= 0 ? 0 : (int)Math.Round(Day.Consumed.CaloriesKcal / Day.Target.CaloriesKcal * 100);
+    private static string RemainingLabel(decimal value) => value < 0 ? "Ponad cel" : "Zostało";
+    private static string RemainingClass(decimal value) => value < 0 ? "over" : "remaining";
 
     private static int Percent(decimal value, decimal target) => target <= 0
         ? 0
