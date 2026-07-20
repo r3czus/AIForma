@@ -27,6 +27,7 @@ public sealed class UserProfile
     public ActivityLevel? WorkActivityLevel { get; private set; }
     public ActivityLevel? TrainingActivityLevel { get; private set; }
     public decimal? TargetWeightKg { get; private set; }
+    public decimal WeeklyWeightChangeKg { get; private set; } = 0.5m;
     public int CalorieToleranceKcal { get; private set; }
     public string MealSlots { get; private set; } = "Śniadanie|Lunch|Obiad|Przekąska|Kolacja";
     public string MealSchedule { get; private set; } = "Śniadanie~07:00~1|Lunch~12:00~1|Obiad~15:00~1|Przekąska~18:00~1|Kolacja~21:00~1";
@@ -71,7 +72,8 @@ public sealed class UserProfile
         bool weeklySummaryRemindersEnabled = true,
         TimeOnly? quietHoursStart = null,
         TimeOnly? quietHoursEnd = null,
-        int maxRemindersPerDay = 3)
+        int maxRemindersPerDay = 3,
+        decimal weeklyWeightChangeKg = 0.5m)
     {
         TimeZoneId = timeZoneId;
         HeightCm = heightCm;
@@ -84,6 +86,7 @@ public sealed class UserProfile
         WorkActivityLevel = workActivityLevel ?? activityLevel;
         TrainingActivityLevel = trainingActivityLevel;
         TargetWeightKg = targetWeightKg;
+        WeeklyWeightChangeKg = goal == BodyGoal.Maintenance ? 0 : Math.Clamp(weeklyWeightChangeKg, 0.05m, 1.5m);
         CalorieToleranceKcal = calorieToleranceKcal;
         if (mealSlots is not null)
         {

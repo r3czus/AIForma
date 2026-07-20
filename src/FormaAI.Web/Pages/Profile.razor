@@ -78,7 +78,11 @@
                         case 6:
                             <section class="goal-step goal-step-narrow">
                                 <div class="profile-section-heading"><span class="card-kicker">Meta</span><h2>Jaka jest Twoja docelowa masa?</h2><p>@TargetWeightHint</p></div>
-                                <label class="mobile-number-field"><span>Masa docelowa (kg)</span><input type="text" inputmode="decimal" autocomplete="off" @bind="_targetWeightInput" @bind:event="oninput" placeholder="np. 78" /></label>
+                                 <label class="mobile-number-field"><span>Masa docelowa (kg)</span><input type="text" inputmode="decimal" autocomplete="off" @bind="_targetWeightInput" @bind:event="oninput" placeholder="np. 78" /></label>
+                                @if (_goal != BodyGoal.Maintenance)
+                                {
+                                    <MudNumericField @bind-Value="_weeklyWeightChangeKg" Label="Zmiana masy na tydzień (kg)" Min="0.05m" Max="1.5m" Step="0.05m" HelperText="Ta wartość bezpośrednio zmienia dzienny bilans kalorii." Class="mt-4" />
+                                }
                                 @if (_currentWeightKg is not null && _targetWeightKg is not null)
                                 {
                                     <span class="goal-weight-difference">@WeightDifference</span>
@@ -115,6 +119,7 @@
                                 <div class="goal-calorie-split">
                                     <div><span>Dzień bez treningu</span><strong>@_targetCalories?.ToString("0") kcal</strong></div>
                                     <div><span>Przykładowy dzień treningowy</span><strong>@TypicalTrainingCalories.ToString("0") kcal</strong><small>około +@TypicalTrainingBonus.ToString("0") kcal za 60 min i 15 serii</small></div>
+                                    <div class="goal-date"><span>Szacowana data osiągnięcia celu</span><strong>@EstimatedGoalDate</strong><small>@GoalPaceCopy</small></div>
                                 </div>
                                 <div class="goal-result-dials">
                                     <label class="goal-result-dial energy">
@@ -205,6 +210,7 @@
     private decimal? _currentWeightKg;
     private decimal? _startingWeightKg;
     private decimal? _targetWeightKg;
+    private decimal _weeklyWeightChangeKg = 0.5m;
     private int? _plannedTrainings;
     private string _heightInput = string.Empty;
     private string _currentWeightInput = string.Empty;
@@ -242,6 +248,17 @@
     private string TargetWeightHint => _goal == BodyGoal.Maintenance
         ? "Przy utrzymaniu możesz podać obecną masę."
         : "Podaj wagę, do której chcesz dojść.";
+    private string EstimatedGoalDate
+    {
+        get
+        {
+            if (_goal == BodyGoal.Maintenance) return "Cel ciągły";
+            if (_currentWeightKg is null || _targetWeightKg is null || _weeklyWeightChangeKg <= 0) return "—";
+            var weeks = Math.Abs(_targetWeightKg.Value - _currentWeightKg.Value) / _weeklyWeightChangeKg;
+            return DateTime.Today.AddDays((double)Math.Ceiling(weeks * 7m)).ToString("d MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"));
+        }
+    }
+    private string GoalPaceCopy => _goal == BodyGoal.Maintenance ? "Bilans bez planowanej zmiany masy" : $"przy tempie około {_weeklyWeightChangeKg:0.##} kg tygodniowo";
     private string WeightDifference
     {
         get
@@ -270,6 +287,7 @@
         _heightCm = _profile.HeightCm;
         _startingWeightKg = _profile.StartingWeightKg;
         _targetWeightKg = _profile.TargetWeightKg;
+        _weeklyWeightChangeKg = _profile.WeeklyWeightChangeKg > 0 ? _profile.WeeklyWeightChangeKg : 0.5m;
         _currentWeightKg = weight?.CurrentAverageKg ?? _profile.StartingWeightKg;
         _plannedTrainings = _profile.PlannedTrainingsPerWeek;
         _heightInput = NumberText(_heightCm);
@@ -317,6 +335,9 @@
             4 when _heightCm is null => "Podaj wzrost.",
             5 when _currentWeightKg is null => "Podaj obecną masę.",
             6 when _targetWeightKg is null => "Podaj docelową masę.",
+            6 when _goal == BodyGoal.Reduction && _targetWeightKg >= _currentWeightKg => "Przy redukcji masa docelowa powinna być niższa od obecnej.",
+            6 when _goal == BodyGoal.MuscleGain && _targetWeightKg <= _currentWeightKg => "Przy budowaniu masy cel powinien być wyższy od obecnej masy.",
+            6 when _goal != BodyGoal.Maintenance && _weeklyWeightChangeKg is < 0.05m or > 1.5m => "Wybierz tempo od 0,05 do 1,5 kg tygodniowo.",
             7 when _workActivity is null => "Wybierz aktywność w pracy.",
             8 when _trainingActivity is null => "Wybierz aktywność treningową.",
             _ => null
@@ -375,7 +396,8 @@
         var age = today.Year - birth.Year - (today < birth.AddYears(today.Year - birth.Year) ? 1 : 0);
         var bmr = 10m * _currentWeightKg!.Value + 6.25m * _heightCm!.Value - 5m * age + (_sex == BiologicalSex.Male ? 5m : -161m);
         var factor = _workActivity switch { ActivityLevel.Low => 1.2m, ActivityLevel.Light => 1.32m, ActivityLevel.Moderate => 1.45m, _ => 1.6m };
-        var adjustment = _goal switch { BodyGoal.Reduction => -400m, BodyGoal.MuscleGain => 250m, _ => 0m };
+        var weeklyEnergy = _weeklyWeightChangeKg * 7700m;
+        var adjustment = _goal switch { BodyGoal.Reduction => -weeklyEnergy / 7m, BodyGoal.MuscleGain => weeklyEnergy / 7m, _ => 0m };
         _targetCalories = Math.Round(Math.Max(1200m, bmr * factor + adjustment));
         _proteinG = Math.Round(_currentWeightKg.Value * 2m);
         _fatG = Math.Round(_currentWeightKg.Value * .9m);
@@ -403,7 +425,8 @@
             _birthDate is null ? null : DateOnly.FromDateTime(_birthDate.Value), _sex, _workActivity, _targetWeightKg, _toleranceKcal,
             _mealSlots.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList(),
             _workActivity, _trainingActivity, _mealSchedule, _defaultRestSeconds, _defaultRepetitions, _defaultSets,
-            _weekStartsOn, _themePreference, _mealRemindersEnabled, _mealReminderMinutesBefore));
+            _weekStartsOn, _themePreference, _mealRemindersEnabled, _mealReminderMinutesBefore,
+            WeeklyWeightChangeKg: _weeklyWeightChangeKg));
     }
 
     private static string WeekDayName(DayOfWeek day) => day switch { DayOfWeek.Sunday => "niedziela", DayOfWeek.Saturday => "sobota", _ => "poniedziałek" };

@@ -32,7 +32,8 @@ public sealed record UserProfileResponse(
     bool WeeklySummaryRemindersEnabled = true,
     TimeOnly? QuietHoursStart = null,
     TimeOnly? QuietHoursEnd = null,
-    int MaxRemindersPerDay = 3);
+    int MaxRemindersPerDay = 3,
+    decimal WeeklyWeightChangeKg = 0.5m);
 
 public sealed record UpdateUserProfileRequest(
     [Required] string TimeZoneId,
@@ -61,4 +62,5 @@ public sealed record UpdateUserProfileRequest(
     bool WeeklySummaryRemindersEnabled = true,
     TimeOnly? QuietHoursStart = null,
     TimeOnly? QuietHoursEnd = null,
-    [Range(1, 6)] int MaxRemindersPerDay = 3);
+    [Range(1, 6)] int MaxRemindersPerDay = 3,
+    [Range(0, 1.5)] decimal WeeklyWeightChangeKg = 0.5m);
