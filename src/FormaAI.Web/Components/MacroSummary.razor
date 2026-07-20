@@ -16,42 +16,65 @@
             <div><span class="card-kicker">Dzienne paliwo</span><h2>Bilans energii</h2></div>
             <a href="/food">Otwórz dziennik</a>
         </div>
-        <div class="macro-overview energy-balance-hero">
-            <div class="calorie-ring" style="@($"--progress: {Percent(Day.Consumed.CaloriesKcal, Day.Target.CaloriesKcal)}%")" aria-label="@EnergyRingLabel">
-                <div>
-                    <span>@RemainingCaption</span>
-                    <strong>@Math.Abs(Day.Remaining!.CaloriesKcal).ToString("0")</strong>
-                    <small>kcal</small>
+        <div class="energy-balance-panel">
+            <div class="macro-overview energy-balance-hero">
+                <div class="calorie-ring" style="@($"--progress: {Percent(Day.Consumed.CaloriesKcal, Day.Target.CaloriesKcal)}%")" aria-label="@EnergyRingLabel">
+                    <div>
+                        <span>@RemainingCaption</span>
+                        <strong>@Math.Abs(Day.Remaining!.CaloriesKcal).ToString("0")</strong>
+                        <small>kcal</small>
+                    </div>
+                </div>
+                <div class="calorie-score energy-balance-copy">
+                    <span>@EnergyHeadline</span>
+                    <strong>@Math.Abs(Day.Remaining.CaloriesKcal).ToString("0") <small>kcal</small></strong>
+                    <p>Zjedzono <b>@Day.Consumed.CaloriesKcal.ToString("0") kcal</b> z dzisiejszego limitu <b>@Day.Target.CaloriesKcal.ToString("0") kcal</b>.</p>
+                    <span class="calorie-percent">@CaloriePercent% celu</span>
                 </div>
             </div>
-            <div class="calorie-score energy-balance-copy">
-                <span>@EnergyHeadline</span>
-                <strong>@Math.Abs(Day.Remaining.CaloriesKcal).ToString("0") <small>kcal</small></strong>
-                <p>Zjedzone <b>@Day.Consumed.CaloriesKcal.ToString("0") kcal</b> z dzisiejszego limitu <b>@Day.Target.CaloriesKcal.ToString("0") kcal</b>.</p>
-                <span class="calorie-percent">@CaloriePercent% celu</span>
-            </div>
-        </div>
-        @if (Day.BaseTarget is not null)
-        {
-            <div class="calorie-target-breakdown">
-                <div class="target-breakdown-card"><span>Cel bazowy</span><strong>@Day.BaseTarget.CaloriesKcal.ToString("0")</strong><small>kcal</small></div>
-                <div class="target-breakdown-card bonus @(Day.TrainingBonusCalories > 0 ? "earned" : null)"><span>Bonus z treningu</span><strong>+@Day.TrainingBonusCalories.ToString("0")</strong><small>kcal</small></div>
-                <div class="target-breakdown-card total"><span>Dzisiejszy limit</span><strong>@Day.Target.CaloriesKcal.ToString("0")</strong><small>kcal</small></div>
-            </div>
-        }
-        <div class="macro-grid">
-            <div class="protein" style="@($"--progress: {Percent(Day.Consumed.ProteinG, Day.Target.ProteinG)}%")">
-                <header><span>Białko</span><small>cel @Day.Target.ProteinG.ToString("0.#") g</small></header>
-                <div class="macro-values"><div><span>Zjedzone</span><strong>@Day.Consumed.ProteinG.ToString("0.#") g</strong></div><div><span>@RemainingLabel(Day.Remaining.ProteinG)</span><strong class="@RemainingClass(Day.Remaining.ProteinG)">@Math.Abs(Day.Remaining.ProteinG).ToString("0.#") g</strong></div></div><i></i>
-            </div>
-            <div class="fat" style="@($"--progress: {Percent(Day.Consumed.FatG, Day.Target.FatG)}%")">
-                <header><span>Tłuszcze</span><small>cel @Day.Target.FatG.ToString("0.#") g</small></header>
-                <div class="macro-values"><div><span>Zjedzone</span><strong>@Day.Consumed.FatG.ToString("0.#") g</strong></div><div><span>@RemainingLabel(Day.Remaining.FatG)</span><strong class="@RemainingClass(Day.Remaining.FatG)">@Math.Abs(Day.Remaining.FatG).ToString("0.#") g</strong></div></div><i></i>
-            </div>
-            <div class="carbs" style="@($"--progress: {Percent(Day.Consumed.CarbohydratesG, Day.Target.CarbohydratesG)}%")">
-                <header><span>Węglowodany</span><small>cel @Day.Target.CarbohydratesG.ToString("0.#") g</small></header>
-                <div class="macro-values"><div><span>Zjedzone</span><strong>@Day.Consumed.CarbohydratesG.ToString("0.#") g</strong></div><div><span>@RemainingLabel(Day.Remaining.CarbohydratesG)</span><strong class="@RemainingClass(Day.Remaining.CarbohydratesG)">@Math.Abs(Day.Remaining.CarbohydratesG).ToString("0.#") g</strong></div></div><i></i>
-            </div>
+            @if (Day.BaseTarget is not null)
+            {
+                <div class="calorie-target-breakdown">
+                    <div class="target-breakdown-card">
+                        <span>Cel bazowy</span>
+                        <strong>@Day.BaseTarget.CaloriesKcal.ToString("0")</strong>
+                        <small>kcal</small>
+                    </div>
+                    <div class="target-breakdown-card bonus @(Day.TrainingBonusCalories > 0 ? "earned" : null)">
+                        <span>Dodatkowe z treningu</span>
+                        <div class="target-bonus-value">
+                            <div><strong>+@Day.TrainingBonusCalories.ToString("0")</strong><small>kcal</small></div>
+                            <span class="target-bonus-icon"><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /></span>
+                        </div>
+                        <span class="training-bonus-label">Dzisiejszy trening</span>
+                    </div>
+                    <div class="target-breakdown-card total">
+                        <span>Dzisiejszy limit</span>
+                        <strong>@Day.Target.CaloriesKcal.ToString("0")</strong>
+                        <small>kcal</small>
+                    </div>
+                </div>
+            }
+            <section class="macro-strip" aria-label="Makroskładniki">
+                <div class="macro-strip-heading"><strong>Makroskładniki</strong><span>cele dzienne</span></div>
+                <div class="macro-grid">
+                    <div class="protein" style="@($"--progress: {Percent(Day.Consumed.ProteinG, Day.Target.ProteinG)}%")">
+                        <span class="macro-icon"><MudIcon Icon="@Icons.Material.Outlined.Spa" /></span>
+                        <header><span>Białko</span><small>cel @Day.Target.ProteinG.ToString("0.#") g</small></header>
+                        <div class="macro-values"><div><span>Zjedzone</span><strong>@Day.Consumed.ProteinG.ToString("0.#") g</strong></div><div><span>@RemainingLabel(Day.Remaining.ProteinG)</span><strong class="@RemainingClass(Day.Remaining.ProteinG)">@Math.Abs(Day.Remaining.ProteinG).ToString("0.#") g</strong></div></div><i></i>
+                    </div>
+                    <div class="fat" style="@($"--progress: {Percent(Day.Consumed.FatG, Day.Target.FatG)}%")">
+                        <span class="macro-icon"><MudIcon Icon="@Icons.Material.Outlined.WaterDrop" /></span>
+                        <header><span>Tłuszcze</span><small>cel @Day.Target.FatG.ToString("0.#") g</small></header>
+                        <div class="macro-values"><div><span>Zjedzone</span><strong>@Day.Consumed.FatG.ToString("0.#") g</strong></div><div><span>@RemainingLabel(Day.Remaining.FatG)</span><strong class="@RemainingClass(Day.Remaining.FatG)">@Math.Abs(Day.Remaining.FatG).ToString("0.#") g</strong></div></div><i></i>
+                    </div>
+                    <div class="carbs" style="@($"--progress: {Percent(Day.Consumed.CarbohydratesG, Day.Target.CarbohydratesG)}%")">
+                        <span class="macro-icon"><MudIcon Icon="@Icons.Material.Outlined.Grain" /></span>
+                        <header><span>Węglowodany</span><small>cel @Day.Target.CarbohydratesG.ToString("0.#") g</small></header>
+                        <div class="macro-values"><div><span>Zjedzone</span><strong>@Day.Consumed.CarbohydratesG.ToString("0.#") g</strong></div><div><span>@RemainingLabel(Day.Remaining.CarbohydratesG)</span><strong class="@RemainingClass(Day.Remaining.CarbohydratesG)">@Math.Abs(Day.Remaining.CarbohydratesG).ToString("0.#") g</strong></div></div><i></i>
+                    </div>
+                </div>
+            </section>
         </div>
     }
 </MudPaper>

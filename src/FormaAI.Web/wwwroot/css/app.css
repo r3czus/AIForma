@@ -398,8 +398,9 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .macro-card .card-kicker { color: #b85c2d; }
 .macro-heading { align-items: center; margin-bottom: 18px; }
 .macro-heading a { color: var(--action); font-size: .8rem; font-weight: 700; text-decoration: none; }
-.macro-overview { align-items: center; display: grid; gap: 24px; grid-template-columns: 146px 1fr; margin: 8px 0 18px; }
-.energy-balance-hero { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 20px; padding: 18px; }
+.energy-balance-panel { border: 1px solid var(--rule); border-radius: 20px; overflow: hidden; }
+.macro-overview { align-items: center; display: grid; gap: 24px; grid-template-columns: 146px 1fr; margin: 0; }
+.energy-balance-hero { background: linear-gradient(110deg, var(--surface-soft), var(--surface)); border-bottom: 1px solid var(--rule); padding: 20px; }
 .calorie-ring { align-items: center; background: conic-gradient(var(--fuel) var(--progress), #f1ded2 0); border-radius: 50%; display: flex; height: 146px; justify-content: center; position: relative; width: 146px; }
 .calorie-ring::after { background: var(--surface); border-radius: 50%; content: ""; inset: 11px; position: absolute; }
 .calorie-ring > div { align-items: center; display: flex; flex-direction: column; position: relative; z-index: 1; }
@@ -413,16 +414,21 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .energy-balance-copy > strong small { font: 500 .85rem "IBM Plex Mono", monospace; }
 .energy-balance-copy p { color: var(--muted); font-size: .78rem; line-height: 1.5; margin: 5px 0 0; }
 .energy-balance-copy p b { color: var(--ink); font-family: "IBM Plex Mono", monospace; font-weight: 600; }
-.calorie-target-breakdown { border-top: 1px solid var(--rule); display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 20px; padding-top: 18px; }
-.target-breakdown-card { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 15px; display: grid; gap: 1px; padding: 13px 15px; position: relative; }
+.calorie-target-breakdown { display: grid; gap: 20px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 18px; }
+.target-breakdown-card { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 15px; display: grid; gap: 1px; min-height: 108px; padding: 13px 15px; position: relative; }
 .target-breakdown-card span, .target-breakdown-card small { color: var(--muted); font-size: .66rem; }
-.target-breakdown-card strong { font: 600 1.15rem "IBM Plex Mono", monospace; margin-top: 4px; }
+.target-breakdown-card strong { font: 600 1.45rem "IBM Plex Mono", monospace; margin-top: 4px; }
 .target-breakdown-card.bonus::before, .target-breakdown-card.total::before { align-items: center; background: var(--surface); border: 1px solid var(--rule); border-radius: 50%; color: var(--muted); content: "+"; display: flex; font: 700 .8rem "IBM Plex Mono", monospace; height: 24px; justify-content: center; left: -19px; position: absolute; top: calc(50% - 12px); width: 24px; }
 .target-breakdown-card.total::before { content: "="; }
-.target-breakdown-card.earned { background: var(--fuel-soft); border-color: var(--fuel); }
+.target-breakdown-card.bonus { background: #fff9f5; border-color: #f5b38d; }
 .target-breakdown-card.earned strong { color: var(--fuel); }
-.target-breakdown-card.total { background: var(--action-soft); border-color: var(--action); }
+.target-breakdown-card.total { background: linear-gradient(135deg, #f7f8ff, var(--action-soft)); border-color: #9caef7; }
 .target-breakdown-card.total strong { color: var(--action); }
+.target-bonus-value { align-items: center; display: flex; justify-content: space-between; }
+.target-bonus-value > div { display: grid; }
+.target-bonus-icon { align-items: center; background: var(--fuel-soft); border-radius: 50%; color: var(--fuel) !important; display: flex; height: 42px; justify-content: center; width: 42px; }
+.target-bonus-icon .mud-icon-root { font-size: 1.2rem; }
+.training-bonus-label { align-items: center; align-self: end; background: #ffe9dc; border-radius: 999px; color: #b85c2d !important; display: flex; padding: 4px 9px; width: max-content; }
 .goal-calorie-split { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 20px; }
 .goal-calorie-split > div { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 16px; display: grid; gap: 4px; padding: 14px; }
 .goal-calorie-split span, .goal-calorie-split small { color: var(--muted); font-size: .7rem; }
@@ -433,20 +439,34 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .workout-calorie-result .mud-icon-root { grid-row: 1 / 3; }
 .workout-calorie-result span { font-size: .72rem; }
 .workout-calorie-result strong { font-family: "IBM Plex Mono", monospace; }
-.macro-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
-.macro-grid > div { background: var(--surface-soft); border: 1px solid var(--rule); border-radius: 16px; display: grid; gap: 10px; padding: 15px; }
+.macro-strip { border-top: 1px solid var(--rule); padding: 14px 18px 18px; }
+.macro-strip-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 10px; }
+.macro-strip-heading strong { font-size: .76rem; }
+.macro-strip-heading span { color: var(--muted); font-size: .62rem; }
+.macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.macro-grid > div { display: grid; gap: 8px; grid-template-columns: 42px 1fr; min-width: 0; padding: 0 14px; }
+.macro-grid > div:first-child { padding-left: 0; }
+.macro-grid > div:last-child { padding-right: 0; }
+.macro-grid > div + div { border-left: 1px solid var(--rule); }
+.macro-icon { align-items: center; align-self: start; background: var(--recovery-soft); border: 1px solid #b9ddca; border-radius: 10px; color: var(--recovery) !important; display: flex; grid-row: 1 / 3; height: 38px; justify-content: center; width: 38px; }
+.macro-icon .mud-icon-root { font-size: 1.25rem; }
+.fat .macro-icon { background: var(--fuel-soft); border-color: #f4c2a5; color: var(--fuel) !important; }
+.carbs .macro-icon { background: #f3edff; border-color: #d6c6f5; color: #8454d6 !important; }
 .macro-grid header { align-items: baseline; display: flex; gap: 8px; justify-content: space-between; }
-.macro-grid header > span { color: var(--ink); font-size: .78rem; font-weight: 700; }
+.macro-grid header > span { color: var(--recovery); font-size: .75rem; font-weight: 700; }
+.macro-grid .fat header > span { color: var(--fuel); }
+.macro-grid .carbs header > span { color: #8454d6; }
 .macro-grid span, .macro-grid small { color: var(--muted); font-size: .62rem; }
-.macro-values { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.macro-values { display: grid; gap: 8px; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .macro-values > div { display: flex; flex-direction: column; min-width: 0; }
 .macro-grid .macro-values strong { color: var(--ink); font-size: .82rem; margin-top: 3px; overflow-wrap: anywhere; }
 .macro-grid .macro-values strong.remaining { color: var(--recovery); }
+.macro-grid .fat .macro-values strong.remaining { color: var(--fuel); }
+.macro-grid .carbs .macro-values strong.remaining { color: #8454d6; }
 .macro-grid .macro-values strong.over { color: var(--danger); }
-.macro-grid i { background: rgba(239, 136, 78, .18); border-radius: 99px; display: block; height: 5px; margin-top: 6px; overflow: hidden; position: relative; }
+.macro-grid i { background: rgba(63, 155, 115, .2); border-radius: 99px; display: block; grid-column: 1 / -1; height: 5px; margin-top: 2px; overflow: hidden; position: relative; }
 .macro-grid i::after { background: var(--fuel); border-radius: inherit; content: ""; height: 100%; left: 0; position: absolute; width: var(--progress); }
-.macro-grid .protein i::after { background: var(--action); }
-.macro-grid .protein i { background: var(--action-soft); }
+.macro-grid .protein i::after { background: var(--recovery); }
 .macro-grid .carbs i::after { background: #8c62d8; }
 .macro-empty { align-items: center; display: flex; gap: 24px; justify-content: space-between; }
 .macro-empty p { margin-bottom: 0; max-width: 500px; }
@@ -1281,7 +1301,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .calorie-score strong { font-size: 3.3rem; }
     .energy-balance-hero { padding: 14px; }
     .macro-grid { grid-template-columns: 1fr; }
-    .macro-grid > div { padding: 14px; }
+    .macro-grid > div, .macro-grid > div:first-child, .macro-grid > div:last-child { padding: 14px 0; }
+    .macro-grid > div + div { border-left: 0; border-top: 1px solid var(--rule); }
+    .macro-grid > div:first-child { padding-top: 0; }
+    .macro-grid > div:last-child { padding-bottom: 0; }
     .macro-grid .macro-values strong { font-size: .9rem; }
     .macro-grid span, .macro-grid small { font-size: .62rem; overflow-wrap: anywhere; }
     .macro-empty { align-items: flex-start; flex-direction: column; }
