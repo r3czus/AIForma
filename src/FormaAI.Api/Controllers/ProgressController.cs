@@ -114,11 +114,12 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
     }
 
     [HttpGet("progress/nutrition-adherence")]
-    public async Task<ActionResult<NutritionAdherenceResponse>> NutritionAdherence([FromQuery] DateOnly? month)
+    public async Task<ActionResult<NutritionAdherenceResponse>> NutritionAdherence([FromQuery] DateOnly? month, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
         var selected = month ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        var start = new DateOnly(selected.Year, selected.Month, 1);
-        var end = start.AddMonths(1).AddDays(-1);
+        var start = from ?? new DateOnly(selected.Year, selected.Month, 1);
+        var end = to ?? start.AddMonths(1).AddDays(-1);
+        if (start > end || end.DayNumber - start.DayNumber > 366) return BadRequest("Nieprawidłowy zakres dat.");
         var userId = UserId();
         var meals = await db.Meals.Include(x => x.Items)
             .Where(x => x.UserId == userId && x.LocalDate >= start && x.LocalDate <= end)
@@ -155,7 +156,7 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             (DateAt(completeDays, 7), "7 kompletnych dni")
         };
 
-        var days = Enumerable.Range(0, end.Day)
+        var days = Enumerable.Range(0, end.DayNumber - start.DayNumber + 1)
             .Select(offset => start.AddDays(offset))
             .Select(date =>
             {
@@ -179,7 +180,7 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
                     sessions.Count == 1 ? sessions[0].NameSnapshot : sessions.Count > 1 ? $"{sessions.Count} treningi" : null,
                     (int)Math.Round(sessions.Sum(x => (x.FinishedAtUtc!.Value - x.StartedAtUtc).TotalMinutes)),
                     sessions.Sum(x => x.Exercises.Count), sets.Count, sets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions)),
-                    achievements.Where(x => x.Date == date).Select(x => x.Title).ToList(), workoutDetails);
+                    achievements.Where(x => x.Date == date).Select(x => x.Title).ToList(), workoutDetails, sessions.FirstOrDefault()?.Id);
             }).ToList();
 
         return new NutritionAdherenceResponse(start, profile.CalorieToleranceKcal, days.Count(x => x.IsWithinTarget), days.Count(x => x.HasMeals), days);
@@ -236,21 +237,24 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
     }
 
     [HttpGet("progress/week-summary")]
-    public async Task<ActionResult<ProgressWeekSummaryResponse>> WeekSummary()
+    public async Task<ActionResult<ProgressWeekSummaryResponse>> WeekSummary([FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
+        var range = DateRange(from, to);
+        if (range is null) return BadRequest("Nieprawidłowy zakres dat.");
         var userId = UserId();
-        var to = DateOnly.FromDateTime(DateTime.UtcNow);
-        var from = to.AddDays(-6);
-        var previousFrom = from.AddDays(-7);
+        var periodFrom = range.Value.From;
+        var periodTo = range.Value.To;
+        var periodDays = periodTo.DayNumber - periodFrom.DayNumber + 1;
+        var previousFrom = periodFrom.AddDays(-periodDays);
         var fromUtc = previousFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var toUtc = to.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var toUtc = periodTo.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
         var sessions = await db.WorkoutSessions
             .Include(x => x.Exercises).ThenInclude(x => x.Sets)
             .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed && x.FinishedAtUtc >= fromUtc && x.FinishedAtUtc < toUtc)
             .ToListAsync();
-        var currentSessions = sessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) >= from).ToList();
-        var previousSessions = sessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) < from).ToList();
+        var currentSessions = sessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) >= periodFrom).ToList();
+        var previousSessions = sessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) < periodFrom).ToList();
         var currentSets = currentSessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
         var previousSets = previousSessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
         var volume = currentSets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions));
@@ -259,7 +263,7 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         var weeklyGoal = await db.UserProfiles.Where(x => x.UserId == userId).Select(x => x.PlannedTrainingsPerWeek).SingleAsync() ?? 0;
         var training = new TrainingWeekSummaryResponse(
             currentSessions.Count,
-            weeklyGoal,
+            (int)Math.Ceiling(weeklyGoal * periodDays / 7m),
             (int)Math.Round(currentSessions.Sum(x => (x.FinishedAtUtc!.Value - x.StartedAtUtc).TotalMinutes)),
             currentSets.Count,
             plannedSets == 0 ? 0 : decimal.Round(currentSets.Count * 100m / plannedSets, 1),
@@ -267,9 +271,9 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             previousVolume == 0 ? null : ProgressMetrics.PercentageChange(previousVolume, volume));
 
         var meals = await db.Meals.Include(x => x.Items)
-            .Where(x => x.UserId == userId && x.LocalDate >= from && x.LocalDate <= to)
+            .Where(x => x.UserId == userId && x.LocalDate >= periodFrom && x.LocalDate <= periodTo)
             .ToListAsync();
-        var targets = await db.NutritionTargets.Where(x => x.UserId == userId && x.EffectiveFrom <= to)
+        var targets = await db.NutritionTargets.Where(x => x.UserId == userId && x.EffectiveFrom <= periodTo)
             .OrderBy(x => x.EffectiveFrom).ToListAsync();
         var profile = await db.UserProfiles.Where(x => x.UserId == userId)
             .Select(x => new { x.CalorieToleranceKcal, x.TrainingActivityLevel, x.TimeZoneId }).SingleAsync();
@@ -301,7 +305,7 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.Protein), 1),
             loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.Calories - x.TargetCalories)));
 
-        return new ProgressWeekSummaryResponse(from, to, training, nutrition);
+        return new ProgressWeekSummaryResponse(periodFrom, periodTo, training, nutrition);
     }
 
     private static (DateOnly From, DateOnly To)? DateRange(DateOnly? from, DateOnly? to)

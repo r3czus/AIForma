@@ -21,11 +21,11 @@ public sealed class ProgressClient(HttpClient http)
     public Task<ConsistencyResponse?> GetConsistency(DateOnly from, DateOnly to) =>
         http.GetFromJsonAsync<ConsistencyResponse>($"api/v1/progress/consistency?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
 
-    public Task<NutritionAdherenceResponse?> GetNutritionAdherence(DateOnly month) =>
-        http.GetFromJsonAsync<NutritionAdherenceResponse>($"api/v1/progress/nutrition-adherence?month={month:yyyy-MM-dd}");
+    public Task<NutritionAdherenceResponse?> GetNutritionAdherence(DateOnly from, DateOnly to) =>
+        http.GetFromJsonAsync<NutritionAdherenceResponse>($"api/v1/progress/nutrition-adherence?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
 
-    public Task<ProgressWeekSummaryResponse?> GetWeekSummary() =>
-        http.GetFromJsonAsync<ProgressWeekSummaryResponse>("api/v1/progress/week-summary");
+    public Task<ProgressWeekSummaryResponse?> GetWeekSummary(DateOnly from, DateOnly to) =>
+        http.GetFromJsonAsync<ProgressWeekSummaryResponse>($"api/v1/progress/week-summary?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
 
     public async Task<IReadOnlyList<WeeklyCheckInResponse>> GetCheckIns(DateOnly from, DateOnly to) =>
         await http.GetFromJsonAsync<List<WeeklyCheckInResponse>>($"api/v1/progress/check-ins?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}") ?? [];

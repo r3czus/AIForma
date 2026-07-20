@@ -919,6 +919,60 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .workout-result-list article > span { text-align: right; white-space: nowrap; }
 .finish-actions { display: grid; gap: 9px; margin-top: 20px; }
 .progress-card { border-radius: 22px; margin-top: 18px; padding: 24px; }
+.progress-v3 { max-width: 960px; }
+.progress-heading { margin-bottom: 18px; }
+.progress-tabs { background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; display: grid; gap: 5px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 5px; }
+.progress-tabs button { align-items: center; background: transparent; border: 0; border-radius: 15px; color: var(--ink); cursor: pointer; display: flex; font: 700 .86rem Onest, sans-serif; gap: 8px; justify-content: center; min-height: 48px; }
+.progress-tabs button.active { background: var(--inverse-surface); color: var(--inverse-ink); }
+.progress-tabs i { border-radius: 50%; height: 8px; width: 8px; }
+.progress-tabs .overview { background: var(--recovery); }
+.progress-tabs .diet { background: var(--nutrition); }
+.progress-tabs .training { background: var(--action); }
+.progress-timebar { align-items: center; display: flex; gap: 14px; justify-content: space-between; margin: 13px 0 20px; }
+.progress-ranges { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; display: flex; gap: 2px; overflow-x: auto; padding: 4px; scrollbar-width: none; }
+.progress-ranges::-webkit-scrollbar { display: none; }
+.progress-ranges button { background: transparent; border: 0; border-radius: 9px; color: var(--ink); cursor: pointer; flex: 0 0 auto; font: 700 .7rem Onest, sans-serif; min-height: 38px; padding: 0 12px; }
+.progress-ranges button.active { background: var(--action); color: white; }
+.progress-period-nav { align-items: center; display: flex; flex: 0 0 auto; gap: 4px; }
+.progress-period-nav > span { color: var(--muted); font: 500 .68rem "IBM Plex Mono", monospace; min-width: 178px; text-align: center; }
+.progress-direction { background: var(--inverse-surface); border-radius: 24px; color: var(--inverse-ink); display: grid; gap: 20px; grid-template-columns: 1fr auto; overflow: hidden; padding: 24px; }
+.progress-direction h2 { font-size: 1.8rem; margin: 5px 0; }
+.progress-direction p { color: #b9c7bf; font-size: .8rem; max-width: 560px; }
+.direction-score { align-items: center; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); border-radius: 18px; display: flex; flex-direction: column; justify-content: center; min-width: 130px; padding: 16px; }
+.direction-score strong { color: var(--recovery); font: 600 1.8rem "IBM Plex Mono", monospace; }
+.direction-score span { color: #b9c7bf; font-size: .65rem; }
+.progress-overview-stats { margin-top: 14px; }
+.progress-rhythm { overflow: hidden; }
+.week-rhythm { display: grid; gap: 8px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.week-rhythm button { --diet-day: var(--surface-soft); background: linear-gradient(180deg, var(--diet-day) 0 72%, transparent 72%); border: 1px solid var(--rule); border-radius: 15px; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; min-height: 105px; min-width: 0; padding: 10px 8px; text-align: left; }
+.week-rhythm button.diet-on { --diet-day: var(--recovery-soft); }
+.week-rhythm button.diet-under { --diet-day: #fff3d6; }
+.week-rhythm button.diet-over { --diet-day: #fde9e7; }
+.week-rhythm button.workout-done { border-bottom: 6px solid var(--action); }
+.week-rhythm span { color: var(--muted); font: .63rem "IBM Plex Mono", monospace; text-transform: uppercase; }
+.week-rhythm b { font: 600 1.15rem "IBM Plex Mono", monospace; margin: 5px 0 auto; }
+.week-rhythm small { color: var(--muted); font-size: .58rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+.period-heatmaps { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.period-heatmaps section { border: 1px solid var(--rule); border-radius: 14px; padding: 12px; }
+.period-heatmaps section > strong { display: block; font: 600 .7rem "IBM Plex Mono", monospace; margin-bottom: 8px; text-transform: capitalize; }
+.period-heatmaps section > div { display: grid; gap: 3px; grid-template-columns: repeat(7, 1fr); }
+.period-heatmaps button { --diet-day: var(--surface-soft); aspect-ratio: 1; background: var(--diet-day); border: 0; border-radius: 3px; cursor: pointer; min-width: 0; }
+.period-heatmaps button.diet-on { --diet-day: var(--recovery); }
+.period-heatmaps button.diet-under { --diet-day: #e5ae35; }
+.period-heatmaps button.diet-over { --diet-day: var(--danger); }
+.period-heatmaps button.workout-done { box-shadow: inset 0 0 0 2px var(--action); }
+.progress-trends, .progress-metric-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
+.progress-trends > div, .progress-metric-grid > div { background: var(--surface); border: 1px solid var(--rule); border-radius: 18px; display: flex; flex-direction: column; min-width: 0; padding: 17px; }
+.progress-trends span, .progress-metric-grid span { color: var(--muted); font-size: .7rem; }
+.progress-trends strong, .progress-metric-grid strong { font: 600 1.25rem "IBM Plex Mono", monospace; margin: 4px 0; overflow-wrap: anywhere; }
+.progress-trends small, .progress-metric-grid small { color: var(--muted); font-size: .65rem; }
+.progress-metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.training-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.progress-tools { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
+.progress-tools > a { align-items: center; background: var(--surface); border: 1px solid var(--rule); border-radius: 17px; color: var(--ink); display: grid; gap: 12px; grid-template-columns: auto 1fr auto; min-width: 0; padding: 14px; text-decoration: none; }
+.progress-tools > a > .mud-icon-root:first-child { background: var(--action-soft); border-radius: 11px; color: var(--action); padding: 8px; }
+.progress-tools strong, .progress-tools span { display: block; }
+.progress-tools span { color: var(--muted); font-size: .68rem; }
 .progress-card-heading { margin-bottom: 14px; }
 .progress-card-heading .mud-typography-h6 { margin: 0 0 5px; }
 .progress-card-heading p { color: var(--muted); font-size: .82rem; line-height: 1.5; margin: 0; }
@@ -1553,4 +1607,27 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .review-day { grid-template-columns: 1fr; }
     .day-status-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .photo-grid { gap: 8px; }
+    .progress-timebar { align-items: stretch; flex-direction: column; }
+    .progress-ranges { width: 100%; }
+    .progress-ranges button { flex: 1 0 auto; min-width: 62px; }
+    .progress-period-nav { justify-content: space-between; }
+    .progress-period-nav > span { min-width: 0; }
+    .progress-direction { grid-template-columns: 1fr; padding: 20px; }
+    .direction-score { align-items: baseline; flex-direction: row; gap: 8px; min-width: 0; }
+    .week-rhythm { gap: 4px; }
+    .week-rhythm button { border-radius: 11px; min-height: 82px; padding: 8px 5px; }
+    .week-rhythm b { font-size: .92rem; }
+    .week-rhythm small { display: none; }
+    .period-heatmaps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .progress-metric-grid, .training-metrics, .progress-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .progress-card { padding: 18px; }
+    .progress-card .mud-chart { max-width: 100%; overflow: hidden; }
+    .measurement-heading { align-items: stretch; flex-direction: column; }
+}
+
+@media (max-width: 390px) {
+    .progress-tabs button { font-size: .75rem; gap: 5px; }
+    .progress-tabs i { height: 6px; width: 6px; }
+    .progress-metric-grid, .training-metrics, .progress-tools, .progress-trends { grid-template-columns: 1fr; }
+    .period-heatmaps { grid-template-columns: 1fr; }
 }
