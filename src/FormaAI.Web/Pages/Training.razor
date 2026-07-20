@@ -18,13 +18,6 @@
     @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję plan</span></div> }
     else
     {
-        <section class="module-status training-status" aria-label="Stan treningów">
-            <div><span>Plany</span><strong>@_plans.Count</strong></div>
-            <div><span>Aktywny</span><strong>@(_plans.FirstOrDefault(x => x.IsActive)?.Name ?? "Brak")</strong></div>
-            <div><span>Ćwiczenia</span><strong>@_exercises.Count</strong></div>
-            <div><span>Dzisiaj</span><strong>@(_today is null ? "Regeneracja" : _today.AlreadyCompleted ? "Wykonany" : _today.DayName)</strong></div>
-        </section>
-
         @if (_activeSession is not null)
         {
             <MudAlert Severity="Severity.Info" Class="mt-3">
@@ -64,9 +57,10 @@
 
         <MudTabs @bind-ActivePanelIndex="_activeTab" Class="module-tabs mt-4" PanelClass="food-panel">
             <MudTabPanel Text="Plany">
+                <div class="tab-section-heading"><div><span class="card-kicker">Twoje plany</span><h2>Plany treningowe</h2></div><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="StartNewPlan">Dodaj nowy plan</MudButton></div>
                 @if (_plans.Count == 0)
                 {
-                    <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.EventNote" /><div><strong>Nie masz jeszcze planu</strong><span>Przejdź do zakładki „Nowy plan” i ułóż pierwszy tydzień.</span></div></div>
+                    <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.EventNote" /><div><strong>Nie masz jeszcze planu</strong><span>Dodaj pierwszy plan i przejdź przez cztery krótkie kroki.</span></div></div>
                 }
                 @foreach (var plan in _plans)
                 {
@@ -188,41 +182,55 @@
             </MudTabPanel>
 
             <MudTabPanel Text="Ćwiczenia">
-                <section class="module-form training-form">
-                    <div class="module-form-heading"><span class="card-kicker">Biblioteka</span><h2>@(_editingLibraryExerciseId is null ? "Dodaj własne ćwiczenie" : "Edytuj własne ćwiczenie")</h2><p>Opisz ruch i wybierz sprzęt tak, aby później od razu wiedzieć, czy potrzebujesz maszyny czy wolnego ciężaru.</p></div>
-                    <MudTextField @bind-Value="_custom.Name" Label="Nazwa ćwiczenia" Required="true" />
-                    <MudTextField @bind-Value="_custom.Description" Label="Opis i wskazówki wykonania" Placeholder="Np. ustaw ławkę pod kątem 30°, łopatki trzymaj ściągnięte" Lines="3" MaxLength="1000" />
-                    <MudSelect T="Equipment" @bind-Value="_custom.Equipment" Label="Sprzęt / rodzaj obciążenia" HelperText="@EquipmentKind(_custom.Equipment)">
-                        @foreach (var equipment in Enum.GetValues<Equipment>()) { <MudSelectItem Value="@equipment">@EquipmentName(equipment)</MudSelectItem> }
-                    </MudSelect>
-                    <section class="muscle-engagement-editor">
-                        <div class="muscle-engagement-heading"><div><strong>Zaangażowanie partii</strong><span>Ustal udział pracy każdej partii w tym ćwiczeniu.</span></div><span class="@(EngagementTotal == 100 ? "complete" : null)">Razem @EngagementTotal%</span></div>
-                        @for (var i = 0; i < _custom.Engagements.Count; i++)
-                        {
-                            var index = i;
-                            var row = _custom.Engagements[index];
-                            <div class="muscle-engagement-row">
-                                <MudSelect T="MuscleGroup" Value="row.MuscleGroup" ValueChanged="group => ChangeEngagementGroup(index, group)" Label="Partia">
-                                    @foreach (var group in Enum.GetValues<MuscleGroup>()) { <MudSelectItem Value="@group" Disabled="@GroupUsedByOtherRow(group, index)">@MuscleGroupName(group)</MudSelectItem> }
-                                </MudSelect>
-                                <MudNumericField T="int" Value="row.Percentage" ValueChanged="value => ChangeEngagementPercentage(index, value)" Label="Udział %" Min="1" Max="100" />
-                                <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Disabled="@(_custom.Engagements.Count == 1)" OnClick="() => RemoveEngagement(index)" aria-label="Usuń partię" />
-                            </div>
-                        }
-                        <div class="muscle-engagement-footer"><span>@(EngagementRemaining == 0 ? "Suma jest prawidłowa" : EngagementRemaining > 0 ? $"Pozostało {EngagementRemaining}%" : $"Przekroczono o {-EngagementRemaining}%")</span><MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Outlined.Add" Disabled="@(_custom.Engagements.Count >= 5)" OnClick="AddEngagement">Dodaj partię</MudButton></div>
-                    </section>
-                    <MudCheckBox @bind-Value="_custom.IsUnilateral" Label="Ćwiczenie jednostronne" />
-                    <div class="builder-actions end">
-                        @if (_editingLibraryExerciseId is not null) { <MudButton Variant="Variant.Text" OnClick="CancelExerciseEdit">Anuluj</MudButton> }
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(_custom.Name) || EngagementTotal != 100)" OnClick="SaveExercise">@(_editingLibraryExerciseId is null ? "Dodaj do biblioteki" : "Zapisz zmiany")</MudButton>
-                    </div>
-                </section>
+                <div class="tab-section-heading"><div><span class="card-kicker">Biblioteka</span><h2>Ćwiczenia</h2></div><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="StartNewExercise">Dodaj ćwiczenie</MudButton></div>
                 <div class="exercise-index">
                     @foreach (var exercise in _exercises)
                     {
                         <article class="exercise-card"><div><strong>@exercise.Name</strong>@if (exercise.IsOwn) { <div class="exercise-card-actions"><small>Własne</small><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditLibraryExercise(exercise)" aria-label="Edytuj własne ćwiczenie" /></div> }</div><span>@EngagementLabel(exercise) · @EquipmentName(exercise.Equipment)</span>@if (!string.IsNullOrWhiteSpace(exercise.Description)) { <p>@exercise.Description</p> }</article>
                     }
                 </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Nowe ćwiczenie">
+                <section class="module-form training-form">
+                    <div class="module-form-heading"><span class="card-kicker">Kreator ćwiczenia</span><h2>@(_editingLibraryExerciseId is null ? "Dodaj ćwiczenie krok po kroku" : "Edytuj ćwiczenie krok po kroku")</h2><p>Najpierw nazwij ruch, potem wybierz sprzęt i na końcu rozpisz pracę partii mięśniowych.</p></div>
+                    <div class="plan-stepper exercise-stepper" aria-label="Etapy tworzenia ćwiczenia">
+                        @for (var step = 1; step <= 3; step++)
+                        {
+                            <div class="plan-step @ExerciseStepClass(step)"><span>@step</span><small>@ExerciseStepName(step)</small></div>
+                        }
+                    </div>
+                    <div class="builder-stage plan-step-card">
+                        @if (_exerciseStep == 1)
+                        {
+                            <span class="card-kicker">Krok 1 z 3 · Podstawy</span><h3>Nazwa i wskazówki</h3><p class="step-lead">Użyj nazwy, którą łatwo rozpoznasz później w planie.</p>
+                            <MudTextField @bind-Value="_custom.Name" Label="Nazwa ćwiczenia" Required="true" />
+                            <MudTextField @bind-Value="_custom.Description" Label="Opis i wskazówki wykonania" Placeholder="Np. ustaw ławkę pod kątem 30°, łopatki trzymaj ściągnięte" Lines="3" MaxLength="1000" />
+                            <div class="builder-actions"><MudButton Variant="Variant.Text" OnClick="CancelExerciseEdit">Anuluj</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(_custom.Name))" OnClick="() => _exerciseStep = 2">Dalej · sprzęt</MudButton></div>
+                        }
+                        else if (_exerciseStep == 2)
+                        {
+                            <span class="card-kicker">Krok 2 z 3 · Wykonanie</span><h3>Sprzęt i rodzaj ruchu</h3><p class="step-lead">Te dane pomagają dobrać ćwiczenie podczas układania planu.</p>
+                            <MudSelect T="Equipment" @bind-Value="_custom.Equipment" Label="Sprzęt / rodzaj obciążenia" HelperText="@EquipmentKind(_custom.Equipment)">@foreach (var equipment in Enum.GetValues<Equipment>()) { <MudSelectItem Value="@equipment">@EquipmentName(equipment)</MudSelectItem> }</MudSelect>
+                            <MudCheckBox @bind-Value="_custom.IsUnilateral" Label="Ćwiczenie jednostronne" />
+                            <div class="builder-actions"><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.ArrowBack" OnClick="() => _exerciseStep = 1">Wstecz</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => _exerciseStep = 3">Dalej · partie mięśniowe</MudButton></div>
+                        }
+                        else
+                        {
+                            <span class="card-kicker">Krok 3 z 3 · Partie mięśniowe</span><h3>Jak rozkłada się praca?</h3><p class="step-lead">Rozdziel 100% zaangażowania pomiędzy maksymalnie pięć partii.</p>
+                            <section class="muscle-engagement-editor">
+                                <div class="muscle-engagement-heading"><div><strong>Zaangażowanie partii</strong><span>Ustal udział pracy każdej partii w tym ćwiczeniu.</span></div><span class="@(EngagementTotal == 100 ? "complete" : null)">Razem @EngagementTotal%</span></div>
+                                @for (var i = 0; i < _custom.Engagements.Count; i++)
+                                {
+                                    var index = i; var row = _custom.Engagements[index];
+                                    <div class="muscle-engagement-row"><MudSelect T="MuscleGroup" Value="row.MuscleGroup" ValueChanged="group => ChangeEngagementGroup(index, group)" Label="Partia">@foreach (var group in Enum.GetValues<MuscleGroup>()) { <MudSelectItem Value="@group" Disabled="@GroupUsedByOtherRow(group, index)">@MuscleGroupName(group)</MudSelectItem> }</MudSelect><MudNumericField T="int" Value="row.Percentage" ValueChanged="value => ChangeEngagementPercentage(index, value)" Label="Udział %" Min="1" Max="100" /><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Disabled="@(_custom.Engagements.Count == 1)" OnClick="() => RemoveEngagement(index)" aria-label="Usuń partię" /></div>
+                                }
+                                <div class="muscle-engagement-footer"><span>@(EngagementRemaining == 0 ? "Suma jest prawidłowa" : EngagementRemaining > 0 ? $"Pozostało {EngagementRemaining}%" : $"Przekroczono o {-EngagementRemaining}%")</span><MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Outlined.Add" Disabled="@(_custom.Engagements.Count >= 5)" OnClick="AddEngagement">Dodaj partię</MudButton></div>
+                            </section>
+                            <div class="builder-actions"><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.ArrowBack" OnClick="() => _exerciseStep = 2">Wstecz</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(EngagementTotal != 100)" OnClick="SaveExercise">@(_editingLibraryExerciseId is null ? "Zapisz ćwiczenie" : "Zapisz zmiany")</MudButton></div>
+                        }
+                    </div>
+                </section>
             </MudTabPanel>
         </MudTabs>
     }
@@ -240,6 +248,7 @@
     private bool _loading = true;
     private int _activeTab;
     private int _planStep = 1;
+    private int _exerciseStep = 1;
     private Guid? _editingPlanId;
     private int? _editingDayIndex;
     private int? _editingExerciseIndex;
@@ -278,6 +287,18 @@
     private void AddAnotherDay() { _editingDayIndex = null; _planStep = 2; }
     private void BackFromDay() => _planStep = _editingDayIndex is null ? 1 : 4;
     private ExerciseResponse? SelectedExercise() => _exercises.FirstOrDefault(x => x.Id == _planned.ExerciseId);
+    private void StartNewPlan()
+    {
+        _editingPlanId = null; _editingDayIndex = null; _editingExerciseIndex = null;
+        _plan.Name = "Mój plan"; _plan.Goal = string.Empty; _plan.StartsOn = DateOnly.FromDateTime(DateTime.Today); _plan.Days.Clear();
+        _day.Name = string.Empty; _day.DayOfWeek = null; _day.Exercises.Clear(); _planStep = 1; _activeTab = 1;
+    }
+
+    private void StartNewExercise()
+    {
+        ResetExerciseDraft();
+        _activeTab = 3;
+    }
 
     private void EditPlan(TrainingPlanResponse plan)
     {
@@ -358,10 +379,16 @@
         _editingLibraryExerciseId = exercise.Id; _custom.Name = exercise.Name; _custom.Description = exercise.Description;
         _custom.Equipment = exercise.Equipment; _custom.IsUnilateral = exercise.IsUnilateral; _custom.Engagements.Clear();
         _custom.Engagements.AddRange((exercise.MuscleEngagements ?? [new(exercise.MuscleGroup, 100)]).Select(x => new EngagementDraft(x.MuscleGroup, x.Percentage)));
+        _exerciseStep = 1; _activeTab = 3;
     }
     private void CancelExerciseEdit()
     {
-        _editingLibraryExerciseId = null; _custom.Name = string.Empty; _custom.Description = string.Empty; _custom.IsUnilateral = false; _custom.Engagements.Clear(); _custom.Engagements.Add(new(MuscleGroup.FullBody, 100));
+        ResetExerciseDraft();
+        _activeTab = 2;
+    }
+    private void ResetExerciseDraft()
+    {
+        _editingLibraryExerciseId = null; _exerciseStep = 1; _custom.Name = string.Empty; _custom.Description = string.Empty; _custom.Equipment = Equipment.Bodyweight; _custom.IsUnilateral = false; _custom.Engagements.Clear(); _custom.Engagements.Add(new(MuscleGroup.FullBody, 100));
     }
     private int EngagementTotal => _custom.Engagements.Sum(x => x.Percentage);
     private int EngagementRemaining => 100 - EngagementTotal;
@@ -383,6 +410,8 @@
     private static string DayName(DayOfWeek day) => day switch { DayOfWeek.Monday => "Poniedziałek", DayOfWeek.Tuesday => "Wtorek", DayOfWeek.Wednesday => "Środa", DayOfWeek.Thursday => "Czwartek", DayOfWeek.Friday => "Piątek", DayOfWeek.Saturday => "Sobota", _ => "Niedziela" };
     private string StepClass(int step) => step == _planStep ? "active" : step < _planStep ? "done" : string.Empty;
     private static string StepName(int step) => step switch { 1 => "Cel", 2 => "Dzień", 3 => "Ćwiczenia", _ => "Sprawdź" };
+    private string ExerciseStepClass(int step) => step == _exerciseStep ? "active" : step < _exerciseStep ? "done" : string.Empty;
+    private static string ExerciseStepName(int step) => step switch { 1 => "Nazwa", 2 => "Sprzęt", _ => "Partie" };
     private static string DayCountLabel(int count) => count == 1 ? "dzień" : count is 2 or 3 or 4 ? "dni" : "dni";
     private static string EquipmentKind(Equipment equipment) => equipment switch
     {

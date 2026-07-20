@@ -176,14 +176,16 @@
                 </MudPaper>
 
                 <MudPaper Class="profile-section account-section" Elevation="0">
-                    <div class="profile-section-heading"><span class="card-kicker">Konto</span><h2>Dostęp i prywatność</h2></div>
-                    @if (_user!.IsAdmin)
-                    {
-                        <MudButton Href="/admin" Variant="Variant.Outlined" FullWidth="true" StartIcon="@Icons.Material.Outlined.AdminPanelSettings">Panel administratora</MudButton>
-                    }
-                    <MudButton Href="/privacy" Variant="Variant.Text" FullWidth="true">Prywatność i źródła danych</MudButton>
-                    <MudButton OnClick="Logout" Variant="Variant.Outlined" FullWidth="true">Wyloguj się</MudButton>
-                    <MudExpansionPanels Class="mt-3">
+                    <div class="profile-section-heading"><span class="card-kicker">Konto</span><h2>Dostęp i prywatność</h2><p>Zarządzaj dostępem do konta i sprawdź, jak FormaAI chroni Twoje dane.</p></div>
+                    <nav class="account-menu" aria-label="Dostęp i prywatność">
+                        @if (_user!.IsAdmin)
+                        {
+                            <a href="/admin"><MudIcon Icon="@Icons.Material.Outlined.AdminPanelSettings" /><span><strong>Panel administratora</strong><small>Konfiguracja aplikacji i integracji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                        }
+                        <a href="/privacy"><MudIcon Icon="@Icons.Material.Outlined.Shield" /><span><strong>Prywatność i źródła danych</strong><small>Sprawdź zasady przetwarzania informacji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                        <button type="button" @onclick="Logout"><MudIcon Icon="@Icons.Material.Outlined.Logout" /><span><strong>Wyloguj się</strong><small>Zakończ sesję na tym urządzeniu</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></button>
+                    </nav>
+                    <MudExpansionPanels Class="account-delete">
                         <MudExpansionPanel Text="Usuń konto">
                             <MudAlert Severity="Severity.Warning" Dense="true">Ta operacja trwale usunie wszystkie dane.</MudAlert>
                             <MudTextField @bind-Value="_deletePassword" Label="Hasło" InputType="InputType.Password" />
