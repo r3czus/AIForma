@@ -57,29 +57,50 @@
                         var protein = meals.Sum(x => x.Macro.ProteinG);
                         var carbs = meals.Sum(x => x.Macro.CarbohydratesG);
                         var fat = meals.Sum(x => x.Macro.FatG);
-                        <section class="meal-slot">
+                        var appearance = MealAppearance(slot);
+                        <section class="meal-slot meal-theme-@appearance.Color @(IsMealSlotOpen(slot) ? "open" : null)">
                             <header class="meal-slot-heading">
-                                <div><strong>@slot</strong><span>@meals.Count pozycji · @calories.ToString("0") kcal</span><span class="meal-slot-macros">B @protein.ToString("0.#") g · W @carbs.ToString("0.#") g · T @fat.ToString("0.#") g</span></div>
-                                <MudIconButton Icon="@Icons.Material.Outlined.Add" Color="Color.Primary" OnClick="() => StartMeal(slot)" aria-label="@($"Dodaj do sekcji {slot}")" />
+                                <button type="button" class="meal-slot-toggle" @onclick="() => ToggleMealSlot(slot)" disabled="@(meals.Count == 0)" aria-expanded="@IsMealSlotOpen(slot)">
+                                    <MealSlotIcon IconKey="@appearance.Icon" ColorKey="@appearance.Color" />
+                                    <span class="meal-slot-copy"><strong>@slot</strong><small>@(meals.Count == 0 ? "Nie dodano produktów" : $"{meals.Count} pozycji")</small></span>
+                                </button>
+                                <div class="meal-slot-stats" aria-label="Podsumowanie posiłku">
+                                    @if (meals.Count > 0)
+                                    {
+                                        <span class="calories">@calories.ToString("0") kcal</span><span>B @protein.ToString("0.#") g</span><span>W @carbs.ToString("0.#") g</span><span>T @fat.ToString("0.#") g</span>
+                                    }
+                                    else
+                                    {
+                                        <time>@appearance.Time.ToString("HH:mm")</time>
+                                    }
+                                </div>
+                                @if (meals.Count == 0)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Add" OnClick="() => StartMeal(slot)" aria-label="@($"Dodaj do sekcji {slot}")" />
+                                }
+                                else
+                                {
+                                    <MudIconButton Icon="@(IsMealSlotOpen(slot) ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)" OnClick="() => ToggleMealSlot(slot)" aria-label="@($"Pokaż lub ukryj sekcję {slot}")" />
+                                }
                             </header>
-                            @if (meals.Count == 0)
+                            @if (meals.Count > 0 && IsMealSlotOpen(slot))
                             {
-                                <button class="meal-slot-empty" @onclick="() => StartMeal(slot)">Dodaj pierwszy posiłek</button>
-                            }
-                            @foreach (var meal in meals)
-                            {
-                                <MudPaper Class="meal-row" Elevation="0">
-                                    <div class="row-copy">
-                                        <MudText Typo="Typo.subtitle1">@DisplayMealName(meal.Name, slot)</MudText>
-                                        <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => $"{x.ProductName} {x.AmountGrams:0.#} g"))</MudText>
-                                    </div>
-                                    <div class="meal-actions">
-                                        <MudText Typo="Typo.body2">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
-                                        <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small" OnClick="() => CopyMeal(meal)" aria-label="Kopiuj posiłek" />
-                                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditMeal(meal, slot)" aria-label="Edytuj posiłek" />
-                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" />
-                                    </div>
-                                </MudPaper>
+                                @foreach (var meal in meals)
+                                {
+                                    <MudPaper Class="meal-row" Elevation="0">
+                                        <div class="row-copy">
+                                            <MudText Typo="Typo.subtitle1">@DisplayMealName(meal.Name, slot)</MudText>
+                                            <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => $"{x.ProductName} {x.AmountGrams:0.#} g"))</MudText>
+                                        </div>
+                                        <div class="meal-actions">
+                                            <MudText Typo="Typo.body2">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
+                                            <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small" OnClick="() => CopyMeal(meal)" aria-label="Kopiuj posiłek" />
+                                            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditMeal(meal, slot)" aria-label="Edytuj posiłek" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" aria-label="Usuń posiłek" />
+                                        </div>
+                                    </MudPaper>
+                                }
+                                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" OnClick="() => StartMeal(slot)" Class="meal-slot-add">Dodaj produkt</MudButton>
                             }
                         </section>
                     }
@@ -319,6 +340,8 @@
     private string _productSearch = string.Empty;
     private decimal _basePortion = 100;
     private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
+    private IReadOnlyList<MealScheduleEntry> _mealSchedule = [];
+    private readonly HashSet<string> _openMealSlots = new(StringComparer.OrdinalIgnoreCase);
     private DayOfWeek _weekStartsOn = DayOfWeek.Monday;
     private string _selectedMealSlot = "Śniadanie";
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
@@ -348,6 +371,7 @@
 
         var profile = await Account.GetProfile();
         _mealSlots = profile.MealSlots?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? _mealSlots;
+        _mealSchedule = profile.MealSchedule?.Where(x => x.Enabled).ToList() ?? [];
         _weekStartsOn = profile.WeekStartsOn;
         _selectedMealSlot = _mealSlots[0];
         await Reload();
@@ -366,6 +390,7 @@
             _target.Fat = _day.Target.FatG;
             _target.Carbs = _day.Target.CarbohydratesG;
         }
+        foreach (var slot in _mealSlots.Where(slot => MealsFor(slot).Count > 0)) _openMealSlots.Add(slot);
     }
 
     private async Task ChangeDay(int offset)
@@ -603,6 +628,14 @@
 
     private List<MealResponse> MealsFor(string slot) => _day?.Meals.Where(x => BelongsTo(x.Name, slot)).ToList() ?? [];
     private List<MealResponse> UnassignedMeals => _day?.Meals.Where(x => !_mealSlots.Any(slot => BelongsTo(x.Name, slot))).ToList() ?? [];
+    private MealScheduleEntry MealAppearance(string slot) =>
+        _mealSchedule.FirstOrDefault(x => x.Name.Equals(slot, StringComparison.OrdinalIgnoreCase))
+        ?? new MealScheduleEntry(slot, new TimeOnly(12, 0), true);
+    private bool IsMealSlotOpen(string slot) => _openMealSlots.Contains(slot);
+    private void ToggleMealSlot(string slot)
+    {
+        if (!_openMealSlots.Add(slot)) _openMealSlots.Remove(slot);
+    }
     private static bool BelongsTo(string mealName, string slot) => mealName.Equals(slot, StringComparison.OrdinalIgnoreCase) || mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase);
     private static string DisplayMealName(string mealName, string slot) => mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase) ? mealName[(slot.Length + 3)..] : mealName;
     private string MealName(string? name) => string.IsNullOrWhiteSpace(name) ? _selectedMealSlot : $"{_selectedMealSlot} · {name.Trim()}";

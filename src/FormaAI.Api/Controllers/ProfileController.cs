@@ -142,9 +142,29 @@ public sealed class ProfileController(
         profile.MealSchedule
             .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(value => value.Split('~'))
-            .Where(parts => parts.Length == 3 && TimeOnly.TryParseExact(parts[1], "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
-            .Select(parts => new MealScheduleEntry(parts[0], TimeOnly.ParseExact(parts[1], "HH:mm", CultureInfo.InvariantCulture), parts[2] == "1"))
+            .Where(parts => parts.Length >= 3 && TimeOnly.TryParseExact(parts[1], "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+            .Select(parts =>
+            {
+                var defaults = DefaultMealStyle(parts[0]);
+                return new MealScheduleEntry(
+                    parts[0],
+                    TimeOnly.ParseExact(parts[1], "HH:mm", CultureInfo.InvariantCulture),
+                    parts[2] == "1",
+                    parts.ElementAtOrDefault(3) ?? defaults.Icon,
+                    parts.ElementAtOrDefault(4) ?? defaults.Color);
+            })
             .ToArray();
+
+    private static (string Icon, string Color) DefaultMealStyle(string name)
+    {
+        var key = name.ToLowerInvariant();
+        if (key.Contains("śniad")) return ("sun", "orange");
+        if (key.Contains("lunch")) return ("cup", "green");
+        if (key.Contains("obiad")) return ("cloche", "blue");
+        if (key.Contains("przek")) return ("apple", "amber");
+        if (key.Contains("kolac")) return ("moon", "violet");
+        return ("restaurant", "green");
+    }
 
     private static bool IsKnownTimeZone(string id)
     {

@@ -1,0 +1,20 @@
+<span class="meal-slot-icon meal-color-@SafeColor" aria-hidden="true">
+    <MudIcon Icon="@Icon" />
+</span>
+
+@code {
+    [Parameter] public string IconKey { get; set; } = "restaurant";
+    [Parameter] public string ColorKey { get; set; } = "green";
+
+    private string Icon => IconKey switch
+    {
+        "sun" => Icons.Material.Outlined.LightMode,
+        "cup" => Icons.Material.Outlined.LocalCafe,
+        "cloche" => Icons.Material.Outlined.DinnerDining,
+        "apple" => Icons.Material.Outlined.LunchDining,
+        "moon" => Icons.Material.Outlined.DarkMode,
+        _ => Icons.Material.Outlined.Restaurant
+    };
+
+    private string SafeColor => ColorKey is "orange" or "green" or "blue" or "amber" or "violet" ? ColorKey : "green";
+}

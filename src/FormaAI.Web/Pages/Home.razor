@@ -149,32 +149,55 @@
                             var protein = meals.Sum(x => x.Macro.ProteinG);
                             var carbohydrates = meals.Sum(x => x.Macro.CarbohydratesG);
                             var fat = meals.Sum(x => x.Macro.FatG);
-                            <section class="meal-slot">
+                            var appearance = MealAppearance(slot);
+                            <section class="meal-slot meal-theme-@appearance.Color @(IsMealSlotOpen(slot) ? "open" : null)">
                                 <header class="meal-slot-heading">
-                                    <div>
-                                        <strong>@slot</strong>
-                                        <span>@meals.Count pozycji · @calories.ToString("0") kcal</span>
-                                        <span class="meal-slot-macros">B @protein.ToString("0.#") g · W @carbohydrates.ToString("0.#") g · T @fat.ToString("0.#") g</span>
+                                    <button type="button" class="meal-slot-toggle" @onclick="() => ToggleMealSlot(slot)" disabled="@(meals.Count == 0)" aria-expanded="@IsMealSlotOpen(slot)">
+                                        <MealSlotIcon IconKey="@appearance.Icon" ColorKey="@appearance.Color" />
+                                        <span class="meal-slot-copy">
+                                            <strong>@slot</strong>
+                                            <small>@(meals.Count == 0 ? "Nie dodano produktów" : $"{meals.Count} pozycji")</small>
+                                        </span>
+                                    </button>
+                                    <div class="meal-slot-stats" aria-label="Podsumowanie posiłku">
+                                        @if (meals.Count > 0)
+                                        {
+                                            <span class="calories">@calories.ToString("0") kcal</span>
+                                            <span>B @protein.ToString("0.#") g</span>
+                                            <span>W @carbohydrates.ToString("0.#") g</span>
+                                            <span>T @fat.ToString("0.#") g</span>
+                                        }
+                                        else
+                                        {
+                                            <time>@appearance.Time.ToString("HH:mm")</time>
+                                        }
                                     </div>
-                                    <MudIconButton Icon="@Icons.Material.Outlined.Add" Color="Color.Primary" Href="@MealEntryUrl(slot)" aria-label="@($"Dodaj do sekcji {slot}")" />
+                                    @if (meals.Count == 0)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Outlined.Add" Href="@MealEntryUrl(slot)" aria-label="@($"Dodaj do sekcji {slot}")" />
+                                    }
+                                    else
+                                    {
+                                        <MudIconButton Icon="@(IsMealSlotOpen(slot) ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)" OnClick="() => ToggleMealSlot(slot)" aria-label="@($"Pokaż lub ukryj sekcję {slot}")" />
+                                    }
                                 </header>
-                                @if (meals.Count == 0)
+                                @if (meals.Count > 0 && IsMealSlotOpen(slot))
                                 {
-                                    <MudButton Href="@MealEntryUrl(slot)" Variant="Variant.Text" Class="meal-slot-empty">Dodaj pierwszy posiłek</MudButton>
-                                }
-                                @foreach (var meal in meals)
-                                {
-                                    <MudPaper Class="meal-row" Elevation="0">
-                                        <div class="row-copy">
-                                            <MudText Typo="Typo.subtitle1">@DisplayMealName(meal.Name, slot)</MudText>
-                                            <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => x.ProductName))</MudText>
-                                        </div>
-                                        <div class="meal-actions">
-                                            <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
-                                            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Href="@MealEditUrl(meal.Id, slot)" aria-label="Edytuj pozycję" />
-                                            <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" aria-label="Usuń pozycję" />
-                                        </div>
-                                    </MudPaper>
+                                    @foreach (var meal in meals)
+                                    {
+                                        <MudPaper Class="meal-row" Elevation="0">
+                                            <div class="row-copy">
+                                                <MudText Typo="Typo.subtitle1">@DisplayMealName(meal.Name, slot)</MudText>
+                                                <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => x.ProductName))</MudText>
+                                            </div>
+                                            <div class="meal-actions">
+                                                <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
+                                                <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Href="@MealEditUrl(meal.Id, slot)" aria-label="Edytuj pozycję" />
+                                                <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" aria-label="Usuń pozycję" />
+                                            </div>
+                                        </MudPaper>
+                                    }
+                                    <MudButton Href="@MealEntryUrl(slot)" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" Class="meal-slot-add">Dodaj produkt</MudButton>
                                 }
                             </section>
                         }
@@ -229,6 +252,8 @@
     private UserProfileResponse? _profile;
     private NutritionDayResponse? _day;
     private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
+    private IReadOnlyList<MealScheduleEntry> _mealSchedule = [];
+    private readonly HashSet<string> _openMealSlots = new(StringComparer.OrdinalIgnoreCase);
     private TodayWorkoutResponse? _todayWorkout;
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
     private WorkoutSessionResponse? _activeSession;
@@ -286,13 +311,26 @@
     {
         _profile = await Account.GetProfile();
         _mealSlots = _profile.MealSlots?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? _mealSlots;
+        _mealSchedule = _profile.MealSchedule?.Where(x => x.Enabled).ToList() ?? [];
         _day = await Nutrition.GetDay(DateOnly.FromDateTime(DateTime.Now));
+        foreach (var slot in _mealSlots.Where(slot => MealsFor(slot).Count > 0)) _openMealSlots.Add(slot);
         _todayWorkout = await TrainingApi.GetToday();
         _plans = await TrainingApi.GetPlans();
         _activeSession = await TrainingApi.GetActiveSession();
         var today = DateOnly.FromDateTime(DateTime.Today);
         var offset = (7 + (int)today.DayOfWeek - (int)(_profile?.WeekStartsOn ?? DayOfWeek.Monday)) % 7;
         _consistency = await ProgressApi.GetConsistency(today.AddDays(-offset), today);
+    }
+
+    private MealScheduleEntry MealAppearance(string slot) =>
+        _mealSchedule.FirstOrDefault(x => x.Name.Equals(slot, StringComparison.OrdinalIgnoreCase))
+        ?? new MealScheduleEntry(slot, new TimeOnly(12, 0), true);
+
+    private bool IsMealSlotOpen(string slot) => _openMealSlots.Contains(slot);
+
+    private void ToggleMealSlot(string slot)
+    {
+        if (!_openMealSlots.Add(slot)) _openMealSlots.Remove(slot);
     }
 
     private async Task StartWorkout()

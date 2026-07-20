@@ -99,7 +99,7 @@ public sealed class UserProfile
             var entries = mealSchedule
                 .Where(x => !string.IsNullOrWhiteSpace(x.Name))
                 .Take(10)
-                .Select(x => $"{Clean(x.Name)}~{x.Time:HH\\:mm}~{(x.Enabled ? 1 : 0)}")
+                .Select(x => $"{Clean(x.Name)}~{x.Time:HH\\:mm}~{(x.Enabled ? 1 : 0)}~{CleanIcon(x.Icon)}~{CleanColor(x.Color)}")
                 .ToList();
             if (entries.Count > 0) MealSchedule = string.Join('|', entries);
         }
@@ -120,6 +120,13 @@ public sealed class UserProfile
     }
 
     private static string Clean(string value) => value.Trim().Replace("|", " ").Replace("~", " ");
+    private static string CleanIcon(string value) => value is "sun" or "cup" or "cloche" or "apple" or "moon" or "restaurant" ? value : "restaurant";
+    private static string CleanColor(string value) => value is "orange" or "green" or "blue" or "amber" or "violet" ? value : "green";
 }
 
-public sealed record MealScheduleEntry(string Name, TimeOnly Time, bool Enabled);
+public sealed record MealScheduleEntry(
+    string Name,
+    TimeOnly Time,
+    bool Enabled,
+    string Icon = "restaurant",
+    string Color = "green");

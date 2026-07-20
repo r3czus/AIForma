@@ -51,16 +51,41 @@
                     break;
                 case "meals":
                     <section>
-                        <p class="settings-note">Włącz wybrane sekcje, nadaj im własne nazwy i ustaw zwykłą porę posiłku.</p>
+                        <p class="settings-note">Włącz wybrane sekcje, nadaj im nazwę, godzinę oraz wygląd widoczny w dzienniku.</p>
                         <div class="meal-schedule-list">
                             @for (var i = 0; i < _meals.Count; i++)
                             {
                                 var index = i;
-                                <div class="meal-schedule-row">
-                                    <MudSwitch @bind-Value="_meals[index].Enabled" Color="Color.Primary" aria-label="Włącz posiłek" />
-                                    <MudTextField @bind-Value="_meals[index].Name" Label="Nazwa posiłku" MaxLength="40" />
-                                    <label class="time-field"><span>Godzina</span><input type="time" value="@_meals[index].Time" @onchange="e => UpdateTime(index, e)" /></label>
-                                    <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Disabled="@(_meals.Count == 1)" OnClick="() => _meals.RemoveAt(index)" aria-label="Usuń posiłek" />
+                                <div class="meal-schedule-card @(_meals[index].Enabled ? null : "disabled")">
+                                    <div class="meal-schedule-row">
+                                        <MealSlotIcon IconKey="@_meals[index].Icon" ColorKey="@_meals[index].Color" />
+                                        <MudSwitch @bind-Value="_meals[index].Enabled" Color="Color.Primary" aria-label="Włącz posiłek" />
+                                        <MudTextField @bind-Value="_meals[index].Name" Label="Nazwa posiłku" MaxLength="40" />
+                                        <label class="time-field"><span>Godzina</span><input type="time" value="@_meals[index].Time" @onchange="e => UpdateTime(index, e)" /></label>
+                                        <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Disabled="@(_meals.Count == 1)" OnClick="() => _meals.RemoveAt(index)" aria-label="Usuń posiłek" />
+                                    </div>
+                                    <div class="meal-style-picker">
+                                        <div>
+                                            <span>Ikona</span>
+                                            <div class="meal-icon-options">
+                                                @foreach (var option in MealIconOptions)
+                                                {
+                                                    <button type="button" class="@IconChoiceClass(index, option.Key)" @onclick="() => _meals[index].Icon = option.Key" aria-label="@option.Label" title="@option.Label">
+                                                        <MealSlotIcon IconKey="@option.Key" ColorKey="@_meals[index].Color" />
+                                                    </button>
+                                                }
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span>Kolor</span>
+                                            <div class="meal-color-options">
+                                                @foreach (var option in MealColorOptions)
+                                                {
+                                                    <button type="button" class="@ColorChoiceClass(index, option.Key)" @onclick="() => _meals[index].Color = option.Key" aria-label="@option.Label" title="@option.Label"><i class="meal-color-@option.Key"></i></button>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             }
                         </div>
@@ -157,6 +182,8 @@
     private static readonly (ActivityLevel Value, string Label)[] ActivityLevels = [(ActivityLevel.Low, "Siedząca"), (ActivityLevel.Light, "Lekko aktywna"), (ActivityLevel.Moderate, "Aktywna"), (ActivityLevel.High, "Fizyczna")];
     private static readonly (ActivityLevel Value, string Label)[] TrainingLevels = [(ActivityLevel.Low, "Brak lub lekka"), (ActivityLevel.Light, "Lekka"), (ActivityLevel.Moderate, "Średnia"), (ActivityLevel.High, "Wysoka")];
     private static readonly (DayOfWeek Value, string Label)[] WeekDays = [(DayOfWeek.Monday, "Poniedziałek"), (DayOfWeek.Tuesday, "Wtorek"), (DayOfWeek.Wednesday, "Środa"), (DayOfWeek.Thursday, "Czwartek"), (DayOfWeek.Friday, "Piątek"), (DayOfWeek.Saturday, "Sobota"), (DayOfWeek.Sunday, "Niedziela")];
+    private static readonly (string Key, string Label)[] MealIconOptions = [("sun", "Słońce"), ("cup", "Kubek"), ("cloche", "Danie"), ("apple", "Przekąska"), ("moon", "Księżyc"), ("restaurant", "Sztućce")];
+    private static readonly (string Key, string Label)[] MealColorOptions = [("orange", "Pomarańczowy"), ("green", "Zielony"), ("blue", "Niebieski"), ("amber", "Bursztynowy"), ("violet", "Fioletowy")];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -188,12 +215,14 @@
         _quietTo = _profile.QuietHoursEnd?.ToTimeSpan() ?? new TimeSpan(7, 0, 0);
         _maxReminders = _profile.MaxRemindersPerDay;
         _meals = (_profile.MealSchedule?.Count > 0 ? _profile.MealSchedule : DefaultMeals())!
-            .Select(x => new MealSetting(x.Name, x.Time.ToString("HH:mm"), x.Enabled)).ToList();
+            .Select(x => new MealSetting(x.Name, x.Time.ToString("HH:mm"), x.Enabled, x.Icon, x.Color)).ToList();
         _loading = false;
     }
 
-    private void AddMeal() => _meals.Add(new MealSetting("Nowy posiłek", "12:00", true));
+    private void AddMeal() => _meals.Add(new MealSetting("Nowy posiłek", "12:00", true, "restaurant", "green"));
     private void UpdateTime(int index, ChangeEventArgs args) => _meals[index].Time = args.Value?.ToString() ?? "12:00";
+    private string IconChoiceClass(int index, string icon) => _meals[index].Icon == icon ? "selected" : string.Empty;
+    private string ColorChoiceClass(int index, string color) => _meals[index].Color == color ? "selected" : string.Empty;
     private string ThemeClass(string value) => _theme == value ? "theme-choice selected" : "theme-choice";
     private Task SelectSystemTheme() => SelectTheme("system");
     private Task SelectLightTheme() => SelectTheme("light");
@@ -218,7 +247,7 @@
         try
         {
             var schedule = _meals.Where(x => !string.IsNullOrWhiteSpace(x.Name) && TimeOnly.TryParse(x.Time, out _))
-                .Select(x => new MealScheduleEntry(x.Name.Trim(), TimeOnly.Parse(x.Time), x.Enabled)).ToList();
+                .Select(x => new MealScheduleEntry(x.Name.Trim(), TimeOnly.Parse(x.Time), x.Enabled, x.Icon, x.Color)).ToList();
             var slots = schedule.Where(x => x.Enabled).Select(x => x.Name).ToList();
             if (slots.Count == 0) { Snackbar.Add("Włącz przynajmniej jeden posiłek.", Severity.Info); return; }
 
@@ -246,14 +275,19 @@
 
     private static IReadOnlyList<MealScheduleEntry> DefaultMeals() =>
     [
-        new("Śniadanie", new TimeOnly(7, 0), true), new("Lunch", new TimeOnly(12, 0), true),
-        new("Obiad", new TimeOnly(15, 0), true), new("Przekąska", new TimeOnly(18, 0), true), new("Kolacja", new TimeOnly(21, 0), true)
+        new("Śniadanie", new TimeOnly(7, 0), true, "sun", "orange"),
+        new("Lunch", new TimeOnly(12, 0), true, "cup", "green"),
+        new("Obiad", new TimeOnly(15, 0), true, "cloche", "blue"),
+        new("Przekąska", new TimeOnly(18, 0), true, "apple", "amber"),
+        new("Kolacja", new TimeOnly(21, 0), true, "moon", "violet")
     ];
 
-    private sealed class MealSetting(string name, string time, bool enabled)
+    private sealed class MealSetting(string name, string time, bool enabled, string icon, string color)
     {
         public string Name { get; set; } = name;
         public string Time { get; set; } = time;
         public bool Enabled { get; set; } = enabled;
+        public string Icon { get; set; } = icon;
+        public string Color { get; set; } = color;
     }
 }

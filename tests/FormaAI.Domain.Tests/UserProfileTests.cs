@@ -28,4 +28,15 @@ public sealed class UserProfileTests
 
         Assert.Equal(0, profile.WeeklyWeightChangeKg);
     }
+
+    [Fact]
+    public void MealScheduleKeepsChosenIconAndColor()
+    {
+        var profile = new UserProfile("user-1", "UTC");
+        var schedule = new[] { new MealScheduleEntry("Lunch", new TimeOnly(12, 30), true, "cup", "blue") };
+
+        profile.Update("UTC", null, null, null, null, mealSchedule: schedule);
+
+        Assert.Equal("Lunch~12:30~1~cup~blue", profile.MealSchedule);
+    }
 }
