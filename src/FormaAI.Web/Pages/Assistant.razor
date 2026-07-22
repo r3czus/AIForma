@@ -11,11 +11,11 @@
 <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap assistant-page module-page">
     <header class="module-heading assistant-heading">
         <div>
-            <span class="page-kicker">FormaAI · rozmowa</span>
+            <span class="page-kicker">FormaAI · decyzja po Twojej stronie</span>
             <MudText Typo="Typo.h4">Asystent</MudText>
             <p>Zapytaj o dzisiejsze makro, posiłek ze spiżarni albo szkic planu treningowego.</p>
         </div>
-        <span class="assistant-availability"><i></i> Gotowy do pracy</span>
+        <span class="assistant-availability"><i></i> Gotowy do analizy</span>
     </header>
 
     @if (_checking)
@@ -34,6 +34,7 @@
                         <h2>Od czego zaczynamy?</h2>
                         <p>Wybierz gotowy kierunek albo napisz własne pytanie.</p>
                     </div>
+                    <p class="assistant-trust"><MudIcon Icon="@Icons.Material.Outlined.VerifiedUser" /> Nic nie zapiszę bez Twojego zatwierdzenia.</p>
                     <div class="prompt-grid">
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Kitchen" OnClick='@(() => _message = "Co mogę zjeść z produktów, które mam w spiżarni?")'>Posiłek ze spiżarni</MudButton>
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.DonutLarge" OnClick='@(() => _message = "Sprawdź moje dzisiejsze makro i podpowiedz kolejny posiłek.")'>Sprawdź dzisiejsze makro</MudButton>
