@@ -257,6 +257,7 @@
     [SupplyParameterFromQuery(Name = "date")] public string? DateQuery { get; set; }
     [SupplyParameterFromQuery(Name = "slot")] public string? SlotQuery { get; set; }
     [SupplyParameterFromQuery(Name = "edit")] public Guid? EditQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "mode")] public string? ModeQuery { get; set; }
 
     private static readonly System.Globalization.CultureInfo PolishCulture = new("pl-PL");
     private const string FavoritesStorageKey = "formaai.favoriteProducts";
@@ -300,6 +301,12 @@
     {
         if (DateOnly.TryParse(DateQuery, out var selected) && selected <= Today) _date = selected;
         if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
+        _entryMode = ModeQuery?.ToLowerInvariant() switch
+        {
+            "text" or "ai" => MealEntryMode.Text,
+            "photo" => MealEntryMode.Photo,
+            _ => MealEntryMode.Manual
+        };
 
         var profile = await Account.GetProfile();
         _mealSlots = profile.MealSlots?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? _mealSlots;

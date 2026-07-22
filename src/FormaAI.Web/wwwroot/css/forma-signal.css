@@ -229,6 +229,183 @@ button:disabled,
 
 .module-empty .mud-icon-root { color: var(--muted); }
 
+.dashboard-hero {
+    align-items: end;
+    border-bottom: 1px solid var(--rule-strong);
+    margin-bottom: 0;
+    padding-bottom: 24px;
+}
+
+.dashboard-hero h1 {
+    font-size: clamp(2.75rem, 7vw, 4.6rem);
+    margin: 7px 0 5px;
+}
+
+.dashboard-hero p { font-size: .95rem; }
+
+.quick-capture {
+    align-items: stretch;
+    background: var(--surface);
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    gap: 0;
+    grid-template-columns: minmax(210px, .8fr) repeat(2, minmax(250px, 1fr));
+    margin: 0 0 20px;
+}
+
+.quick-capture-intro,
+.quick-capture-group { padding: 18px 20px; }
+
+.quick-capture-intro {
+    align-content: center;
+    display: grid;
+    gap: 3px;
+    padding-left: 0;
+}
+
+.quick-capture-intro strong { font: 700 1.35rem/1.05 var(--display-font); }
+.quick-capture-intro small { color: var(--muted); font-size: .75rem; line-height: 1.4; }
+
+.quick-capture-group {
+    align-content: center;
+    border-left: 1px solid var(--rule);
+    display: grid;
+    gap: 7px;
+    grid-template-columns: 1fr 1fr;
+}
+
+.quick-capture-group > span {
+    color: var(--muted);
+    font-family: var(--data-font);
+    font-size: .75rem;
+    font-weight: 600;
+    grid-column: 1 / -1;
+}
+
+.quick-capture-group .mud-button-root {
+    justify-content: flex-start;
+    min-width: 0;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+.daily-coach {
+    background: var(--inverse-surface) !important;
+    border: 0;
+    color: var(--inverse-ink);
+    margin: 0 0 24px;
+    overflow: hidden;
+    padding: 22px 24px;
+    position: relative;
+}
+
+.daily-coach::after {
+    background: var(--action);
+    bottom: 0;
+    content: "";
+    height: 4px;
+    left: 0;
+    position: absolute;
+    width: min(68%, 520px);
+}
+
+.daily-coach .card-kicker { color: #afbcff; }
+.daily-coach h2 { color: var(--inverse-ink); font-size: clamp(1.8rem, 4vw, 2.35rem); }
+.daily-coach-content p { color: color-mix(in srgb, var(--inverse-ink) 72%, transparent); }
+.daily-coach .momentum-strip { border-color: color-mix(in srgb, var(--inverse-ink) 18%, transparent); }
+.daily-coach .momentum-strip span { color: color-mix(in srgb, var(--inverse-ink) 70%, transparent); }
+.daily-coach .mud-button-filled-primary { background: var(--inverse-ink) !important; color: var(--ink) !important; }
+
+.dashboard-grid { display: block; }
+.dashboard-main { gap: 18px; }
+
+.workout-today {
+    background: var(--surface) !important;
+    border-radius: var(--radius-surface);
+    padding: clamp(20px, 3vw, 28px);
+}
+
+.workout-today .card-heading { margin-bottom: 18px; }
+.workout-preview { margin-bottom: 20px; }
+.workout-preview > div { min-height: 44px; }
+.workout-preview strong { font-size: .75rem; }
+
+.macro-card {
+    border-radius: var(--radius-surface);
+    padding: clamp(18px, 3vw, 26px);
+}
+
+.macro-card .card-kicker { color: var(--fuel); }
+.energy-balance-panel { border: 0; border-radius: 0; overflow: visible; }
+.energy-balance-hero { background: transparent; border-bottom: 1px solid var(--rule); padding: 8px 0 22px; }
+.calorie-ring { height: 132px; width: 132px; }
+.calorie-ring::after { background: var(--surface); }
+.calorie-score strong { font-size: clamp(3.2rem, 8vw, 4.25rem); }
+.calorie-score span,
+.calorie-score small,
+.calorie-ring span,
+.calorie-ring small { font-size: .75rem; }
+.energy-balance-copy p { font-size: .82rem; }
+.calorie-score .calorie-percent { border-radius: 7px; font-size: .75rem; }
+
+.calorie-target-breakdown { gap: 0; padding: 0; }
+.target-breakdown-card {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    min-height: 98px;
+    padding: 18px;
+}
+.target-breakdown-card + .target-breakdown-card { border-left: 1px solid var(--rule); }
+.target-breakdown-card.bonus,
+.target-breakdown-card.total { background: transparent; border-color: var(--rule); }
+.target-breakdown-card.bonus::before,
+.target-breakdown-card.total::before { display: none; }
+.training-bonus-label { background: var(--fuel-soft); color: var(--fuel) !important; }
+
+.macro-strip { padding: 18px 0 0; }
+.macro-grid > div { padding-left: 18px; padding-right: 18px; }
+.macro-grid span,
+.macro-grid small { font-size: .75rem; }
+.macro-grid header > span { color: var(--recovery); font-size: .78rem; }
+.macro-grid .fat header > span { color: var(--fuel); }
+.macro-grid .carbs header > span { color: #6840b2; }
+.macro-grid .macro-values strong { font-size: .85rem; }
+.macro-icon { border-radius: 9px; height: 40px; width: 40px; }
+
+.meal-log { border-top: 0; margin-top: 8px; padding-top: 24px; }
+
+@media (max-width: 900px) {
+    .quick-capture { grid-template-columns: 1fr 1fr; }
+    .quick-capture-intro { border-bottom: 1px solid var(--rule); grid-column: 1 / -1; padding-left: 0; }
+    .quick-capture-group:first-of-type { border-left: 0; padding-left: 0; }
+}
+
+@media (max-width: 620px) {
+    .dashboard-hero { align-items: stretch; gap: 16px; }
+    .dashboard-hero h1 { font-size: clamp(2.75rem, 14vw, 3.7rem); }
+    .dashboard-hero .mud-button-root { width: 100%; }
+    .quick-capture { background: transparent; grid-template-columns: 1fr; }
+    .quick-capture-intro { grid-column: 1; padding: 16px 0; }
+    .quick-capture-group,
+    .quick-capture-group:first-of-type {
+        background: var(--surface);
+        border: 0;
+        border-bottom: 1px solid var(--rule);
+        padding: 14px 0;
+    }
+    .quick-capture-group .mud-button-root { justify-content: center; }
+    .daily-coach { padding: 20px; }
+    .macro-overview { grid-template-columns: 104px 1fr; }
+    .calorie-ring { height: 104px; width: 104px; }
+    .calorie-score strong { font-size: 2.85rem; }
+    .calorie-target-breakdown { grid-template-columns: 1fr; }
+    .target-breakdown-card { min-height: 0; padding: 14px 0; }
+    .target-breakdown-card + .target-breakdown-card { border-left: 0; border-top: 1px solid var(--rule); }
+    .macro-grid > div { padding: 14px 0; }
+    .macro-grid > div + div { border-left: 0; border-top: 1px solid var(--rule); }
+}
+
 @keyframes signal-enter {
     from { opacity: .72; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
