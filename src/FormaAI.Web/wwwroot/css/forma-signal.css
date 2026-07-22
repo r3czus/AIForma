@@ -59,6 +59,7 @@ h1, h2, h3,
 
 p, .mud-typography-body1, .mud-typography-body2 { max-width: 72ch; }
 .mud-typography-caption { font-size: .75rem; letter-spacing: .01em; }
+small { font-size: .75rem !important; }
 
 .page-kicker,
 .card-kicker {
@@ -143,7 +144,7 @@ button:disabled,
     background: var(--action-soft);
     border-radius: var(--radius-control);
     color: var(--action) !important;
-    min-height: 42px;
+    min-height: 44px;
 }
 
 .page-content { padding: calc(74px + env(safe-area-inset-top)) 0 calc(92px + env(safe-area-inset-bottom)); }
@@ -613,6 +614,52 @@ button:disabled,
 .body-metric-filters button { min-height: 44px; }
 .nutrition-day { min-height: 42px; }
 
+.progress-ranges button,
+.nutrition-day,
+.meal-icon-options button,
+.meal-color-options button,
+.day-status-picker button,
+.exercise-switcher button,
+.meal-portion-row .mud-button-root,
+.product-custom-portion .mud-button-root,
+.time-field input { min-height: 44px; }
+
+.meal-icon-options button,
+.meal-color-options button { height: 44px; width: 44px; }
+
+.brand-tagline,
+.bottom-nav > a,
+.performance-tape,
+.workout-preview strong,
+.target-breakdown-card span,
+.macro-strip-heading span,
+.journal-day-switch > button span,
+.meal-entry-modes-wide button span,
+.module-status span,
+.recipe-metrics span,
+.session-clock span,
+.session-progress span,
+.rest-clock span,
+.exercise-timer-actions button span,
+.workout-timer span,
+.set-log-header,
+.direction-score span,
+.period-calendar .nutrition-day,
+.progress-section-metrics span,
+.progress-section-metrics small,
+.progress-trends small,
+.progress-metric-grid small,
+.chart-label,
+.calendar-score span,
+.nutrition-calendar .weekday,
+.calendar-legend span,
+.calendar-workout-exercises span,
+.weight-trend-chart > span,
+.weight-trend-chart > div,
+.training-draft-exercise span,
+.meal-style-picker > div > span,
+.workout-length-picker span { font-size: .75rem; }
+
 .profile-summary {
     background: var(--inverse-surface);
     border: 0;
@@ -809,7 +856,7 @@ button:disabled,
 
 @media (max-width: 350px) {
     .assistant-label { display: none; }
-    .bottom-nav > a { font-size: .66rem; }
+    .bottom-nav > a { font-size: .7rem; }
 }
 
 @media (max-width: 390px) {
