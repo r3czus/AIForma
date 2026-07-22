@@ -13,7 +13,10 @@
             <MudText Typo="Typo.h4">Trening</MudText>
             <p>Ułóż rytm tygodnia, a podczas sesji skup się już tylko na kolejnej serii.</p>
         </div>
-        <MudButton Href="/assistant?prompt=Chcę utworzyć nowy plan treningowy. Przeprowadź mnie przez krótką rozmowę, przygotuj kompletny plan do sprawdzenia i zapisz go dopiero po moim zatwierdzeniu." Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome" Class="module-heading-action">Wygeneruj plan z AI</MudButton>
+        <div class="module-heading-actions">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="StartNewPlan">Nowy plan</MudButton>
+            <MudButton Href="/assistant?prompt=Chcę utworzyć nowy plan treningowy. Przeprowadź mnie przez krótką rozmowę, przygotuj kompletny plan do sprawdzenia i zapisz go dopiero po moim zatwierdzeniu." Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AutoAwesome">Ułóż z AI</MudButton>
+        </div>
     </header>
     @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję plan</span></div> }
     else
@@ -237,6 +240,8 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "new")] public string? NewQuery { get; set; }
+
     private IReadOnlyList<ExerciseResponse> _exercises = [];
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
     private TodayWorkoutResponse? _today;
@@ -264,7 +269,10 @@
         _planned.MinReps = profile.DefaultRepetitions;
         _planned.MaxReps = profile.DefaultRepetitions;
         _planned.RestSeconds = profile.DefaultRestSeconds;
-        await Reload(); _loading = false;
+        await Reload();
+        if (NewQuery?.Equals("plan", StringComparison.OrdinalIgnoreCase) == true)
+            StartNewPlan();
+        _loading = false;
     }
     private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); _activeSession = await TrainingApi.GetActiveSession(); }
     private void AddExercise()
