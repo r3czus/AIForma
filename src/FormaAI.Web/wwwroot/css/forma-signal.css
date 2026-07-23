@@ -496,8 +496,34 @@ button:disabled,
 .workout-length-picker button.selected { background: var(--action); border-color: var(--action); color: white; }
 .workout-length-picker button.selected span { color: rgba(255, 255, 255, .78); }
 
-.plan-row { background: transparent !important; border-bottom: 1px solid var(--rule); padding: 18px 0; }
-.plan-day-detail { background: transparent; border: 0; border-left: 1px solid var(--rule-strong); border-radius: 0; margin: 4px 0 18px 16px; padding: 4px 0 4px 20px; }
+.training-plan-list { display: grid; gap: 18px; }
+.plan-card { background: var(--surface) !important; border: 1px solid var(--rule); border-radius: var(--radius-surface); overflow: hidden; }
+.plan-card.is-active { border-color: color-mix(in srgb, var(--recovery) 48%, var(--rule)); }
+.plan-card-header { align-items: center; background: var(--surface-soft); border-bottom: 1px solid var(--rule); display: flex; gap: 20px; justify-content: space-between; padding: 18px 20px; }
+.plan-card-identity { align-items: center; display: flex; gap: 14px; min-width: 0; }
+.plan-card-identity .row-copy { min-width: 0; }
+.plan-card-identity .mud-typography-h6 { font-size: 1.35rem; line-height: 1.1; margin: 0; overflow-wrap: anywhere; }
+.plan-card-identity .mud-typography-body2 { color: var(--muted); margin-top: 4px; }
+.plan-card-status { background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 7px; color: var(--muted); flex: 0 0 auto; font: 650 .7rem "IBM Plex Mono", monospace; padding: 7px 9px; }
+.plan-card.is-active .plan-card-status { background: var(--recovery-soft); border-color: color-mix(in srgb, var(--recovery) 32%, var(--rule)); color: var(--recovery); }
+.plan-actions { flex: 0 0 auto; }
+.plan-actions .mud-icon-button { border: 1px solid var(--rule); height: 40px; width: 40px; }
+.plan-day-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.plan-day-card { border-right: 1px solid var(--rule); min-width: 0; }
+.plan-day-card:last-child { border-right: 0; }
+.plan-day-card > summary { align-items: center; cursor: pointer; display: grid; gap: 10px; grid-template-columns: 32px minmax(0, 1fr) auto; list-style: none; min-height: 92px; padding: 16px; }
+.plan-day-card > summary::-webkit-details-marker { display: none; }
+.plan-day-card > summary:hover { background: var(--surface-soft); }
+.plan-day-card > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.plan-day-card[open] { background: var(--surface); }
+.plan-day-card[open] > summary { background: var(--action-soft); border-bottom: 1px solid var(--rule); }
+.plan-day-card[open] > summary > .mud-icon-root { transform: rotate(180deg); }
+.plan-day-number { align-items: center; background: var(--ink); border-radius: 8px; color: var(--inverse-ink); display: flex; font: 650 .75rem "IBM Plex Mono", monospace; height: 32px; justify-content: center; width: 32px; }
+.plan-day-copy { display: grid; gap: 4px; min-width: 0; }
+.plan-day-copy strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.15rem; line-height: 1.1; overflow-wrap: anywhere; }
+.plan-day-copy small { color: var(--muted); font-size: .72rem; }
+.plan-day-card > .plan-day-exercises { background: transparent; border-radius: 0; margin: 0 16px; padding: 6px 0; }
+.plan-day-card > .mud-button-root { margin: 0 10px 10px; }
 .builder-stage { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-surface); box-shadow: none; padding: clamp(18px, 4vw, 30px); }
 .plan-stepper { margin-bottom: 24px; }
 .plan-step { min-height: 52px; }
@@ -769,6 +795,9 @@ button:disabled,
     .quick-capture { grid-template-columns: 1fr 1fr; }
     .quick-capture-intro { border-bottom: 1px solid var(--rule); grid-column: 1 / -1; padding-left: 0; }
     .quick-capture-group:first-of-type { border-left: 0; padding-left: 0; }
+    .plan-day-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .plan-day-card:nth-child(2n) { border-right: 0; }
+    .plan-day-card:nth-child(n + 3) { border-top: 1px solid var(--rule); }
 }
 
 @media (max-width: 620px) {
@@ -801,6 +830,14 @@ button:disabled,
     .meal-slot-add { margin-left: 0; width: 100%; }
     .meal-entry-modes-wide button { min-height: 72px; }
     .builder-stage { padding: 18px 14px; }
+    .plan-card-header { align-items: stretch; flex-direction: column; padding: 16px; }
+    .plan-card-identity { align-items: flex-start; flex-direction: column; gap: 9px; }
+    .plan-actions { justify-content: flex-start; }
+    .plan-day-grid { grid-template-columns: 1fr; }
+    .plan-day-card,
+    .plan-day-card:nth-child(2n) { border-right: 0; }
+    .plan-day-card:nth-child(n + 2) { border-top: 1px solid var(--rule); }
+    .plan-day-card > summary { min-height: 78px; padding: 13px 14px; }
 }
 
 @keyframes signal-enter {
