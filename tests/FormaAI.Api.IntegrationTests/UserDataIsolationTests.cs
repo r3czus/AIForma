@@ -44,6 +44,24 @@ public sealed class UserDataIsolationTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task StrongAlphanumericPasswordCanBeUsedForAnAccount()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        var csrf = await client.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        var request = new HttpRequestMessage(HttpMethod.Post, "api/account/register")
+        {
+            Content = JsonContent.Create(new RegisterRequest("alphanumeric@example.test", "Dreczek123", "Europe/Warsaw"))
+        };
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+
+        var response = await client.SendAsync(request);
+
+        response.EnsureSuccessStatusCode();
+        var account = await response.Content.ReadFromJsonAsync<CurrentUserResponse>();
+        Assert.Equal("alphanumeric@example.test", account!.Email);
+    }
+
+    [Fact]
     public async Task AccountDeletionRemovesOwnedData()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

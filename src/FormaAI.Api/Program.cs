@@ -64,6 +64,7 @@ builder.Services
     {
         options.User.RequireUniqueEmail = true;
         options.Password.RequiredLength = 8;
+        options.Password.RequireNonAlphanumeric = false;
     })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
