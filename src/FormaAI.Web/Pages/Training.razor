@@ -149,6 +149,8 @@
                             <span class="card-kicker">Krok 3 z 4 · @_day.Name</span>
                             <h3>Dodaj ćwiczenia w kolejności wykonania</h3>
                             <p class="step-lead">Ustaw serie, zakres powtórzeń, zapas RIR i przerwę. Możesz dodać kilka ćwiczeń jedno po drugim.</p>
+                            <MudTextField T="string" Value="_exerciseSearch" ValueChanged="SearchExercises" Immediate="true" DebounceInterval="250" Label="Szukaj ćwiczenia" Placeholder="np. wiosł* albo *hantlami" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
+                            <small class="wildcard-search-hint">*fraza — końcówka · fraza* — początek · *fraza* — zawiera</small>
                             <MudSelect T="Guid?" @bind-Value="_planned.ExerciseId" Label="Wybierz ćwiczenie" Clearable="true">
                                 @foreach (var exercise in _exercises) { <MudSelectItem T="Guid?" Value="@((Guid?)exercise.Id)">@exercise.Name · @EquipmentName(exercise.Equipment)</MudSelectItem> }
                             </MudSelect>
@@ -259,6 +261,8 @@
     [SupplyParameterFromQuery(Name = "new")] public string? NewQuery { get; set; }
 
     private IReadOnlyList<ExerciseResponse> _exercises = [];
+    private string _exerciseSearch = string.Empty;
+    private int _exerciseSearchVersion;
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
     private TodayWorkoutResponse? _today;
     private WorkoutSessionResponse? _activeSession;
@@ -291,6 +295,26 @@
         _loading = false;
     }
     private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); _activeSession = await TrainingApi.GetActiveSession(); }
+    private async Task SearchExercises(string value)
+    {
+        _exerciseSearch = value;
+        var searchVersion = ++_exerciseSearchVersion;
+        var selected = _exercises.FirstOrDefault(x => x.Id == _planned.ExerciseId);
+        try
+        {
+            var results = (await TrainingApi.GetExercises(value)).ToList();
+            if (searchVersion != _exerciseSearchVersion)
+                return;
+            if (selected is not null && results.All(x => x.Id != selected.Id))
+                results.Insert(0, selected);
+            _exercises = results;
+        }
+        catch (HttpRequestException)
+        {
+            if (searchVersion == _exerciseSearchVersion)
+                Snackbar.Add("Nie udało się wyszukać ćwiczeń.", Severity.Error);
+        }
+    }
     private void AddExercise()
     {
         var exercise = _exercises.FirstOrDefault(x => x.Id == _planned.ExerciseId);

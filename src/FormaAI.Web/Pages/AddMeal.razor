@@ -63,6 +63,7 @@
             {
                 <div class="meal-catalog-search">
                     <MudTextField T="string" Value="_productSearch" ValueChanged="@((string value) => SearchProducts(value))" Immediate="true" DebounceInterval="250" Placeholder="Szukaj produktu lub marki" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" aria-label="Szukaj produktu" />
+                    <small class="wildcard-search-hint">*fraza — końcówka · fraza* — początek · *fraza* — zawiera</small>
                 </div>
 
                 <nav class="meal-catalog-tabs" aria-label="Filtry produktów">

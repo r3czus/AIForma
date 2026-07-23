@@ -73,10 +73,85 @@
             </div>
             <div class="quick-capture-group">
                 <span>Trening</span>
-                <MudButton Href="/training?new=plan" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Add">Utwórz plan</MudButton>
-                <MudButton Href="/assistant?prompt=Chcę utworzyć nowy plan treningowy. Przeprowadź mnie przez krótką rozmowę, przygotuj kompletny plan do sprawdzenia i zapisz go dopiero po moim zatwierdzeniu." Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AutoAwesome">Ułóż z AI</MudButton>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.EditNote" OnClick="ToggleQuickWorkout" Disabled="@(_activeSession is not null)">Wpisz trening</MudButton>
+                <MudButton Href="/training" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.FitnessCenter">Moje plany</MudButton>
             </div>
         </section>
+
+        @if (_quickWorkoutOpen)
+        {
+            <section class="quick-workout-builder" aria-labelledby="quick-workout-title">
+                <header>
+                    <div>
+                        <span class="card-kicker">Trening bez planu</span>
+                        <h2 id="quick-workout-title">Wpisz trening na dziś</h2>
+                        <p>Wybierz ćwiczenia i liczbę serii. Szczegóły serii uzupełnisz podczas treningu.</p>
+                    </div>
+                    <MudIconButton Icon="@Icons.Material.Outlined.Close" OnClick="CloseQuickWorkout" aria-label="Zamknij wpisywanie treningu" />
+                </header>
+
+                <div class="quick-workout-duration">
+                    <MudSelect T="int" @bind-Value="_quickWorkoutMinutes" Label="Planowany czas">
+                        <MudSelectItem Value="30">30 min</MudSelectItem>
+                        <MudSelectItem Value="45">45 min</MudSelectItem>
+                        <MudSelectItem Value="60">60 min</MudSelectItem>
+                        <MudSelectItem Value="90">90 min</MudSelectItem>
+                    </MudSelect>
+                    <span>Zakres roboczy: 8–12 powtórzeń · 2 RIR · 90 s przerwy</span>
+                </div>
+
+                <div class="quick-workout-search">
+                    <MudTextField T="string" Value="_quickExerciseSearch" ValueChanged="SearchQuickExercises" Immediate="true" DebounceInterval="250" Label="Znajdź ćwiczenie" Placeholder="np. wycisk* albo *hantlami" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
+                    <small class="wildcard-search-hint">*fraza — końcówka · fraza* — początek · *fraza* — zawiera</small>
+                </div>
+
+                @if (_quickExerciseLoading)
+                {
+                    <div class="quick-workout-status"><MudProgressCircular Indeterminate="true" Size="Size.Small" /><span>Szukam ćwiczeń…</span></div>
+                }
+                else if (_quickExerciseResults.Count == 0)
+                {
+                    <p class="quick-workout-empty">Nie znaleziono ćwiczeń. Zmień frazę lub położenie gwiazdki.</p>
+                }
+                else
+                {
+                    <div class="quick-workout-results" aria-label="Wyniki wyszukiwania ćwiczeń">
+                        @foreach (var exercise in _quickExerciseResults.Where(x => !IsQuickExerciseSelected(x.Id)).Take(8))
+                        {
+                            <button type="button" @onclick="() => AddQuickExercise(exercise)">
+                                <span><strong>@exercise.Name</strong><small>@ExerciseMeta(exercise)</small></span>
+                                <MudIcon Icon="@Icons.Material.Outlined.Add" />
+                            </button>
+                        }
+                    </div>
+                }
+
+                @if (_quickWorkoutExercises.Count > 0)
+                {
+                    <div class="quick-workout-selected">
+                        <div class="quick-workout-selected-heading">
+                            <strong>Wybrane ćwiczenia</strong>
+                            <span>@_quickWorkoutExercises.Count</span>
+                        </div>
+                        @foreach (var item in _quickWorkoutExercises)
+                        {
+                            <div class="quick-workout-selected-row">
+                                <span><strong>@item.Exercise.Name</strong><small>8–12 powtórzeń</small></span>
+                                <MudNumericField @bind-Value="item.Sets" Label="Serie" Min="1" Max="10" HideSpinButtons="true" />
+                                <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" OnClick="() => RemoveQuickExercise(item)" aria-label="@($"Usuń {item.Exercise.Name}")" />
+                            </div>
+                        }
+                    </div>
+                }
+
+                <footer>
+                    <span>@QuickWorkoutSummary</span>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" Disabled="@(_quickWorkoutSaving || !QuickWorkoutIsValid)" OnClick="StartQuickWorkout">
+                        @(_quickWorkoutSaving ? "Zapisuję…" : "Rozpocznij trening")
+                    </MudButton>
+                </footer>
+            </section>
+        }
 
         <MudPaper Class="daily-coach" Elevation="0" aria-label="Sygnał dnia" Style="@($"--signal-progress: {WeekProgress}%")">
             <span class="card-kicker">Sygnał dnia · kolejny krok</span>
@@ -264,6 +339,14 @@
     private WorkoutSessionResponse? _activeSession;
     private ConsistencyResponse? _consistency;
     private Guid? _selectedTrainingDay;
+    private bool _quickWorkoutOpen;
+    private bool _quickExerciseLoading;
+    private bool _quickWorkoutSaving;
+    private int _quickExerciseSearchVersion;
+    private string _quickExerciseSearch = string.Empty;
+    private int _quickWorkoutMinutes = 45;
+    private IReadOnlyList<ExerciseResponse> _quickExerciseResults = [];
+    private readonly List<QuickExerciseSelection> _quickWorkoutExercises = [];
     private bool _loading = true;
     private int _tab;
     private static int EstimateMinutes(TodayWorkoutResponse workout) => Math.Max(20,
@@ -368,6 +451,121 @@
         Navigation.NavigateTo($"/workout/{session.Id}");
     }
 
+    private async Task ToggleQuickWorkout()
+    {
+        if (_activeSession is not null)
+        {
+            Navigation.NavigateTo($"/workout/{_activeSession.Id}");
+            return;
+        }
+
+        _quickWorkoutOpen = !_quickWorkoutOpen;
+        if (_quickWorkoutOpen && _quickExerciseResults.Count == 0)
+            await SearchQuickExercises(_quickExerciseSearch);
+    }
+
+    private void CloseQuickWorkout() => _quickWorkoutOpen = false;
+
+    private async Task SearchQuickExercises(string value)
+    {
+        _quickExerciseSearch = value;
+        var searchVersion = ++_quickExerciseSearchVersion;
+        _quickExerciseLoading = true;
+        try
+        {
+            var results = await TrainingApi.GetExercises(value);
+            if (searchVersion == _quickExerciseSearchVersion)
+                _quickExerciseResults = results;
+        }
+        catch (HttpRequestException)
+        {
+            if (searchVersion == _quickExerciseSearchVersion)
+            {
+                _quickExerciseResults = [];
+                Snackbar.Add("Nie udało się pobrać ćwiczeń. Spróbuj ponownie.", Severity.Error);
+            }
+        }
+        finally
+        {
+            if (searchVersion == _quickExerciseSearchVersion)
+                _quickExerciseLoading = false;
+        }
+    }
+
+    private bool IsQuickExerciseSelected(Guid id) => _quickWorkoutExercises.Any(x => x.Exercise.Id == id);
+
+    private void AddQuickExercise(ExerciseResponse exercise)
+    {
+        if (!IsQuickExerciseSelected(exercise.Id))
+            _quickWorkoutExercises.Add(new QuickExerciseSelection(exercise));
+    }
+
+    private void RemoveQuickExercise(QuickExerciseSelection item) => _quickWorkoutExercises.Remove(item);
+
+    private async Task StartQuickWorkout()
+    {
+        if (!QuickWorkoutIsValid || _quickWorkoutSaving)
+            return;
+
+        _quickWorkoutSaving = true;
+        try
+        {
+            var request = new StartQuickWorkoutRequest(
+                "Trening na dziś",
+                _quickWorkoutMinutes,
+                _quickWorkoutExercises.Select(x => new QuickWorkoutExerciseRequest(x.Exercise.Id, x.Sets)).ToList());
+            var session = await TrainingApi.StartQuick(request);
+            Navigation.NavigateTo($"/workout/{session.Id}");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się rozpocząć treningu. Upewnij się, że nie trwa inna sesja i spróbuj ponownie.", Severity.Error);
+        }
+        finally
+        {
+            _quickWorkoutSaving = false;
+        }
+    }
+
+    private bool QuickWorkoutIsValid =>
+        _quickWorkoutExercises.Count > 0 && _quickWorkoutExercises.All(x => x.Sets is >= 1 and <= 10);
+
+    private string QuickWorkoutSummary => _quickWorkoutExercises.Count == 0
+        ? "Dodaj co najmniej jedno ćwiczenie"
+        : !QuickWorkoutIsValid
+            ? "Liczba serii musi mieścić się w zakresie 1–10"
+            : $"{_quickWorkoutExercises.Sum(x => x.Sets)} serii · {_quickWorkoutMinutes} min";
+
+    private static string ExerciseMeta(ExerciseResponse exercise) =>
+        $"{MuscleGroupName(exercise.MuscleGroup)} · {EquipmentName(exercise.Equipment)}";
+
+    private static string MuscleGroupName(MuscleGroup group) => group switch
+    {
+        MuscleGroup.Chest => "Klatka piersiowa",
+        MuscleGroup.Back => "Plecy",
+        MuscleGroup.Shoulders => "Barki",
+        MuscleGroup.Biceps => "Biceps",
+        MuscleGroup.Triceps => "Triceps",
+        MuscleGroup.Quadriceps => "Czworogłowe uda",
+        MuscleGroup.Hamstrings => "Dwugłowe uda",
+        MuscleGroup.Glutes => "Pośladki",
+        MuscleGroup.Calves => "Łydki",
+        MuscleGroup.Core => "Brzuch",
+        MuscleGroup.Forearms => "Przedramiona",
+        _ => "Całe ciało"
+    };
+
+    private static string EquipmentName(Equipment equipment) => equipment switch
+    {
+        Equipment.Barbell => "Sztanga",
+        Equipment.Dumbbell => "Hantle",
+        Equipment.Machine => "Maszyna",
+        Equipment.Cable => "Wyciąg",
+        Equipment.Bodyweight => "Masa ciała",
+        Equipment.Kettlebell => "Kettlebell",
+        _ => "Inne"
+    };
+
     private List<MealResponse> MealsFor(string slot) => _day?.Meals.Where(x => BelongsTo(x.Name, slot)).ToList() ?? [];
     private List<MealResponse> UnassignedMeals => _day?.Meals.Where(x => !_mealSlots.Any(slot => BelongsTo(x.Name, slot))).ToList() ?? [];
     private static bool BelongsTo(string mealName, string slot) => mealName.Equals(slot, StringComparison.OrdinalIgnoreCase) || mealName.StartsWith(slot + " · ", StringComparison.OrdinalIgnoreCase);
@@ -397,4 +595,9 @@
 
     private sealed class LoginForm { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; }
     private sealed class RegisterForm { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; public string TimeZoneId { get; set; } = "Europe/Warsaw"; }
+    private sealed class QuickExerciseSelection(ExerciseResponse exercise)
+    {
+        public ExerciseResponse Exercise { get; } = exercise;
+        public int Sets { get; set; } = 3;
+    }
 }
