@@ -20,7 +20,7 @@ public sealed record NutritionAdherencePoint(DateOnly Date, decimal? TargetKcal,
 public sealed record NutritionAdherenceResponse(DateOnly Month, int ToleranceKcal, int DaysOnTarget, int LoggedDays, IReadOnlyList<NutritionAdherencePoint> Days);
 public sealed record TrainingWeekSummaryResponse(int CompletedWorkouts, int PlannedWorkouts, int TotalMinutes, int WorkingSets,
     decimal SetCompletionPercent, decimal TotalVolumeKg, decimal? VolumeChangePercent);
-public sealed record NutritionWeekSummaryResponse(int LoggedDays, int DaysOnCalories, decimal CalorieAdherencePercent,
+public sealed record NutritionWeekSummaryResponse(int LoggedDays, int EligibleDays, int DaysOnCalories, decimal CalorieAdherencePercent,
     decimal AverageCalories, decimal AverageTargetCalories, int DaysOnProtein, decimal AverageProteinG, decimal AverageCalorieDifference);
 public sealed record ProgressWeekSummaryResponse(DateOnly From, DateOnly To, TrainingWeekSummaryResponse Training, NutritionWeekSummaryResponse Nutrition);
 public sealed record MuscleVolumePoint(string MuscleGroup, decimal WorkingSets, decimal VolumeKg, decimal WorkPercent);

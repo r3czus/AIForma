@@ -53,7 +53,7 @@
             {
                 <div class="week-summary-grid progress-overview-stats">
                     <MudPaper Class="week-summary-card nutrition-summary" Elevation="0">
-                        <div class="summary-card-top"><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><div><span>Dieta</span><strong>@_summary.Nutrition.DaysOnCalories / @_summary.Nutrition.LoggedDays dni w celu</strong></div></div>
+                        <div class="summary-card-top"><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><div><span>Dieta</span><strong>@_summary.Nutrition.DaysOnCalories / @_summary.Nutrition.EligibleDays dni w celu</strong></div></div>
                         <div class="summary-progress"><i style="width: @PercentWidth(_summary.Nutrition.CalorieAdherencePercent)"></i></div>
                         <p>@NutritionNote</p>
                     </MudPaper>
@@ -86,7 +86,7 @@
                 <section class="progress-section-hero diet-section-hero" aria-label="Podsumowanie diety">
                     <div class="progress-section-copy"><span class="card-kicker">@RangeKicker</span><h2>@DietTitle</h2><p>@NutritionNote</p></div>
                     <div class="progress-section-metrics">
-                        @Metric("W celu", $"{_summary.Nutrition.DaysOnCalories} / {_summary.Nutrition.LoggedDays} dni", "kalorie")
+                        @Metric("W celu", $"{_summary.Nutrition.DaysOnCalories} / {_summary.Nutrition.EligibleDays} dni", $"{_summary.Nutrition.LoggedDays} zapisanych")
                         @Metric("Średnio", $"{_summary.Nutrition.AverageCalories:0} kcal", $"cel {_summary.Nutrition.AverageTargetCalories:0}")
                         @Metric("Białko", $"{_summary.Nutrition.DaysOnProtein} / {_summary.Nutrition.LoggedDays} dni", $"średnio {_summary.Nutrition.AverageProteinG:0} g")
                         @Metric("Bilans", $"{Signed(_summary.Nutrition.AverageCalorieDifference)} kcal", "dziennie")

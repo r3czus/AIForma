@@ -251,17 +251,26 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         var userId = UserId();
         var periodFrom = range.Value.From;
         var periodTo = range.Value.To;
-        var periodDays = periodTo.DayNumber - periodFrom.DayNumber + 1;
+        var profile = await db.UserProfiles.Where(x => x.UserId == userId)
+            .Select(x => new { x.CalorieToleranceKcal, x.TrainingActivityLevel, x.TimeZoneId }).SingleAsync();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(profile.TimeZoneId);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
+        var effectiveTo = periodTo < today ? periodTo : today;
+        var periodDays = effectiveTo < periodFrom ? 0 : effectiveTo.DayNumber - periodFrom.DayNumber + 1;
         var previousFrom = periodFrom.AddDays(-periodDays);
         var fromUtc = previousFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var toUtc = periodTo.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var toUtc = effectiveTo.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
         var sessions = await db.WorkoutSessions
             .Include(x => x.Exercises).ThenInclude(x => x.Sets)
             .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed && x.FinishedAtUtc >= fromUtc && x.FinishedAtUtc < toUtc)
             .ToListAsync();
-        var currentSessions = sessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) >= periodFrom).ToList();
-        var previousSessions = sessions.Where(x => DateOnly.FromDateTime(x.FinishedAtUtc!.Value) < periodFrom).ToList();
+        var currentSessions = sessions.Where(x =>
+        {
+            var date = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.FinishedAtUtc!.Value, zone));
+            return date >= periodFrom && date <= effectiveTo;
+        }).ToList();
+        var previousSessions = sessions.Except(currentSessions).ToList();
         var currentSets = currentSessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
         var previousSets = previousSessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
         var volume = currentSets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions));
@@ -282,9 +291,8 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             .ToListAsync();
         var targets = await db.NutritionTargets.Where(x => x.UserId == userId && x.EffectiveFrom <= periodTo)
             .OrderBy(x => x.EffectiveFrom).ToListAsync();
-        var profile = await db.UserProfiles.Where(x => x.UserId == userId)
-            .Select(x => new { x.CalorieToleranceKcal, x.TrainingActivityLevel, x.TimeZoneId }).SingleAsync();
-        var zone = TimeZoneInfo.FindSystemTimeZoneById(profile.TimeZoneId);
+        var eligibleRange = ProgressPeriodCalculator.EligibleRange(periodFrom, periodTo, today, targets.FirstOrDefault()?.EffectiveFrom);
+        var eligibleDays = eligibleRange is null ? 0 : eligibleRange.Value.To.DayNumber - eligibleRange.Value.From.DayNumber + 1;
         var loggedDays = meals.GroupBy(x => x.LocalDate).Select(group =>
         {
             var target = targets.LastOrDefault(x => x.EffectiveFrom <= group.Key);
@@ -304,8 +312,9 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         var daysOnCalories = loggedDays.Count(x => x.HasTarget && Math.Abs(x.Calories - x.TargetCalories) <= profile.CalorieToleranceKcal);
         var nutrition = new NutritionWeekSummaryResponse(
             loggedDays.Count,
+            eligibleDays,
             daysOnCalories,
-            loggedDays.Count == 0 ? 0 : decimal.Round(daysOnCalories * 100m / loggedDays.Count, 1),
+            eligibleDays == 0 ? 0 : decimal.Round(daysOnCalories * 100m / eligibleDays, 1),
             loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.Calories)),
             loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.TargetCalories)),
             loggedDays.Count(x => x.HasTarget && x.Protein >= x.TargetProtein),
