@@ -20,6 +20,7 @@ Pełna paleta z jasno przypisanymi rolami:
 - `--ink: #17211c` — tekst i główne dane.
 - `--muted: #596760` — opisy pomocnicze.
 - `--action: #3451d1` — działanie, aktywny stan i sygnał AI.
+- `--action-ink: #ffffff` — tekst na głównej akcji; w ciemnym motywie zmienia się na ciemny granat dla zachowania kontrastu.
 - `--fuel: #b9562c` — energia i żywienie.
 - `--recovery: #287454` — wykonanie i pozytywny stan.
 - `--danger: #b93b35` — błąd i działanie destrukcyjne.
@@ -47,7 +48,7 @@ Skala ma być zwarta: nagłówek strony 34–52 px zależnie od szerokości, nag
 
 - Telefon: dolna nawigacja, kompaktowy nagłówek, podstawowe akcje w strefie kciuka.
 - Tablet: boczna kompaktowa nawigacja od 768 px i szersza przestrzeń treści.
-- Desktop: stabilna szyna nawigacyjna i maksymalna szerokość treści dostosowana do typu ekranu.
+- Desktop: od 1200 px stabilna szyna nawigacyjna rozszerza się do wersji z ikonami i etykietami, a maksymalna szerokość treści pozostaje dostosowana do typu ekranu.
 - Najważniejsza akcja ma poprzedzać zestaw szczegółów.
 - Sekcje danych używają wierszy i separatorów zamiast stosu zagnieżdżonych kart.
 
@@ -63,10 +64,11 @@ Skala ma być zwarta: nagłówek strony 34–52 px zależnie od szerokości, nag
 - Karty są zarezerwowane dla samodzielnych modułów; listy produktów, ćwiczeń i ustawień są rytmicznymi wierszami.
 - Stany wyboru łączą kolor z obramowaniem, ikoną albo tekstem.
 - AI używa znaku `/AI`, krótkiego wyjaśnienia i jawnego etapu zatwierdzenia.
+- Pierwsze ładowanie głównych ekranów używa szkieletu odpowiadającego układowi treści; spinner pozostaje tylko przy krótkich operacjach lokalnych.
 
 ## Motion
 
-Jeden krótki ruch wejścia strony oraz szybkie potwierdzenia wykonanej akcji. Brak animacji dekoracyjnych. `prefers-reduced-motion` wyłącza przejścia.
+Jeden krótki ruch wejścia strony oraz szybkie potwierdzenia wykonanej akcji. Nacisk trwa 140 ms, standardowa zmiana interfejsu 200 ms i używa krzywej `cubic-bezier(.23, 1, .32, 1)`. Szkielet ładowania porusza się liniowo, a tor Sygnału dnia pokazuje rzeczywistą realizację tygodniowego celu. Brak animacji dekoracyjnych. `prefers-reduced-motion` usuwa ruch przestrzenny i zatrzymuje shimmer.
 
 ## Responsive and Accessibility Rules
 

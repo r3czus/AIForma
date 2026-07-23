@@ -64,7 +64,7 @@
             <div class="quick-capture-intro">
                 <span class="card-kicker">Zapisz działanie</span>
                 <strong>Co chcesz zrobić?</strong>
-                <small>Ręcznie albo z pomocą AI — Ty zatwierdzasz wynik.</small>
+                <small>Ręcznie albo z pomocą AI. Ty zatwierdzasz wynik.</small>
             </div>
             <div class="quick-capture-group">
                 <span>Jedzenie</span>
@@ -78,7 +78,7 @@
             </div>
         </section>
 
-        <MudPaper Class="daily-coach" Elevation="0" aria-label="Sygnał dnia">
+        <MudPaper Class="daily-coach" Elevation="0" aria-label="Sygnał dnia" Style="@($"--signal-progress: {WeekProgress}%")">
             <span class="card-kicker">Sygnał dnia · kolejny krok</span>
             <div class="daily-coach-content">
                 <div>
@@ -110,7 +110,7 @@
                             {
                                 <div>
                                     <span>@exercise.ExerciseName</span>
-                                    <strong>@exercise.Sets × @exercise.MinReps–@exercise.MaxReps</strong>
+                                    <strong>@exercise.Sets × @exercise.MinReps-@exercise.MaxReps</strong>
                                 </div>
                             }
                         </div>
@@ -270,6 +270,7 @@
         (int)Math.Ceiling(workout.Exercises.Sum(x => x.Sets * ((x.RestSeconds ?? 90) + 45)) / 60d));
     private int WeekGoal => _profile?.PlannedTrainingsPerWeek ?? 0;
     private int WeekWorkouts => _consistency?.CompletedWorkouts ?? 0;
+    private int WeekProgress => WeekGoal <= 0 ? 0 : Math.Clamp((int)Math.Round(WeekWorkouts * 100d / WeekGoal), 0, 100);
     private string MomentumCopy => WeekGoal == 0 ? "Ustaw tygodniowy cel w profilu" : WeekWorkouts >= WeekGoal ? "Cel tygodniowy wykonany" : "Każda ukończona sesja buduje rytm";
     private string CoachTitle => _activeSession is not null ? "Wróć do rozpoczętego treningu"
         : _todayWorkout is { AlreadyCompleted: false } ? $"Dzisiaj wypada {_todayWorkout.DayName}"
@@ -278,7 +279,7 @@
         : "Dzisiejszy plan jest pod kontrolą";
     private string CoachDescription => _activeSession is not null ? "Sesja czeka dokładnie w miejscu, w którym ją przerwałeś."
         : _todayWorkout is { AlreadyCompleted: false } ? $"Plan ma {_todayWorkout.Exercises.Count} ćwiczeń i zajmie około {EstimateMinutes(_todayWorkout)} minut."
-        : _day?.Status == NutritionDayStatus.Unknown && DateTime.Now.Hour >= 19 ? "Potwierdź kompletność albo oznacz dane jako częściowe — podsumowanie tygodnia będzie dzięki temu wiarygodne."
+        : _day?.Status == NutritionDayStatus.Unknown && DateTime.Now.Hour >= 19 ? "Potwierdź kompletność albo oznacz dane jako częściowe. Podsumowanie tygodnia będzie dzięki temu wiarygodne."
         : _day?.Target is not null && _day.Remaining?.ProteinG > 20 ? "Cel nadal jest możliwy do osiągnięcia. Dodaj posiłek albo poproś AI o propozycję."
         : "Nie musisz dodawać kolejnego obowiązku. Utrzymaj spokojny rytm.";
     private string CoachAction => _activeSession is not null ? "Wróć do treningu"

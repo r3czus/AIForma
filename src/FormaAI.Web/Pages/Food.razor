@@ -545,7 +545,7 @@
             Snackbar.Add(ex.Message, Severity.Error);
             if (ex.Message.Contains("limit", StringComparison.OrdinalIgnoreCase))
             {
-                _aiDraft = new AiMealForm("Przykładowy posiłek", "Model osiągnął limit. To szkic zastępczy — wpisz własne składniki i popraw wartości przed zapisem.",
+                _aiDraft = new AiMealForm("Przykładowy posiłek", "Model osiągnął limit. To szkic zastępczy. Wpisz własne składniki i popraw wartości przed zapisem.",
                 [
                     new AiFoodForm { Name = "Pierś z kurczaka", AmountGrams = 150, CaloriesPer100 = 165, ProteinPer100 = 31, FatPer100 = 3.6m },
                     new AiFoodForm { Name = "Ryż gotowany", AmountGrams = 200, CaloriesPer100 = 130, ProteinPer100 = 2.7m, FatPer100 = .3m, CarbohydratesPer100 = 28 }

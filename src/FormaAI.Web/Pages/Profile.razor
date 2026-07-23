@@ -104,9 +104,9 @@
                             <section class="goal-step">
                                 <div class="profile-section-heading"><span class="card-kicker">Aktywność treningowa</span><h2>Ile wysiłku dają Ci treningi?</h2><p>Ten wybór jest liczony osobno od pracy i codziennego ruchu.</p></div>
                                 <div class="goal-choice-grid activity-choice-grid">
-                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Low)" aria-pressed="@(_trainingActivity == ActivityLevel.Low)" @onclick="() => _trainingActivity = ActivityLevel.Low"><strong>Brak lub lekka</strong><span>0–1 spokojna sesja tygodniowo</span></button>
-                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Light)" aria-pressed="@(_trainingActivity == ActivityLevel.Light)" @onclick="() => _trainingActivity = ActivityLevel.Light"><strong>Lekka</strong><span>2–3 krótsze sesje</span></button>
-                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Moderate)" aria-pressed="@(_trainingActivity == ActivityLevel.Moderate)" @onclick="() => _trainingActivity = ActivityLevel.Moderate"><strong>Średnia</strong><span>3–5 regularnych treningów</span></button>
+                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Low)" aria-pressed="@(_trainingActivity == ActivityLevel.Low)" @onclick="() => _trainingActivity = ActivityLevel.Low"><strong>Brak lub lekka</strong><span>0-1 spokojna sesja tygodniowo</span></button>
+                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Light)" aria-pressed="@(_trainingActivity == ActivityLevel.Light)" @onclick="() => _trainingActivity = ActivityLevel.Light"><strong>Lekka</strong><span>2-3 krótsze sesje</span></button>
+                                    <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.Moderate)" aria-pressed="@(_trainingActivity == ActivityLevel.Moderate)" @onclick="() => _trainingActivity = ActivityLevel.Moderate"><strong>Średnia</strong><span>3-5 regularnych treningów</span></button>
                                     <button type="button" class="@ChoiceClass(_trainingActivity == ActivityLevel.High)" aria-pressed="@(_trainingActivity == ActivityLevel.High)" @onclick="() => _trainingActivity = ActivityLevel.High"><strong>Wysoka</strong><span>5+ ciężkich sesji</span></button>
                                 </div>
                                 <label class="mobile-number-field training-count-field"><span>Ile treningów planujesz w tygodniu?</span><input type="text" inputmode="numeric" autocomplete="off" @bind="_plannedTrainingsInput" @bind:event="oninput" placeholder="np. 4" /></label>
@@ -171,7 +171,7 @@
                     <MudPaper Class="profile-section settings-section" Elevation="0">
                         <div class="profile-section-heading"><span class="card-kicker">Rytm aplikacji</span><h2>Ustawienia</h2><p>Każda grupa otwiera się osobno. Zapisujesz tylko to, co właśnie zmieniasz.</p></div>
                         <nav class="settings-menu" aria-label="Ustawienia aplikacji">
-                            <a href="/profile/settings/nutrition"><MudIcon Icon="@Icons.Material.Outlined.Flag" /><span><strong>Cele żywieniowe</strong><small>@(_targetCalories?.ToString("0") ?? "—") kcal · B @_proteinG.ToString("0") g · T @_fatG.ToString("0") g · W @_carbsG.ToString("0") g</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                            <a href="/profile/settings/nutrition"><MudIcon Icon="@Icons.Material.Outlined.Flag" /><span><strong>Cele żywieniowe</strong><small>@(_targetCalories?.ToString("0") ?? "brak") kcal · B @_proteinG.ToString("0") g · T @_fatG.ToString("0") g · W @_carbsG.ToString("0") g</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
                             <a href="/profile/settings/meals"><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><span><strong>Posiłki i godziny</strong><small>@_mealSlots.Count aktywnych sekcji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
                             <a href="/profile/settings/reminders"><MudIcon Icon="@Icons.Material.Outlined.Notifications" /><span><strong>Przypomnienia</strong><small>@(_mealRemindersEnabled ? "Włączone" : "Wyłączone")</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
                             <a href="/profile/settings/workouts"><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><span><strong>Ustawienia treningów</strong><small>@_defaultSets serie · @_defaultRepetitions powt. · @_defaultRestSeconds s przerwy</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
@@ -269,7 +269,7 @@
         get
         {
             if (_goal == BodyGoal.Maintenance) return "Cel ciągły";
-            if (_currentWeightKg is null || _targetWeightKg is null || _weeklyWeightChangeKg <= 0) return "—";
+            if (_currentWeightKg is null || _targetWeightKg is null || _weeklyWeightChangeKg <= 0) return "brak";
             var weeks = Math.Abs(_targetWeightKg.Value - _currentWeightKg.Value) / _weeklyWeightChangeKg;
             return DateTime.Today.AddDays((double)Math.Ceiling(weeks * 7m)).ToString("d MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"));
         }

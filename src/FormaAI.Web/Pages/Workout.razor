@@ -54,7 +54,7 @@
                         <div><span class="card-kicker">Następna sesja</span><MudText Typo="Typo.h6">Progres wymaga Twojej decyzji</MudText></div>
                         @foreach (var item in _progressions)
                         {
-                            <article><div><strong>@item.ExerciseName</strong><span>@item.Reason</span></div><div class="progression-values"><strong>@item.SuggestedWeightKg.ToString("0.#") kg</strong><span>· @item.MinReps–@item.MaxReps powt.</span></div>@if (item.Decision == ProgressionDecision.Pending) { <div class="progression-actions"><MudButton Size="Size.Small" Color="Color.Success" OnClick="() => Decide(item, ProgressionDecision.Accepted)">Akceptuj</MudButton><MudButton Size="Size.Small" OnClick="() => Decide(item, ProgressionDecision.Changed)">Bez zmiany</MudButton><MudButton Size="Size.Small" Color="Color.Error" OnClick="() => Decide(item, ProgressionDecision.Rejected)">Odrzuć</MudButton></div> } else { <MudChip T="string" Size="Size.Small">@DecisionName(item.Decision)</MudChip> }</article>
+                            <article><div><strong>@item.ExerciseName</strong><span>@item.Reason</span></div><div class="progression-values"><strong>@item.SuggestedWeightKg.ToString("0.#") kg</strong><span>· @item.MinReps-@item.MaxReps powt.</span></div>@if (item.Decision == ProgressionDecision.Pending) { <div class="progression-actions"><MudButton Size="Size.Small" Color="Color.Success" OnClick="() => Decide(item, ProgressionDecision.Accepted)">Akceptuj</MudButton><MudButton Size="Size.Small" OnClick="() => Decide(item, ProgressionDecision.Changed)">Bez zmiany</MudButton><MudButton Size="Size.Small" Color="Color.Error" OnClick="() => Decide(item, ProgressionDecision.Rejected)">Odrzuć</MudButton></div> } else { <MudChip T="string" Size="Size.Small">@DecisionName(item.Decision)</MudChip> }</article>
                         }
                     </section>
                 }
@@ -110,7 +110,7 @@
             <article class="workout-exercise workout-exercise-focus">
                 <div class="exercise-live-heading">
                     <span class="exercise-order">@(_activeExerciseIndex + 1)</span>
-                    <div><span class="card-kicker">Ćwiczenie @(_activeExerciseIndex + 1) z @OrderedExercises.Count</span><MudText Typo="Typo.h4">@exercise.ExerciseName</MudText><MudText Typo="Typo.caption">@exercise.PlannedSets × @exercise.MinReps–@exercise.MaxReps @if (exercise.TargetRir is not null) { <span>· RIR @exercise.TargetRir</span> }</MudText></div>
+                    <div><span class="card-kicker">Ćwiczenie @(_activeExerciseIndex + 1) z @OrderedExercises.Count</span><MudText Typo="Typo.h4">@exercise.ExerciseName</MudText><MudText Typo="Typo.caption">@exercise.PlannedSets × @exercise.MinReps-@exercise.MaxReps @if (exercise.TargetRir is not null) { <span>· RIR @exercise.TargetRir</span> }</MudText></div>
                     <strong class="exercise-set-count">@exercise.Sets.Count/@exercise.PlannedSets</strong>
                 </div>
 
@@ -121,7 +121,7 @@
 
                 @if (exercise.ExerciseId is Guid exerciseId && _history.TryGetValue(exerciseId, out var last) && last is not null)
                 {
-                    <div class="last-performance"><span>Ostatnio</span><strong>@last.WeightKg kg × @last.Repetitions</strong><small>RIR @(last.Rir?.ToString("0.#") ?? "—")</small></div>
+                    <div class="last-performance"><span>Ostatnio</span><strong>@last.WeightKg kg × @last.Repetitions</strong><small>RIR @(last.Rir?.ToString("0.#") ?? "brak")</small></div>
                     @if (last.Repetitions >= exercise.MaxReps)
                     {
                         <div class="progression-tip"><MudIcon Icon="@Icons.Material.Outlined.TrendingUp" /><span>Górny zakres osiągnięty. Jeśli technika była pewna, spróbuj <strong>@SuggestedWeight(last.WeightKg) kg</strong>.</span></div>
@@ -133,7 +133,7 @@
                     @foreach (var set in exercise.Sets.OrderBy(x => x.SetNumber))
                     {
                         <button type="button" class="saved-set" @onclick="() => EditSet(exercise, set)" role="row">
-                            <span>@set.SetNumber@(set.SetType == SetType.Warmup ? "R" : null)</span><strong>@set.WeightKg</strong><strong>@set.Repetitions</strong><span>@(set.Rir?.ToString("0.#") ?? "—")</span><MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                            <span>@set.SetNumber@(set.SetType == SetType.Warmup ? "R" : null)</span><strong>@set.WeightKg</strong><strong>@set.Repetitions</strong><span>@(set.Rir?.ToString("0.#") ?? "brak")</span><MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
                         </button>
                     }
                     <div class="set-entry-row" role="row">

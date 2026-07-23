@@ -68,7 +68,7 @@
             @CalendarBlock()
 
             <section class="progress-trends" aria-label="Najważniejsze trendy">
-                <div><span>Trend masy</span><strong>@Signed(_weight?.ChangeKg) kg</strong><small>@(_weight?.CurrentAverageKg?.ToString("0.0") ?? "—") kg średnio</small></div>
+                <div><span>Trend masy</span><strong>@Signed(_weight?.ChangeKg) kg</strong><small>@(_weight?.CurrentAverageKg?.ToString("0.0") ?? "brak") kg średnio</small></div>
                 <div><span>Objętość treningowa</span><strong>@Signed(_summary?.Training.VolumeChangePercent)%</strong><small>względem poprzedniego okresu</small></div>
             </section>
 
@@ -213,7 +213,7 @@
             return values.Count == 0 ? null : (int)Math.Round(values.Average());
         }
     }
-    private string DirectionScoreText => DirectionScore is int score ? $"{score}%" : "—";
+    private string DirectionScoreText => DirectionScore is int score ? $"{score}%" : "brak";
     private string DirectionTitle => DirectionScore is null ? "Brak danych do oceny" : DirectionScore >= 75 ? "Dobry rytm" : DirectionScore >= 45 ? "Kierunek jest, rytm do poprawy" : "Wróć do podstaw";
     private string DirectionNote => DirectionScore is null ? "Ustaw cel diety lub plan treningowy, aby ocenić rytm okresu." : DirectionScore >= 75 ? "Plan jest realizowany regularnie. Patrz na trend i trzymaj tempo." : "Najwięcej zmieni jeden powtarzalny dzień jedzenia i jedna ukończona sesja.";
     private string RangeKicker => _rangeDays == 365 ? "Ostatni rok" : $"Ostatnie {_rangeDays} dni";
@@ -337,11 +337,11 @@
     private static string DayAccessibleLabel(NutritionAdherencePoint day) => $"{day.Date:dddd, d MMMM}: {DayStatus(day)}{(day.HasCompletedWorkout ? ", trening ukończony" : ", bez ukończonego treningu")}";
     private void ToggleDay(NutritionAdherencePoint day) => _selectedDay = IsSelectedDay(day) ? null : day;
     private void ClearSelectedDay() => _selectedDay = null;
-    private static string DateLabel(DateOnly from, DateOnly to) => from.Year == to.Year && from.Month == to.Month ? $"{from.Day}–{to.ToString("d MMMM yyyy", Pl)}" : $"{from.ToString("d MMM", Pl)} – {to.ToString("d MMM yyyy", Pl)}";
+    private static string DateLabel(DateOnly from, DateOnly to) => from.Year == to.Year && from.Month == to.Month ? $"{from.Day}-{to.ToString("d MMMM yyyy", Pl)}" : $"{from.ToString("d MMM", Pl)} - {to.ToString("d MMM yyyy", Pl)}";
     private static string DayClass(NutritionAdherencePoint day) => $"{(day.HasCompletedWorkout ? "workout-done" : null)} {(!day.HasMeals || day.TargetKcal is null ? "diet-empty" : day.IsWithinTarget ? "diet-on" : day.ConsumedKcal < day.TargetKcal ? "diet-under" : "diet-over")}";
     private static string DayStatus(NutritionAdherencePoint day) => !day.HasMeals ? "brak wpisów" : day.IsWithinTarget ? "w zakresie" : day.ConsumedKcal < day.TargetKcal ? "poniżej celu" : "powyżej celu";
     private static string ShortDay(DayOfWeek day) => day switch { DayOfWeek.Monday => "Pn", DayOfWeek.Tuesday => "Wt", DayOfWeek.Wednesday => "Śr", DayOfWeek.Thursday => "Cz", DayOfWeek.Friday => "Pt", DayOfWeek.Saturday => "So", _ => "Nd" };
-    private static string Signed(decimal? value) => value is null ? "—" : $"{(value > 0 ? "+" : null)}{value:0.##}";
+    private static string Signed(decimal? value) => value is null ? "brak" : $"{(value > 0 ? "+" : null)}{value:0.##}";
     private static string Duration(int minutes) => minutes < 60 ? $"{minutes} min" : $"{minutes / 60} h {minutes % 60} min";
     private static string PercentWidth(decimal value) => $"{Math.Clamp(value, 0, 100):0.#}%";
     private static string Invariant(decimal value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);

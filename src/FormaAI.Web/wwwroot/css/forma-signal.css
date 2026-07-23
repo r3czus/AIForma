@@ -173,7 +173,7 @@ button:disabled,
 
 .brand-tagline {
     color: var(--muted);
-    font-size: .7rem;
+    font-size: .75rem;
     letter-spacing: .055em;
 }
 
@@ -440,11 +440,13 @@ body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
 .daily-coach::after {
     background: var(--action);
     bottom: 0;
+    clip-path: inset(0 calc(100% - var(--signal-progress, 0%)) 0 0);
     content: "";
     height: 4px;
     left: 0;
     position: absolute;
-    width: min(68%, 520px);
+    transition: clip-path 420ms var(--ease-out);
+    width: 100%;
 }
 
 .daily-coach .card-kicker { color: #afbcff; }
@@ -528,7 +530,7 @@ body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
 .food-week-heading strong { font-size: 1.25rem; }
 .food-week-days { gap: 8px; }
 .food-week-days button { min-height: 58px; }
-.food-week-days span { font-size: .7rem; }
+.food-week-days span { font-size: .75rem; }
 .food-week-days strong { border-radius: 10px; height: 42px; width: 100%; }
 .food-week-days button.selected strong { background: var(--ink); border-color: var(--ink); color: var(--inverse-ink); }
 .food-week-days button.today i { background: var(--action); height: 3px; width: 18px; }
@@ -660,7 +662,7 @@ body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
 .plan-card-identity .row-copy { min-width: 0; }
 .plan-card-identity .mud-typography-h6 { font-size: 1.35rem; line-height: 1.1; margin: 0; overflow-wrap: anywhere; }
 .plan-card-identity .mud-typography-body2 { color: var(--muted); margin-top: 4px; }
-.plan-card-status { background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 7px; color: var(--muted); flex: 0 0 auto; font: 650 .7rem "IBM Plex Mono", monospace; padding: 7px 9px; }
+.plan-card-status { background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 7px; color: var(--muted); flex: 0 0 auto; font: 600 .75rem "IBM Plex Mono", monospace; padding: 7px 9px; }
 .plan-card.is-active .plan-card-status { background: var(--recovery-soft); border-color: color-mix(in srgb, var(--recovery) 32%, var(--rule)); color: var(--recovery); }
 .plan-actions { flex: 0 0 auto; }
 .plan-actions .mud-icon-button { border: 1px solid var(--rule); height: 44px; width: 44px; }
@@ -674,7 +676,7 @@ body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
 .plan-day-card[open] { background: var(--surface); }
 .plan-day-card[open] > summary { background: var(--action-soft); border-bottom: 1px solid var(--rule); }
 .plan-day-card[open] > summary > .mud-icon-root { transform: rotate(180deg); }
-.plan-day-number { align-items: center; background: var(--ink); border-radius: 8px; color: var(--inverse-ink); display: flex; font: 650 .75rem "IBM Plex Mono", monospace; height: 32px; justify-content: center; width: 32px; }
+.plan-day-number { align-items: center; background: var(--ink); border-radius: 8px; color: var(--inverse-ink); display: flex; font: 600 .75rem "IBM Plex Mono", monospace; height: 32px; justify-content: center; width: 32px; }
 .plan-day-copy { display: grid; gap: 4px; min-width: 0; }
 .plan-day-copy strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.15rem; line-height: 1.1; overflow-wrap: anywhere; }
 .plan-day-copy small { color: var(--muted); font-size: .75rem; }
@@ -729,7 +731,7 @@ body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
 .progress-ranges { background: transparent; border: 0; border-radius: 0; display: grid; gap: 6px; grid-template-columns: repeat(5, minmax(74px, 1fr)); padding: 0; }
 .progress-ranges button { align-items: flex-start; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; display: flex; flex-direction: column; justify-content: center; min-height: 56px; padding: 8px 10px; text-align: left; }
 .progress-ranges button strong { font-size: .76rem; }
-.progress-ranges button small { color: var(--muted); font-size: .7rem; margin-top: 2px; }
+.progress-ranges button small { color: var(--muted); font-size: .75rem; margin-top: 2px; }
 .progress-ranges button.active { background: var(--ink); border-color: var(--ink); color: var(--inverse-ink); }
 .progress-ranges button.active small { color: color-mix(in srgb, var(--inverse-ink) 70%, transparent); }
 
@@ -855,7 +857,7 @@ body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
 .calendar-day-detail > header { align-items: center; background: var(--surface); border-bottom: 1px solid var(--rule); display: flex; grid-column: 1 / -1; justify-content: space-between; padding: 13px 16px; text-transform: capitalize; }
 .calendar-day-detail > header > div { display: grid; gap: 2px; }
 .calendar-day-detail > header strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.2rem; }
-.calendar-day-detail > header span { color: var(--muted); font-size: .7rem; }
+.calendar-day-detail > header span { color: var(--muted); font-size: .75rem; }
 .calendar-day-detail > header .mud-icon-button { height: 44px; width: 44px; }
 .calendar-day-detail section { background: transparent; border-radius: 0; padding: 16px; }
 .calendar-day-detail section + section { border-left: 1px solid var(--rule); }
@@ -1180,7 +1182,7 @@ body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
 
 @media (max-width: 350px) {
     .assistant-label { display: none; }
-    .bottom-nav > a { font-size: .7rem; }
+    .bottom-nav > a { font-size: .75rem; }
 }
 
 @media (max-width: 390px) {

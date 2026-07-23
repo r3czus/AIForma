@@ -96,7 +96,7 @@
                                         <div class="plan-day-exercises">
                                             @foreach (var exercise in day.Exercises)
                                             {
-                                                <div><strong>@exercise.ExerciseName</strong><span>@exercise.Sets serie · @exercise.MinReps–@exercise.MaxReps powt.</span></div>
+                                                <div><strong>@exercise.ExerciseName</strong><span>@exercise.Sets serie · @exercise.MinReps-@exercise.MaxReps powt.</span></div>
                                             }
                                         </div>
                                         <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditPlanDay(plan, dayIndex)">Edytuj dzień</MudButton>
@@ -171,7 +171,7 @@
                                     {
                                         var index = i;
                                         var exercise = _day.Exercises[index];
-                                        <div class="day-exercise-row"><span class="exercise-order">@(index + 1)</span><div><strong>@exercise.Name</strong><small>@exercise.Sets serie · @exercise.MinReps–@exercise.MaxReps powt. · RIR @(exercise.Rir?.ToString("0.#") ?? "—") · przerwa @(exercise.RestSeconds ?? 0) s</small></div><div class="row-actions"><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditDraftExercise(index)" aria-label="Edytuj ćwiczenie" /><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" OnClick="() => RemoveDraftExercise(index)" aria-label="Usuń ćwiczenie" /></div></div>
+                                        <div class="day-exercise-row"><span class="exercise-order">@(index + 1)</span><div><strong>@exercise.Name</strong><small>@exercise.Sets serie · @exercise.MinReps-@exercise.MaxReps powt. · RIR @(exercise.Rir?.ToString("0.#") ?? "brak") · przerwa @(exercise.RestSeconds ?? 0) s</small></div><div class="row-actions"><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditDraftExercise(index)" aria-label="Edytuj ćwiczenie" /><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" OnClick="() => RemoveDraftExercise(index)" aria-label="Usuń ćwiczenie" /></div></div>
                                     }
                                 </div>
                             }
@@ -189,7 +189,7 @@
                                     var day = _plan.Days[index];
                                     <details class="draft-day plan-day-detail">
                                         <summary><span><strong>Dzień @(index + 1) · @day.Name</strong><small>@(day.DayOfWeek is null ? "Tryb rotacyjny" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń · @day.Exercises.Sum(x => x.Sets) serii</small></span><MudIcon Icon="@Icons.Material.Outlined.ExpandMore" /></summary>
-                                        <div class="plan-day-exercises">@foreach (var exercise in day.Exercises) { <div><strong>@exercise.Name</strong><span>@exercise.Sets serie · @exercise.MinReps–@exercise.MaxReps powt. · RIR @(exercise.Rir?.ToString("0.#") ?? "—")</span></div> }</div>
+                                        <div class="plan-day-exercises">@foreach (var exercise in day.Exercises) { <div><strong>@exercise.Name</strong><span>@exercise.Sets serie · @exercise.MinReps-@exercise.MaxReps powt. · RIR @(exercise.Rir?.ToString("0.#") ?? "brak")</span></div> }</div>
                                         <div class="row-actions"><MudButton Size="Size.Small" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditDraftDay(index)">Edytuj dzień</MudButton><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" OnClick="() => RemoveDraftDay(index)" aria-label="Usuń dzień" /></div>
                                     </details>
                                 }
