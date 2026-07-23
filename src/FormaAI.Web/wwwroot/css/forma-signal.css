@@ -655,6 +655,11 @@ button:disabled,
 .training-metrics > div { background: transparent; border-color: color-mix(in srgb, var(--inverse-ink) 18%, transparent); border-radius: var(--radius-control); }
 .progress-metric-grid span,
 .training-metrics span { color: color-mix(in srgb, var(--inverse-ink) 65%, transparent); }
+.summary-card-top strong,
+.metric-row strong,
+.progress-section-metrics strong { color: var(--ink); }
+.progress-section-metrics span,
+.progress-section-metrics small { color: var(--muted); }
 
 .progress-trends { border-bottom: 1px solid var(--rule); gap: 0; }
 .progress-trends > div { background: transparent; border: 0; border-radius: 0; padding: 20px 4px; }
@@ -696,8 +701,9 @@ button:disabled,
 .nutrition-day b { background: transparent; border-radius: 0; color: var(--ink); height: auto; line-height: 1; position: relative; width: auto; z-index: 1; }
 .nutrition-day:hover { background: var(--surface-soft); border-color: var(--ink); }
 .nutrition-day.today { box-shadow: inset 0 0 0 2px var(--fuel); }
-.nutrition-day.selected { border-color: var(--action); box-shadow: 0 0 0 3px var(--action-soft); }
-.nutrition-day.today.selected { box-shadow: inset 0 0 0 2px var(--fuel), 0 0 0 3px var(--action-soft); }
+.nutrition-day.selected,
+.nutrition-day.today.selected { border-color: var(--action); box-shadow: inset 0 0 0 2px var(--action); }
+.nutrition-day:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .period-heatmaps { grid-template-columns: repeat(2, minmax(360px, 1fr)); overflow-x: auto; }
 .period-calendar { grid-template-columns: repeat(7, minmax(44px, 1fr)); overflow-x: auto; }
 .period-calendar .nutrition-day { border-radius: 7px; min-height: 44px; min-width: 44px; }
