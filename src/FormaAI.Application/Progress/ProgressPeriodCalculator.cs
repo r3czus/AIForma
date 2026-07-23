@@ -14,4 +14,7 @@ public static class ProgressPeriodCalculator
         var end = DateOnly.FromDayNumber(Math.Min(to.DayNumber, today.DayNumber));
         return start > end ? null : (start, end);
     }
+
+    public static decimal AdherencePercent(int successfulDays, int eligibleDays) =>
+        eligibleDays == 0 ? 0 : decimal.Round(successfulDays * 100m / eligibleDays, 1);
 }

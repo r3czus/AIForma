@@ -314,7 +314,7 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             loggedDays.Count,
             eligibleDays,
             daysOnCalories,
-            eligibleDays == 0 ? 0 : decimal.Round(daysOnCalories * 100m / eligibleDays, 1),
+            ProgressPeriodCalculator.AdherencePercent(daysOnCalories, eligibleDays),
             loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.Calories)),
             loggedDays.Count == 0 ? 0 : decimal.Round(loggedDays.Average(x => x.TargetCalories)),
             loggedDays.Count(x => x.HasTarget && x.Protein >= x.TargetProtein),

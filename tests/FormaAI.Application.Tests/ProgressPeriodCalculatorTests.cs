@@ -28,4 +28,8 @@ public sealed class ProgressPeriodCalculatorTests
 
         Assert.Null(range);
     }
+
+    [Fact]
+    public void OneSuccessfulDayOutOfEighteenIsNotAFullBar() =>
+        Assert.Equal(5.6m, ProgressPeriodCalculator.AdherencePercent(1, 18));
 }
