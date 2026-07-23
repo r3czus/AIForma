@@ -747,6 +747,22 @@ button:disabled,
 .account-menu > a:hover,
 .account-menu > button:hover { background: var(--surface-soft); }
 
+.profile-settings-layout { align-items: start; display: grid; gap: 24px; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .9fr); }
+.profile-settings-layout .profile-section { margin-bottom: 0; min-width: 0; }
+.profile-settings-layout .account-section { position: sticky; top: 92px; }
+.account-section .account-menu { gap: 0; }
+.account-section .account-menu > a,
+.account-section .account-menu > button { min-height: 72px; }
+.danger-zone { background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 46%, var(--rule)); border-radius: var(--radius-surface); margin-top: 24px; padding: clamp(18px, 3vw, 24px); }
+.danger-zone-heading { align-items: flex-start; display: flex; gap: 14px; }
+.danger-zone-heading > .mud-icon-root { background: color-mix(in srgb, var(--danger) 13%, var(--surface)); border-radius: 10px; color: var(--danger); flex: 0 0 auto; height: 42px; padding: 9px; width: 42px; }
+.danger-zone-heading .card-kicker { color: var(--danger); }
+.danger-zone-heading h2 { color: var(--danger); font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.6rem; margin: 2px 0 4px; }
+.danger-zone-heading p { color: color-mix(in srgb, var(--danger) 68%, var(--ink)); line-height: 1.5; margin: 0; max-width: 68ch; }
+.danger-zone .account-delete { margin-top: 18px; }
+.danger-zone .account-delete .mud-expand-panel { background: var(--surface) !important; border-color: color-mix(in srgb, var(--danger) 46%, var(--rule)); }
+.danger-zone .account-delete .mud-expand-panel-header { color: var(--danger); font-weight: 750; }
+
 .assistant-welcome {
     background: var(--inverse-surface);
     border-radius: var(--radius-surface);
@@ -795,6 +811,8 @@ button:disabled,
     .quick-capture { grid-template-columns: 1fr 1fr; }
     .quick-capture-intro { border-bottom: 1px solid var(--rule); grid-column: 1 / -1; padding-left: 0; }
     .quick-capture-group:first-of-type { border-left: 0; padding-left: 0; }
+    .profile-settings-layout { grid-template-columns: 1fr; }
+    .profile-settings-layout .account-section { position: static; }
     .plan-day-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .plan-day-card:nth-child(2n) { border-right: 0; }
     .plan-day-card:nth-child(n + 3) { border-top: 1px solid var(--rule); }
@@ -838,6 +856,7 @@ button:disabled,
     .plan-day-card:nth-child(2n) { border-right: 0; }
     .plan-day-card:nth-child(n + 2) { border-top: 1px solid var(--rule); }
     .plan-day-card > summary { min-height: 78px; padding: 13px 14px; }
+    .danger-zone-heading { align-items: flex-start; }
 }
 
 @keyframes signal-enter {
