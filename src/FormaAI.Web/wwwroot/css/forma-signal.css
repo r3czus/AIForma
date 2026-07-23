@@ -494,7 +494,7 @@ button:disabled,
 .meal-catalog-tabs button.active { border-bottom-color: var(--action); }
 .saved-meals-panel { background: var(--fuel-soft); border: 1px solid color-mix(in srgb, var(--fuel) 24%, var(--rule)); border-radius: var(--radius-surface); margin: 2px 0 22px; padding: 2px 14px 10px; }
 .saved-meals-panel .meal-add-section-title { margin-top: 13px; }
-.saved-meals-panel .meal-add-section-title span { color: var(--fuel); }
+.saved-meals-panel .meal-add-section-title span { color: color-mix(in srgb, var(--fuel) 72%, var(--ink)); }
 .saved-meal-list { border-color: color-mix(in srgb, var(--fuel) 24%, var(--rule)); }
 .saved-meal-list button { gap: 10px; grid-template-columns: 28px minmax(0, 1fr) auto 32px; min-height: 64px; }
 .saved-meal-list button > .mud-icon-root:first-child { color: var(--fuel); font-size: 1.25rem; }
@@ -530,7 +530,7 @@ button:disabled,
 .plan-card-status { background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 7px; color: var(--muted); flex: 0 0 auto; font: 650 .7rem "IBM Plex Mono", monospace; padding: 7px 9px; }
 .plan-card.is-active .plan-card-status { background: var(--recovery-soft); border-color: color-mix(in srgb, var(--recovery) 32%, var(--rule)); color: var(--recovery); }
 .plan-actions { flex: 0 0 auto; }
-.plan-actions .mud-icon-button { border: 1px solid var(--rule); height: 40px; width: 40px; }
+.plan-actions .mud-icon-button { border: 1px solid var(--rule); height: 44px; width: 44px; }
 .plan-day-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .plan-day-card { border-right: 1px solid var(--rule); min-width: 0; }
 .plan-day-card:last-child { border-right: 0; }
@@ -596,7 +596,7 @@ button:disabled,
 .progress-ranges { background: transparent; border: 0; border-radius: 0; display: grid; gap: 6px; grid-template-columns: repeat(5, minmax(74px, 1fr)); padding: 0; }
 .progress-ranges button { align-items: flex-start; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; display: flex; flex-direction: column; justify-content: center; min-height: 56px; padding: 8px 10px; text-align: left; }
 .progress-ranges button strong { font-size: .76rem; }
-.progress-ranges button small { color: var(--muted); font-size: .62rem; margin-top: 2px; }
+.progress-ranges button small { color: var(--muted); font-size: .7rem; margin-top: 2px; }
 .progress-ranges button.active { background: var(--ink); border-color: var(--ink); color: var(--inverse-ink); }
 .progress-ranges button.active small { color: color-mix(in srgb, var(--inverse-ink) 70%, transparent); }
 
@@ -698,7 +698,9 @@ button:disabled,
 .nutrition-day.today { box-shadow: inset 0 0 0 2px var(--fuel); }
 .nutrition-day.selected { border-color: var(--action); box-shadow: 0 0 0 3px var(--action-soft); }
 .nutrition-day.today.selected { box-shadow: inset 0 0 0 2px var(--fuel), 0 0 0 3px var(--action-soft); }
-.period-calendar .nutrition-day { border-radius: 7px; min-height: 30px; }
+.period-heatmaps { grid-template-columns: repeat(2, minmax(360px, 1fr)); overflow-x: auto; }
+.period-calendar { grid-template-columns: repeat(7, minmax(44px, 1fr)); overflow-x: auto; }
+.period-calendar .nutrition-day { border-radius: 7px; min-height: 44px; min-width: 44px; }
 .period-calendar .nutrition-day b { height: auto; width: auto; }
 .calendar-legend i { border-radius: 2px; }
 .calendar-legend .diet-on,
@@ -710,6 +712,7 @@ button:disabled,
 .calendar-day-detail > header > div { display: grid; gap: 2px; }
 .calendar-day-detail > header strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.2rem; }
 .calendar-day-detail > header span { color: var(--muted); font-size: .7rem; }
+.calendar-day-detail > header .mud-icon-button { height: 44px; width: 44px; }
 .calendar-day-detail section { background: transparent; border-radius: 0; padding: 16px; }
 .calendar-day-detail section + section { border-left: 1px solid var(--rule); }
 .calendar-day-detail .day-summary-achievements { border-left: 0; border-top: 1px solid var(--rule); }
@@ -870,6 +873,7 @@ button:disabled,
     .direction-score { border-left: 0; border-top: 1px solid color-mix(in srgb, var(--inverse-ink) 22%, transparent); padding-left: 0; padding-top: 16px; }
     .progress-ranges { display: flex; overflow-x: auto; scroll-snap-type: x proximity; }
     .progress-ranges button { flex: 0 0 96px; scroll-snap-align: start; }
+    .period-heatmaps { grid-template-columns: 1fr; overflow-x: visible; }
     .calendar-day-detail section + section { border-left: 0; border-top: 1px solid var(--rule); }
     .progress-trends { grid-template-columns: 1fr; }
     .progress-trends > div + div { border-left: 0; border-top: 1px solid var(--rule); padding-left: 4px; }
