@@ -5,6 +5,12 @@ namespace FormaAI.Domain.Tests;
 public sealed class ExerciseMuscleEngagementTests
 {
     [Fact]
+    public void ForearmsAreAvailableForCatalogEngagements()
+    {
+        Assert.True(Enum.IsDefined(MuscleGroup.Forearms));
+    }
+
+    [Fact]
     public void EngagementsMustAddUpToOneHundredPercent()
     {
         var exercise = new Exercise("user", "Wyciskanie", MuscleGroup.Chest, Equipment.Barbell);

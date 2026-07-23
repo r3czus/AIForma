@@ -1,6 +1,6 @@
 namespace FormaAI.Domain.Training;
 
-public enum MuscleGroup { Chest, Back, Shoulders, Biceps, Triceps, Quadriceps, Hamstrings, Glutes, Calves, Core, FullBody }
+public enum MuscleGroup { Chest, Back, Shoulders, Biceps, Triceps, Quadriceps, Hamstrings, Glutes, Calves, Core, FullBody, Forearms }
 public enum Equipment { Barbell, Dumbbell, Machine, Cable, Bodyweight, Kettlebell, Other }
 public enum PlanSource { Manual, AssistantDraft }
 public enum SessionStatus { InProgress, Completed, Abandoned }
