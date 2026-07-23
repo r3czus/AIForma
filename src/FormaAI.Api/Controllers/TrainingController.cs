@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FormaAI.Application.Common;
 using FormaAI.Contracts.Training;
 using FormaAI.Domain.Training;
 using FormaAI.Domain.Progress;
@@ -19,7 +20,16 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     {
         var userId = UserId();
         var exercises = db.Exercises.Include(x => x.MuscleEngagements).Where(x => x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId));
-        if (!string.IsNullOrWhiteSpace(query)) exercises = exercises.Where(x => x.Name.Contains(query));
+        var search = WildcardSearch.Parse(query);
+        if (!string.IsNullOrWhiteSpace(search.Value))
+        {
+            exercises = search.Mode switch
+            {
+                WildcardSearchMode.StartsWith => exercises.Where(x => x.Name.StartsWith(search.Value)),
+                WildcardSearchMode.EndsWith => exercises.Where(x => x.Name.EndsWith(search.Value)),
+                _ => exercises.Where(x => x.Name.Contains(search.Value))
+            };
+        }
         return (await exercises.OrderBy(x => x.Name).Take(50).ToListAsync()).Select(ExerciseResponse).ToList();
     }
 
@@ -195,6 +205,44 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
             else if (request.TimeLimitMinutes is 30) item.Shorten(3);
             session.Exercises.Add(item);
         }
+        db.WorkoutSessions.Add(session);
+        await db.SaveChangesAsync();
+        return Created($"api/v1/workout-sessions/{session.Id}", SessionResponse(session));
+    }
+
+    [HttpPost("workout-sessions/quick")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<WorkoutSessionResponse>> StartQuick(StartQuickWorkoutRequest request)
+    {
+        var userId = UserId();
+        var active = await SessionQuery().OrderByDescending(x => x.StartedAtUtc)
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.Status == SessionStatus.InProgress);
+        if (active is not null) return Conflict("Najpierw dokończ albo porzuć aktywny trening.");
+
+        var requestedIds = request.Exercises.Select(x => x.ExerciseId).ToList();
+        if (requestedIds.Distinct().Count() != requestedIds.Count)
+            return ValidationProblem("Każde ćwiczenie można dodać do szybkiego treningu tylko raz.");
+
+        var catalog = await db.Exercises.Include(x => x.MuscleEngagements)
+            .Where(x => requestedIds.Contains(x.Id) && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId))
+            .ToDictionaryAsync(x => x.Id);
+        if (catalog.Count != requestedIds.Count)
+            return ValidationProblem("Lista zawiera niedostępne ćwiczenie.");
+
+        var session = new WorkoutSession(userId, request.Name, request.TimeLimitMinutes);
+        for (var index = 0; index < request.Exercises.Count; index++)
+        {
+            var selected = request.Exercises[index];
+            session.Exercises.Add(new WorkoutExercise(
+                catalog[selected.ExerciseId],
+                index + 1,
+                selected.Sets,
+                8,
+                12,
+                2,
+                90));
+        }
+
         db.WorkoutSessions.Add(session);
         await db.SaveChangesAsync();
         return Created($"api/v1/workout-sessions/{session.Id}", SessionResponse(session));

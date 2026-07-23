@@ -125,6 +125,12 @@ public sealed class PlannedExercise
 public sealed class WorkoutSession
 {
     private WorkoutSession() { }
+    public WorkoutSession(string userId, string name, int? timeLimitMinutes)
+    {
+        Id = Guid.NewGuid(); UserId = userId; NameSnapshot = name.Trim();
+        StartedAtUtc = DateTime.UtcNow; Status = SessionStatus.InProgress;
+        TimeLimitMinutes = timeLimitMinutes;
+    }
     public WorkoutSession(string userId, TrainingPlan plan, TrainingDay day)
     {
         Id = Guid.NewGuid(); UserId = userId; TrainingPlanId = plan.Id; TrainingDayId = day.Id;

@@ -34,4 +34,16 @@ public sealed class ExerciseMuscleEngagementTests
         Assert.Equal(100, workout.MuscleEngagements.Sum(x => x.Percentage));
         Assert.Contains(workout.MuscleEngagements, x => x.MuscleGroup == MuscleGroup.Chest && x.Percentage == 60);
     }
+
+    [Fact]
+    public void QuickWorkoutHasNoPlanReferencesAndKeepsTimeLimit()
+    {
+        var session = new WorkoutSession("user", "Trening własny", 45);
+
+        Assert.Null(session.TrainingPlanId);
+        Assert.Null(session.TrainingDayId);
+        Assert.Equal("Trening własny", session.NameSnapshot);
+        Assert.Equal(45, session.TimeLimitMinutes);
+        Assert.Equal(SessionStatus.InProgress, session.Status);
+    }
 }

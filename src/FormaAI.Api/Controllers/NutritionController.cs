@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FormaAI.Application.Common;
 using FormaAI.Application.Nutrition;
 using FormaAI.Application.Assistant;
 using FormaAI.Contracts.Nutrition;
@@ -49,9 +50,18 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
     {
         var userId = UserId();
         var products = db.Products.Where(x => x.OwnerUserId == null || x.OwnerUserId == userId);
-        if (!string.IsNullOrWhiteSpace(query))
+        var search = WildcardSearch.Parse(query);
+        if (!string.IsNullOrWhiteSpace(search.Value))
         {
-            products = products.Where(x => x.Name.Contains(query));
+            products = search.Mode switch
+            {
+                WildcardSearchMode.StartsWith => products.Where(x =>
+                    x.Name.StartsWith(search.Value) || (x.Brand != null && x.Brand.StartsWith(search.Value))),
+                WildcardSearchMode.EndsWith => products.Where(x =>
+                    x.Name.EndsWith(search.Value) || (x.Brand != null && x.Brand.EndsWith(search.Value))),
+                _ => products.Where(x =>
+                    x.Name.Contains(search.Value) || (x.Brand != null && x.Brand.Contains(search.Value)))
+            };
         }
 
         return await products.OrderBy(x => x.Name).Take(100)

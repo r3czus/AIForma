@@ -55,6 +55,35 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
         Assert.DoesNotContain((await other.GetFromJsonAsync<List<ExerciseResponse>>("api/v1/exercises"))!, x => x.Id == exercise.Id);
     }
 
+    [Fact]
+    public async Task UserCanStartQuickWorkoutWithoutPlan()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "quick-workout@example.test");
+        var exercise = await Send<SaveExerciseRequest, ExerciseResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/exercises",
+            new("Wiosłowanie siedząc", MuscleGroup.Back, Equipment.Cable, false));
+
+        var session = await Send<StartQuickWorkoutRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/workout-sessions/quick",
+            new("Trening na dziś", 45, [new(exercise.Id, 4)]));
+
+        Assert.Equal("Trening na dziś", session.Name);
+        Assert.Equal(45, session.TimeLimitMinutes);
+        Assert.False(session.IsShortened);
+        var item = Assert.Single(session.Exercises);
+        Assert.Equal(exercise.Id, item.ExerciseId);
+        Assert.Equal(4, item.PlannedSets);
+        Assert.Equal(8, item.MinReps);
+        Assert.Equal(12, item.MaxReps);
+        Assert.Equal(2, item.TargetRir);
+        Assert.Equal(90, item.RestSeconds);
+    }
+
     private static async Task Register(HttpClient client, string email) =>
         _ = await Send<RegisterRequest, CurrentUserResponse>(client, HttpMethod.Post, "api/account/register", new(email, "FormaAI!123", "UTC"));
 
