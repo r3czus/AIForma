@@ -270,8 +270,12 @@
         {
             if (_goal == BodyGoal.Maintenance) return "Cel ciągły";
             if (_currentWeightKg is null || _targetWeightKg is null || _weeklyWeightChangeKg <= 0) return "brak";
-            var weeks = Math.Abs(_targetWeightKg.Value - _currentWeightKg.Value) / _weeklyWeightChangeKg;
-            return DateTime.Today.AddDays((double)Math.Ceiling(weeks * 7m)).ToString("d MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"));
+            var date = WeightGoalDate.Estimate(
+                _currentWeightKg.Value,
+                _targetWeightKg.Value,
+                _weeklyWeightChangeKg,
+                _targetEffectiveFrom ?? DateOnly.FromDateTime(DateTime.Today));
+            return date?.ToString("d MMMM yyyy", new System.Globalization.CultureInfo("pl-PL")) ?? "brak";
         }
     }
     private string GoalPaceCopy => _goal == BodyGoal.Maintenance ? "Bilans bez planowanej zmiany masy" : $"przy tempie około {_weeklyWeightChangeKg:0.##} kg tygodniowo";

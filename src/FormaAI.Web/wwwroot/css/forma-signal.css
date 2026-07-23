@@ -906,17 +906,17 @@ button:disabled,
 
 .direction-score {
     align-items: baseline;
-    background: transparent;
-    border-left: 1px solid color-mix(in srgb, var(--inverse-ink) 22%, transparent);
-    border-radius: 0;
+    background: var(--surface);
+    border: 0;
+    border-radius: 12px;
     flex-direction: row;
     gap: 8px;
     min-width: 150px;
-    padding-left: 24px;
+    padding: 14px 16px;
 }
 
-.direction-score strong { color: var(--inverse-ink); font-size: clamp(2.25rem, 6vw, 3.5rem); }
-.direction-score span { color: color-mix(in srgb, var(--inverse-ink) 68%, transparent); }
+.direction-score strong { color: var(--ink); font-size: clamp(2.25rem, 6vw, 3.5rem); }
+.direction-score span { color: var(--muted); }
 
 .week-summary-grid { gap: 0; }
 .week-summary-card {
@@ -1184,7 +1184,7 @@ button:disabled,
 .assistant-availability { background: var(--recovery-soft); color: var(--recovery); font-size: .75rem; }
 
 @media (max-width: 640px) {
-    .direction-score { border-left: 0; border-top: 1px solid color-mix(in srgb, var(--inverse-ink) 22%, transparent); padding-left: 0; padding-top: 16px; }
+    .direction-score { border: 0; padding: 14px 16px; }
     .progress-ranges { display: flex; overflow-x: auto; scroll-snap-type: x proximity; }
     .progress-ranges button { flex: 0 0 96px; scroll-snap-align: start; }
     .period-heatmaps { grid-template-columns: 1fr; overflow-x: visible; }

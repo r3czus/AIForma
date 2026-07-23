@@ -27,6 +27,7 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
         var target = await db.NutritionTargets
             .Where(x => x.UserId == userId && x.EffectiveFrom <= date)
             .OrderByDescending(x => x.EffectiveFrom)
+            .ThenByDescending(x => x.IsActive)
             .FirstOrDefaultAsync();
         return target is null ? NotFound() : TargetResponse(target);
     }
@@ -36,11 +37,30 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
     public async Task<ActionResult<NutritionTargetResponse>> SaveTarget(SaveNutritionTargetRequest request)
     {
         var userId = UserId();
+        var effectiveFrom = await LocalToday(userId);
         var active = await db.NutritionTargets.Where(x => x.UserId == userId && x.IsActive).ToListAsync();
         foreach (var previous in active) previous.IsActive = false;
-        var effectiveFrom = await LocalToday(userId);
-        var target = new NutritionTarget(userId, effectiveFrom, request.CaloriesKcal, request.ProteinG, request.FatG, request.CarbohydratesG);
-        db.NutritionTargets.Add(target);
+
+        var targetsForToday = await db.NutritionTargets
+            .Where(x => x.UserId == userId && x.EffectiveFrom == effectiveFrom)
+            .OrderByDescending(x => x.IsActive)
+            .ToListAsync();
+        var target = targetsForToday.FirstOrDefault();
+        if (targetsForToday.Count > 1)
+        {
+            db.NutritionTargets.RemoveRange(targetsForToday.Skip(1));
+        }
+
+        if (target is null)
+        {
+            target = new NutritionTarget(userId, effectiveFrom, request.CaloriesKcal, request.ProteinG, request.FatG, request.CarbohydratesG);
+            db.NutritionTargets.Add(target);
+        }
+        else
+        {
+            target.Update(request.CaloriesKcal, request.ProteinG, request.FatG, request.CarbohydratesG);
+        }
+
         await db.SaveChangesAsync();
         return Created("api/v1/nutrition-targets/current", TargetResponse(target));
     }
@@ -112,7 +132,7 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
     {
         var userId = UserId();
         var target = await db.NutritionTargets.Where(x => x.UserId == userId && x.EffectiveFrom <= date)
-            .OrderByDescending(x => x.EffectiveFrom).FirstOrDefaultAsync();
+            .OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.IsActive).FirstOrDefaultAsync();
         var meals = await db.Meals.Include(x => x.Items)
             .Where(x => x.UserId == userId && x.LocalDate == date)
             .OrderBy(x => x.OccurredAtUtc).ToListAsync();

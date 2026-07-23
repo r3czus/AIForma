@@ -10,4 +10,14 @@ public sealed class WeightGoalCopyTests
     [InlineData(80, 80, "Cel zakłada utrzymanie obecnej masy")]
     public void DescribesWeightDifference(decimal current, decimal target, string expected) =>
         Assert.Equal(expected, WeightGoalCopy.For(current, target));
+
+    [Fact]
+    public void EstimatesGoalDateFromTargetEffectiveDate()
+    {
+        var effectiveFrom = new DateOnly(2026, 7, 24);
+
+        var result = WeightGoalDate.Estimate(90m, 80m, 0.5m, effectiveFrom);
+
+        Assert.Equal(new DateOnly(2026, 12, 11), result);
+    }
 }

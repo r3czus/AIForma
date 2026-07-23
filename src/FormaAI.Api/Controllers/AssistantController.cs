@@ -212,7 +212,8 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
 
     private async Task<string> NutritionSummary(string userId, DateOnly date, CancellationToken cancellationToken)
     {
-        var target = await db.NutritionTargets.Where(x => x.UserId == userId && x.EffectiveFrom <= date).OrderByDescending(x => x.EffectiveFrom).FirstOrDefaultAsync(cancellationToken);
+        var target = await db.NutritionTargets.Where(x => x.UserId == userId && x.EffectiveFrom <= date)
+            .OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.IsActive).FirstOrDefaultAsync(cancellationToken);
         var items = await db.MealItems.Where(x => db.Meals.Any(m => m.Id == x.MealId && m.UserId == userId && m.LocalDate == date)).ToListAsync(cancellationToken);
         var consumed = items.Aggregate(new Macro(), (sum, x) => sum + new Macro(x.CaloriesKcal, x.ProteinG, x.FatG, x.CarbohydratesG));
         return JsonSerializer.Serialize(new { date, target = target is null ? null : new { calories = target.CaloriesKcal, protein = target.ProteinG, fat = target.FatG, carbs = target.CarbohydratesG }, consumed }, JsonOptions);

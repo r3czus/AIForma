@@ -29,6 +29,15 @@ public sealed class NutritionTarget
     public decimal FatG { get; private set; }
     public decimal CarbohydratesG { get; private set; }
     public bool IsActive { get; set; }
+
+    public void Update(decimal calories, decimal protein, decimal fat, decimal carbs)
+    {
+        CaloriesKcal = calories;
+        ProteinG = protein;
+        FatG = fat;
+        CarbohydratesG = carbs;
+        IsActive = true;
+    }
 }
 
 public sealed class Product

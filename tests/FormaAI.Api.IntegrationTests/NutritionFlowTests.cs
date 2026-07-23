@@ -64,6 +64,30 @@ public sealed class NutritionFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task SavingNutritionTargetAgainTodayReplacesTargetForTodayAndFuture()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "nutrition-replace@example.test", "Europe/Warsaw");
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw")));
+
+        var first = await Send<SaveNutritionTargetRequest, NutritionTargetResponse>(
+            client, HttpMethod.Post, "api/v1/nutrition-targets", new(today, 2200, 160, 70, 230));
+        var replaced = await Send<SaveNutritionTargetRequest, NutritionTargetResponse>(
+            client, HttpMethod.Post, "api/v1/nutrition-targets", new(today, 1850, 145, 60, 180));
+
+        var current = await client.GetFromJsonAsync<NutritionTargetResponse>("api/v1/nutrition-targets/current");
+        var todaySummary = await client.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{today:yyyy-MM-dd}");
+        var futureSummary = await client.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{today.AddDays(7):yyyy-MM-dd}");
+
+        Assert.Equal(first.Id, replaced.Id);
+        Assert.Equal(today, replaced.EffectiveFrom);
+        Assert.Equal(1850, current!.CaloriesKcal);
+        Assert.Equal(1850, todaySummary!.BaseTarget!.CaloriesKcal);
+        Assert.Equal(1850, futureSummary!.BaseTarget!.CaloriesKcal);
+    }
+
+    [Fact]
     public async Task WeekSummaryIgnoresMealsBeforeTargetAndFutureDays()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
