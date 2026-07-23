@@ -46,20 +46,20 @@
         {
             <section class="progress-direction progress-overview-hero">
                 <div><span class="card-kicker">@RangeKicker</span><h2>@DirectionTitle</h2><p>@DirectionNote</p></div>
-                <div class="direction-score"><strong>@DirectionScore%</strong><span>rytm okresu</span></div>
+                <div class="direction-score"><strong>@DirectionScoreText</strong><span>@(DirectionScore is null ? "brak danych" : "rytm okresu")</span></div>
             </section>
 
             @if (_summary is not null)
             {
                 <div class="week-summary-grid progress-overview-stats">
                     <MudPaper Class="week-summary-card nutrition-summary" Elevation="0">
-                        <div class="summary-card-top"><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><div><span>Dieta</span><strong>@_summary.Nutrition.DaysOnCalories / @_summary.Nutrition.EligibleDays dni w celu</strong></div></div>
-                        <div class="summary-progress"><i style="width: @PercentWidth(_summary.Nutrition.CalorieAdherencePercent)"></i></div>
+                        <div class="summary-card-top"><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><div><span>Dieta</span><strong>@NutritionSummaryValue</strong></div></div>
+                        <div class="summary-progress @(!HasNutritionGoal ? "neutral" : null)">@if (HasNutritionGoal) { <i style="width: @PercentWidth(_summary.Nutrition.CalorieAdherencePercent)"></i> }</div>
                         <p>@NutritionNote</p>
                     </MudPaper>
                     <MudPaper Class="week-summary-card training-summary" Elevation="0">
-                        <div class="summary-card-top"><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><div><span>Trening</span><strong>@_summary.Training.CompletedWorkouts / @_summary.Training.PlannedWorkouts sesji</strong></div></div>
-                        <div class="summary-progress"><i style="width: @PercentWidth(TrainingPlanPercent)"></i></div>
+                        <div class="summary-card-top"><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><div><span>Trening</span><strong>@TrainingSummaryValue</strong></div></div>
+                        <div class="summary-progress @(!HasTrainingPlan ? "neutral" : null)">@if (HasTrainingPlan) { <i style="width: @PercentWidth(TrainingPlanPercent)"></i> }</div>
                         <p>@TrainingNote</p>
                     </MudPaper>
                 </div>
@@ -86,10 +86,10 @@
                 <section class="progress-section-hero diet-section-hero" aria-label="Podsumowanie diety">
                     <div class="progress-section-copy"><span class="card-kicker">@RangeKicker</span><h2>@DietTitle</h2><p>@NutritionNote</p></div>
                     <div class="progress-section-metrics">
-                        @Metric("W celu", $"{_summary.Nutrition.DaysOnCalories} / {_summary.Nutrition.EligibleDays} dni", $"{_summary.Nutrition.LoggedDays} zapisanych")
-                        @Metric("Średnio", $"{_summary.Nutrition.AverageCalories:0} kcal", $"cel {_summary.Nutrition.AverageTargetCalories:0}")
-                        @Metric("Białko", $"{_summary.Nutrition.DaysOnProtein} / {_summary.Nutrition.LoggedDays} dni", $"średnio {_summary.Nutrition.AverageProteinG:0} g")
-                        @Metric("Bilans", $"{Signed(_summary.Nutrition.AverageCalorieDifference)} kcal", "dziennie")
+                        @Metric("W celu", HasNutritionGoal ? $"{_summary.Nutrition.DaysOnCalories} / {_summary.Nutrition.EligibleDays} dni" : "Brak danych", HasNutritionGoal ? $"{_summary.Nutrition.LoggedDays} zapisanych" : "ustaw cel")
+                        @Metric("Średnio", HasNutritionGoal ? $"{_summary.Nutrition.AverageCalories:0} kcal" : "Brak danych", HasNutritionGoal ? $"cel {_summary.Nutrition.AverageTargetCalories:0}" : "ustaw cel")
+                        @Metric("Białko", HasNutritionGoal ? $"{_summary.Nutrition.DaysOnProtein} / {_summary.Nutrition.LoggedDays} dni" : "Brak danych", HasNutritionGoal ? $"średnio {_summary.Nutrition.AverageProteinG:0} g" : "ustaw cel")
+                        @Metric("Bilans", HasNutritionGoal ? $"{Signed(_summary.Nutrition.AverageCalorieDifference)} kcal" : "Brak danych", HasNutritionGoal ? "dziennie" : "ustaw cel")
                     </div>
                 </section>
             }
@@ -139,7 +139,7 @@
                 <section class="progress-section-hero training-section-hero" aria-label="Wyniki treningów">
                     <div class="progress-section-copy"><span class="card-kicker">@RangeKicker</span><h2>@TrainingTitle</h2><p>@TrainingNote</p></div>
                     <div class="progress-section-metrics">
-                        @Metric("Sesje", $"{_summary.Training.CompletedWorkouts} / {_summary.Training.PlannedWorkouts}", "wykonane")
+                        @Metric("Sesje", HasTrainingPlan ? $"{_summary.Training.CompletedWorkouts} / {_summary.Training.PlannedWorkouts}" : "Brak danych", HasTrainingPlan ? "wykonane" : "ustaw plan")
                         @Metric("Objętość", $"{_summary.Training.TotalVolumeKg:0} kg", $"{Signed(_summary.Training.VolumeChangePercent)}% do poprzedniego okresu")
                         @Metric("Serie", _summary.Training.WorkingSets.ToString(), $"{_summary.Training.SetCompletionPercent:0.#}% wykonanych")
                         @Metric("Czas", Duration(_summary.Training.TotalMinutes), "łącznie")
@@ -200,15 +200,29 @@
     private DateOnly PeriodEnd => _rangeDays switch { 7 => _periodStart.AddDays(6), 30 => _periodStart.AddMonths(1).AddDays(-1), _ => _periodStart.AddDays(_rangeDays - 1) };
     private bool IsCurrentPeriod => _periodStart >= CurrentPeriodStart();
     private string PeriodLabel => DateLabel(_periodStart, PeriodEnd);
+    private bool HasNutritionGoal => (_summary?.Nutrition.EligibleDays ?? 0) > 0;
+    private bool HasTrainingPlan => (_summary?.Training.PlannedWorkouts ?? 0) > 0;
     private decimal TrainingPlanPercent => _summary?.Training.PlannedWorkouts > 0 ? Math.Min(100, _summary.Training.CompletedWorkouts * 100m / _summary.Training.PlannedWorkouts) : 0;
-    private int DirectionScore => (int)Math.Round(((_summary?.Nutrition.CalorieAdherencePercent ?? 0) + TrainingPlanPercent) / 2);
-    private string DirectionTitle => DirectionScore >= 75 ? "Dobry rytm" : DirectionScore >= 45 ? "Kierunek jest, rytm do poprawy" : "Wróć do podstaw";
-    private string DirectionNote => DirectionScore >= 75 ? "Plan jest realizowany regularnie. Patrz na trend i trzymaj tempo." : "Najwięcej zmieni jeden powtarzalny dzień jedzenia i jedna ukończona sesja.";
+    private int? DirectionScore
+    {
+        get
+        {
+            var values = new List<decimal>();
+            if (HasNutritionGoal) values.Add(_summary!.Nutrition.CalorieAdherencePercent);
+            if (HasTrainingPlan) values.Add(TrainingPlanPercent);
+            return values.Count == 0 ? null : (int)Math.Round(values.Average());
+        }
+    }
+    private string DirectionScoreText => DirectionScore is int score ? $"{score}%" : "—";
+    private string DirectionTitle => DirectionScore is null ? "Brak danych do oceny" : DirectionScore >= 75 ? "Dobry rytm" : DirectionScore >= 45 ? "Kierunek jest, rytm do poprawy" : "Wróć do podstaw";
+    private string DirectionNote => DirectionScore is null ? "Ustaw cel diety lub plan treningowy, aby ocenić rytm okresu." : DirectionScore >= 75 ? "Plan jest realizowany regularnie. Patrz na trend i trzymaj tempo." : "Najwięcej zmieni jeden powtarzalny dzień jedzenia i jedna ukończona sesja.";
     private string RangeKicker => _rangeDays == 365 ? "Ostatni rok" : $"Ostatnie {_rangeDays} dni";
-    private string DietTitle => (_summary?.Nutrition.CalorieAdherencePercent ?? 0) >= 70 ? "Dobry rytm. Utrzymaj kierunek." : "Regularność wygrywa z perfekcją.";
-    private string TrainingTitle => TrainingPlanPercent >= 80 ? "Plan trzyma tempo." : "Każda ukończona sesja się liczy.";
-    private string NutritionNote => _summary?.Nutrition.LoggedDays == 0 ? "Zapisz posiłki, aby policzyć realizację." : $"Średnio {Signed(_summary?.Nutrition.AverageCalorieDifference)} kcal względem celu.";
-    private string TrainingNote => _summary?.Training.CompletedWorkouts == 0 ? "Ukończ pierwszą sesję w tym okresie." : $"{_summary?.Training.WorkingSets} serii roboczych · {Duration(_summary?.Training.TotalMinutes ?? 0)}.";
+    private string DietTitle => !HasNutritionGoal ? "Brak celu w tym okresie." : (_summary?.Nutrition.CalorieAdherencePercent ?? 0) >= 70 ? "Dobry rytm. Utrzymaj kierunek." : "Regularność wygrywa z perfekcją.";
+    private string TrainingTitle => !HasTrainingPlan ? "Brak planu w tym okresie." : TrainingPlanPercent >= 80 ? "Plan trzyma tempo." : "Każda ukończona sesja się liczy.";
+    private string NutritionSummaryValue => HasNutritionGoal ? $"{_summary!.Nutrition.DaysOnCalories} / {_summary.Nutrition.EligibleDays} dni w celu" : "Brak danych do oceny";
+    private string TrainingSummaryValue => HasTrainingPlan ? $"{_summary!.Training.CompletedWorkouts} / {_summary.Training.PlannedWorkouts} sesji" : "Brak danych do oceny";
+    private string NutritionNote => !HasNutritionGoal ? "Brak celu żywieniowego w tym okresie." : _summary?.Nutrition.LoggedDays == 0 ? "Zapisz posiłki, aby policzyć realizację." : $"Średnio {Signed(_summary?.Nutrition.AverageCalorieDifference)} kcal względem celu.";
+    private string TrainingNote => !HasTrainingPlan ? "Brak zaplanowanych treningów w tym okresie." : _summary?.Training.CompletedWorkouts == 0 ? "Ukończ pierwszą sesję w tym okresie." : $"{_summary?.Training.WorkingSets} serii roboczych · {Duration(_summary?.Training.TotalMinutes ?? 0)}.";
     private decimal WeightChartMax => _weight?.Points.Max(x => x.SevenDayAverageKg) ?? 0;
     private decimal WeightChartMin => _weight?.Points.Count > 0 ? Math.Min(_weight.Points.Min(x => x.SevenDayAverageKg), WeightChartMax - 1) : 0;
     private string WeightChartPolyline => _weight?.Points.Count > 0 ? string.Join(' ', _weight.Points.Select((p, i) => $"{Invariant(_weight.Points.Count == 1 ? 50 : 4 + i * 92m / (_weight.Points.Count - 1))},{Invariant(4 + (WeightChartMax - p.SevenDayAverageKg) * 38m / Math.Max(1, WeightChartMax - WeightChartMin))}")) : string.Empty;

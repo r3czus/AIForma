@@ -666,6 +666,11 @@ button:disabled,
 .progress-section-metrics span,
 .progress-section-metrics small { color: var(--muted); }
 
+.summary-progress.neutral {
+    background: repeating-linear-gradient(135deg, var(--line), var(--line) 5px, transparent 5px, transparent 9px);
+    border: 1px dashed var(--rule);
+}
+
 .progress-trends { border-bottom: 1px solid var(--rule); gap: 0; }
 .progress-trends > div { background: transparent; border: 0; border-radius: 0; padding: 20px 4px; }
 .progress-trends > div + div { border-left: 1px solid var(--rule); padding-left: 24px; }

@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using FormaAI.Contracts.Nutrition;
+using FormaAI.Contracts.Progress;
 using FormaAI.Contracts.Users;
 using FormaAI.Domain.Nutrition;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -60,6 +61,33 @@ public sealed class NutritionFlowTests : IClassFixture<FormaAiFactory>
             client, HttpMethod.Post, "api/v1/nutrition-targets", new(expected.AddDays(-5), 2200, 160, 70, 230));
 
         Assert.Equal(expected, saved.EffectiveFrom);
+    }
+
+    [Fact]
+    public async Task WeekSummaryIgnoresMealsBeforeTargetAndFutureDays()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "nutrition-summary-range@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var todayAtNoon = new DateTimeOffset(today.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero);
+
+        await Send<SaveNutritionTargetRequest, NutritionTargetResponse>(
+            client, HttpMethod.Post, "api/v1/nutrition-targets", new(today, 2000, 150, 70, 220));
+        var product = await Send<SaveProductRequest, ProductResponse>(
+            client, HttpMethod.Post, "api/v1/products", new("Pełny cel", null, 2000, 150, 70, 220));
+        await Send<SaveMealRequest, MealResponse>(
+            client, HttpMethod.Post, "api/v1/meals", new("Przed celem", todayAtNoon.AddDays(-1), [new(product.Id, 100, false)]));
+        await Send<SaveMealRequest, MealResponse>(
+            client, HttpMethod.Post, "api/v1/meals", new("W celu", todayAtNoon, [new(product.Id, 100, false)]));
+
+        var summary = await client.GetFromJsonAsync<ProgressWeekSummaryResponse>(
+            $"api/v1/progress/week-summary?from={today.AddDays(-1):yyyy-MM-dd}&to={today.AddDays(1):yyyy-MM-dd}");
+
+        Assert.Equal(1, summary!.Nutrition.EligibleDays);
+        Assert.Equal(1, summary.Nutrition.LoggedDays);
+        Assert.Equal(1, summary.Nutrition.DaysOnCalories);
+        Assert.Equal(100m, summary.Nutrition.CalorieAdherencePercent);
+        Assert.Equal(2000m, summary.Nutrition.AverageCalories);
     }
 
     private static async Task Register(HttpClient client, string email, string timeZone = "UTC") =>

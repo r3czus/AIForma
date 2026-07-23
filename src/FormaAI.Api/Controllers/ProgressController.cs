@@ -258,19 +258,27 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
         var effectiveTo = periodTo < today ? periodTo : today;
         var periodDays = effectiveTo < periodFrom ? 0 : effectiveTo.DayNumber - periodFrom.DayNumber + 1;
         var previousFrom = periodFrom.AddDays(-periodDays);
-        var fromUtc = previousFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var toUtc = effectiveTo.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var queryTo = effectiveTo < periodFrom ? periodFrom.AddDays(-1) : effectiveTo;
+        var utcBounds = ProgressPeriodCalculator.UtcBounds(previousFrom, queryTo, zone);
 
         var sessions = await db.WorkoutSessions
             .Include(x => x.Exercises).ThenInclude(x => x.Sets)
-            .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed && x.FinishedAtUtc >= fromUtc && x.FinishedAtUtc < toUtc)
+            .Where(x => x.UserId == userId && x.Status == SessionStatus.Completed
+                && x.FinishedAtUtc >= utcBounds.From && x.FinishedAtUtc < utcBounds.ToExclusive)
             .ToListAsync();
-        var currentSessions = sessions.Where(x =>
+        var sessionsWithDates = sessions.Select(x => new
         {
-            var date = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.FinishedAtUtc!.Value, zone));
-            return date >= periodFrom && date <= effectiveTo;
+            Session = x,
+            LocalDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.FinishedAtUtc!.Value, zone))
         }).ToList();
-        var previousSessions = sessions.Except(currentSessions).ToList();
+        var currentSessions = sessionsWithDates
+            .Where(x => x.LocalDate >= periodFrom && x.LocalDate <= effectiveTo)
+            .Select(x => x.Session)
+            .ToList();
+        var previousSessions = sessionsWithDates
+            .Where(x => x.LocalDate >= previousFrom && x.LocalDate < periodFrom)
+            .Select(x => x.Session)
+            .ToList();
         var currentSets = currentSessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
         var previousSets = previousSessions.SelectMany(x => x.Exercises).SelectMany(x => x.Sets).Where(x => x.Type == SetType.Working).ToList();
         var volume = currentSets.Sum(x => ProgressMetrics.Volume(x.WeightKg, x.Repetitions));
@@ -293,7 +301,9 @@ public sealed class ProgressController(AppDbContext db) : ControllerBase
             .OrderBy(x => x.EffectiveFrom).ToListAsync();
         var eligibleRange = ProgressPeriodCalculator.EligibleRange(periodFrom, periodTo, today, targets.FirstOrDefault()?.EffectiveFrom);
         var eligibleDays = eligibleRange is null ? 0 : eligibleRange.Value.To.DayNumber - eligibleRange.Value.From.DayNumber + 1;
-        var loggedDays = meals.GroupBy(x => x.LocalDate).Select(group =>
+        var loggedDays = meals
+            .Where(x => ProgressPeriodCalculator.IsInRange(x.LocalDate, eligibleRange))
+            .GroupBy(x => x.LocalDate).Select(group =>
         {
             var target = targets.LastOrDefault(x => x.EffectiveFrom <= group.Key);
             var items = group.SelectMany(x => x.Items).ToList();
