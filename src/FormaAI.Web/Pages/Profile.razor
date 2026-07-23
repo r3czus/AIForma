@@ -83,7 +83,7 @@
                                 {
                                     <MudNumericField @bind-Value="_weeklyWeightChangeKg" Label="Zmiana masy na tydzień (kg)" Min="0.05m" Max="1.5m" Step="0.05m" HelperText="Ta wartość bezpośrednio zmienia dzienny bilans kalorii." Class="mt-4" />
                                 }
-                                @if (_currentWeightKg is not null && _targetWeightKg is not null)
+                                @if (!string.IsNullOrWhiteSpace(WeightDifference))
                                 {
                                     <span class="goal-weight-difference">@WeightDifference</span>
                                 }
@@ -275,15 +275,13 @@
         }
     }
     private string GoalPaceCopy => _goal == BodyGoal.Maintenance ? "Bilans bez planowanej zmiany masy" : $"przy tempie około {_weeklyWeightChangeKg:0.##} kg tygodniowo";
-    private string WeightDifference
+    private string? WeightDifference
     {
         get
         {
-            var difference = _targetWeightKg!.Value - _currentWeightKg!.Value;
-            if (Math.Abs(difference) < .05m) return "Chcesz utrzymać obecną masę.";
-            return difference < 0
-                ? $"Chcesz zredukować {Math.Abs(difference):0.#} kg."
-                : $"Chcesz zwiększyć masę o {difference:0.#} kg.";
+            if (!TryDecimal(_currentWeightInput, 20, 500, out var current)) return null;
+            if (!TryDecimal(_targetWeightInput, 20, 500, out var target)) return null;
+            return WeightGoalCopy.For(current!.Value, target!.Value);
         }
     }
 
