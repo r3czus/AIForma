@@ -56,8 +56,8 @@
 
 @code {
     private AiProvider _provider = AiProvider.Gemini;
-    private string _apiBaseUrl = "https://generativelanguage.googleapis.com/";
-    private string _model = "gemini-3.5-flash";
+    private string _apiBaseUrl = AiDefaults.GeminiBaseUrl;
+    private string _model = AiDefaults.GeminiModel;
     private string? _apiKey;
     private bool _hasApiKey;
     private bool _loading = true;

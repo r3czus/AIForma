@@ -22,7 +22,7 @@ public sealed class AdminAiController(
     {
         var config = await db.AiConfigurations.SingleOrDefaultAsync();
         return config is null
-            ? new AiConfigurationResponse(AiProvider.Gemini, "https://generativelanguage.googleapis.com/", "gemini-3.5-flash", false, DateTime.MinValue)
+            ? new AiConfigurationResponse(AiProvider.Gemini, AiDefaults.GeminiBaseUrl, AiDefaults.GeminiModel, false, DateTime.MinValue)
             : ToResponse(config);
     }
 

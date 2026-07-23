@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
 using FormaAI.Api.Services;
+using FormaAI.Contracts.Assistant;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,11 +49,11 @@ builder.Services.AddHttpClient<OpenFoodFactsClient>(client =>
 });
 var gemini = new GeminiSettings(
     builder.Configuration["Gemini:ApiKey"] ?? string.Empty,
-    builder.Configuration["Gemini:Model"] ?? "gemini-3.5-flash");
+    builder.Configuration["Gemini:Model"] ?? AiDefaults.GeminiModel);
 builder.Services.AddSingleton(gemini);
 builder.Services.AddHttpClient<GeminiAssistantModel>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/");
+    client.BaseAddress = new Uri(builder.Configuration["Gemini:BaseUrl"] ?? AiDefaults.GeminiBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(45);
 });
 builder.Services.AddScoped<IAssistantModel>(services => services.GetRequiredService<GeminiAssistantModel>());

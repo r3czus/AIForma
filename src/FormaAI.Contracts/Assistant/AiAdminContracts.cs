@@ -3,6 +3,17 @@ using FormaAI.Domain.Assistant;
 
 namespace FormaAI.Contracts.Assistant;
 
+public static class AiDefaults
+{
+    public const string GeminiBaseUrl = "https://generativelanguage.googleapis.com/";
+    public const string GeminiModel = "gemini-3.5-flash-lite";
+
+    public static string GeminiThinkingLevel(string model) =>
+        string.Equals(model, GeminiModel, StringComparison.OrdinalIgnoreCase)
+            ? "minimal"
+            : "low";
+}
+
 public sealed record AiConfigurationResponse(
     AiProvider Provider,
     string ApiBaseUrl,

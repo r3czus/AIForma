@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FormaAI.Application.Assistant;
+using FormaAI.Contracts.Assistant;
 using FormaAI.Contracts.Nutrition;
 using FormaAI.Domain.Assistant;
 using FormaAI.Infrastructure.Persistence;
@@ -175,7 +176,7 @@ public sealed class GeminiAssistantModel(
             ["maxOutputTokens"] = 4096
         };
         if (config.Model.StartsWith("gemini-3", StringComparison.OrdinalIgnoreCase))
-            generationConfig["thinkingConfig"] = new { thinkingLevel = "low" };
+            generationConfig["thinkingConfig"] = new { thinkingLevel = AiDefaults.GeminiThinkingLevel(config.Model) };
 
         var body = new
         {
