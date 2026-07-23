@@ -1,10 +1,13 @@
 <div class="@CssClass" role="status" aria-live="polite" aria-busy="true">
     <span class="sr-only">@Message</span>
-    <div class="page-skeleton-heading" aria-hidden="true">
-        <i></i>
-        <b></b>
-        <span></span>
-    </div>
+    @if (!Compact)
+    {
+        <div class="page-skeleton-heading" aria-hidden="true">
+            <i></i>
+            <b></b>
+            <span></span>
+        </div>
+    }
     <div class="page-skeleton-body" aria-hidden="true">
         <section>
             <i></i>

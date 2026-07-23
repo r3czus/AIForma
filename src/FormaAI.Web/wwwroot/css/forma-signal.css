@@ -126,7 +126,7 @@ small { font-size: .75rem !important; }
 .mud-tab-slider { background: var(--action); border-radius: 0; height: 2px; }
 
 :focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--action) 45%, transparent) !important;
+    outline: 3px solid var(--focus) !important;
     outline-offset: 3px;
 }
 
@@ -277,9 +277,6 @@ button:disabled,
     position: absolute;
     transform: translateX(-100%);
 }
-
-body:has(.page-skeleton) .bottom-nav { display: none; }
-body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
 
 .module-heading {
     align-items: end;
@@ -1196,13 +1193,21 @@ body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: .01ms !important;
-        animation-iteration-count: 1 !important;
-        scroll-behavior: auto !important;
-        transition-duration: .01ms !important;
+    html { scroll-behavior: auto; }
+
+    .content-wrap,
+    .page-skeleton-heading i::after,
+    .page-skeleton-heading b::after,
+    .page-skeleton-heading span::after,
+    .page-skeleton-body i::after,
+    .page-skeleton-body b::after,
+    .page-skeleton-body span::after,
+    .assistant-thinking span {
+        animation: none !important;
+    }
+
+    .daily-coach::after {
+        transition: none !important;
     }
 
     .content-wrap,
@@ -1212,7 +1217,13 @@ body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
     .progress-tabs button,
     .progress-ranges button,
     .nutrition-day,
-    .goal-choice {
+    .goal-choice,
+    .meal-entry-modes-wide button,
+    .saved-meal-list button,
+    .progress-tools > a,
+    .settings-menu a,
+    .account-menu > a,
+    .account-menu > button {
         transform: none !important;
     }
 }
