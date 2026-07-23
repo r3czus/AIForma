@@ -37,7 +37,8 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
         var userId = UserId();
         var active = await db.NutritionTargets.Where(x => x.UserId == userId && x.IsActive).ToListAsync();
         foreach (var previous in active) previous.IsActive = false;
-        var target = new NutritionTarget(userId, request.EffectiveFrom, request.CaloriesKcal, request.ProteinG, request.FatG, request.CarbohydratesG);
+        var effectiveFrom = await LocalToday(userId);
+        var target = new NutritionTarget(userId, effectiveFrom, request.CaloriesKcal, request.ProteinG, request.FatG, request.CarbohydratesG);
         db.NutritionTargets.Add(target);
         await db.SaveChangesAsync();
         return Created("api/v1/nutrition-targets/current", TargetResponse(target));

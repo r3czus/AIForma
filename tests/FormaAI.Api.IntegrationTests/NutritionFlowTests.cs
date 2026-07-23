@@ -48,8 +48,22 @@ public sealed class NutritionFlowTests : IClassFixture<FormaAiFactory>
         Assert.Empty(otherDay!.Meals);
     }
 
-    private static async Task Register(HttpClient client, string email) =>
-        _ = await Send<RegisterRequest, CurrentUserResponse>(client, HttpMethod.Post, "api/account/register", new(email, "FormaAI!123", "UTC"));
+    [Fact]
+    public async Task NutritionTargetUsesProfileLocalDate()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "nutrition-date@example.test", "Europe/Warsaw");
+        var expected = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw")));
+
+        var saved = await Send<SaveNutritionTargetRequest, NutritionTargetResponse>(
+            client, HttpMethod.Post, "api/v1/nutrition-targets", new(expected.AddDays(-5), 2200, 160, 70, 230));
+
+        Assert.Equal(expected, saved.EffectiveFrom);
+    }
+
+    private static async Task Register(HttpClient client, string email, string timeZone = "UTC") =>
+        _ = await Send<RegisterRequest, CurrentUserResponse>(client, HttpMethod.Post, "api/account/register", new(email, "FormaAI!123", timeZone));
 
     private static async Task<TResponse> Send<TRequest, TResponse>(HttpClient client, HttpMethod method, string uri, TRequest body)
     {
