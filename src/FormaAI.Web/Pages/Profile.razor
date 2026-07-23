@@ -405,14 +405,13 @@
         var today = DateOnly.FromDateTime(DateTime.Today);
         var birth = DateOnly.FromDateTime(_birthDate!.Value);
         var age = today.Year - birth.Year - (today < birth.AddYears(today.Year - birth.Year) ? 1 : 0);
-        var bmr = 10m * _currentWeightKg!.Value + 6.25m * _heightCm!.Value - 5m * age + (_sex == BiologicalSex.Male ? 5m : -161m);
-        var factor = _workActivity switch { ActivityLevel.Low => 1.2m, ActivityLevel.Light => 1.32m, ActivityLevel.Moderate => 1.45m, _ => 1.6m };
-        var weeklyEnergy = _weeklyWeightChangeKg * 7700m;
-        var adjustment = _goal switch { BodyGoal.Reduction => -weeklyEnergy / 7m, BodyGoal.MuscleGain => weeklyEnergy / 7m, _ => 0m };
-        _targetCalories = Math.Round(Math.Max(1200m, bmr * factor + adjustment));
-        _proteinG = Math.Round(_currentWeightKg.Value * 2m);
-        _fatG = Math.Round(_currentWeightKg.Value * .9m);
-        _carbsG = Math.Round(Math.Max(0m, (_targetCalories.Value - _proteinG * 4m - _fatG * 9m) / 4m));
+        var macro = NutritionGoalCalculator.Calculate(
+            _currentWeightKg!.Value, _heightCm!.Value, age, _sex!.Value,
+            _workActivity!.Value, _goal!.Value, _weeklyWeightChangeKg);
+        _targetCalories = macro.CaloriesKcal;
+        _proteinG = macro.ProteinG;
+        _fatG = macro.FatG;
+        _carbsG = macro.CarbohydratesG;
     }
 
     private async Task SaveProfile() => await Run(async () =>

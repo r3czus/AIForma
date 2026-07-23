@@ -39,4 +39,16 @@ public sealed class NutritionCalculatorTests
         Assert.Equal(0, NutritionCalculator.TrainingBonus(ActivityLevel.Moderate, TimeSpan.Zero, 0));
         Assert.Equal(195, NutritionCalculator.TrainingBonus(ActivityLevel.Moderate, TimeSpan.FromMinutes(30), 15));
     }
+
+    [Theory]
+    [InlineData(BodyGoal.Reduction)]
+    [InlineData(BodyGoal.Maintenance)]
+    [InlineData(BodyGoal.MuscleGain)]
+    public void GoalCalculationAlwaysLeavesEnergyForCarbohydrates(BodyGoal goal)
+    {
+        var result = NutritionGoalCalculator.Calculate(150m, 181m, 35, BiologicalSex.Male, ActivityLevel.Low, goal, .7m);
+
+        Assert.True(result.CarbohydratesG > 0);
+        Assert.True(result.CarbohydratesG * 4m >= result.CaloriesKcal * .2m - 4m);
+    }
 }

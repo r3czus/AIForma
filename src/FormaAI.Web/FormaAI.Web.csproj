@@ -14,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FormaAI.Application\FormaAI.Application.csproj" />
     <ProjectReference Include="..\FormaAI.Contracts\FormaAI.Contracts.csproj" />
   </ItemGroup>
 
