@@ -7,3 +7,4 @@ TestResults/
 *.suo
 .env
 src/FormaAI.Api/App_Data/
+.worktrees/
