@@ -292,8 +292,22 @@
     private string CoachUrl => _activeSession is not null ? $"/workout/{_activeSession.Id}"
         : _todayWorkout is { AlreadyCompleted: false } ? "/training"
         : _day?.Status == NutritionDayStatus.Unknown && DateTime.Now.Hour >= 19 ? "/food"
-        : _day?.Target is not null && _day.Remaining?.ProteinG > 20 ? "/food/add?mode=text"
+        : _day?.Target is not null && _day.Remaining?.ProteinG > 20 ? MealSuggestionUrl
         : "/progress";
+    private string MealSuggestionUrl
+    {
+        get
+        {
+            var remaining = _day?.Remaining;
+            var prompt = $"Zaproponuj mi posiłek na {_day?.Date:dd.MM.yyyy}. " +
+                $"Pozostało około {Math.Max(0, remaining?.CaloriesKcal ?? 0):0} kcal, " +
+                $"B {Math.Max(0, remaining?.ProteinG ?? 0):0} g, " +
+                $"T {Math.Max(0, remaining?.FatG ?? 0):0} g i " +
+                $"W {Math.Max(0, remaining?.CarbohydratesG ?? 0):0} g. " +
+                "Najpierw porozmawiaj ze mną i pokaż propozycję. Niczego nie zapisuj bez mojego zatwierdzenia.";
+            return $"/assistant?prompt={Uri.EscapeDataString(prompt)}";
+        }
+    }
     protected override async Task OnInitializedAsync()
     {
         _user = await Account.GetCurrentUser();
