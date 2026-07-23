@@ -11,10 +11,7 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="content-wrap home-page">
     @if (_loading)
     {
-        <div class="page-loader">
-            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-            <span>Synchronizuję plan dnia</span>
-        </div>
+        <PageSkeleton Message="Synchronizuję plan dnia" />
     }
     else if (_user is null)
     {

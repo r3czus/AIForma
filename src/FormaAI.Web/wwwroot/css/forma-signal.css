@@ -157,6 +157,93 @@ button:disabled,
 
 .home-page { max-width: var(--content-wide) !important; }
 
+.sr-only {
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+.page-skeleton {
+    align-content: center;
+    display: grid;
+    gap: 28px;
+    min-height: calc(100dvh - 190px);
+    padding: clamp(20px, 5vw, 52px) 0;
+}
+
+.page-skeleton.compact {
+    align-content: start;
+    min-height: 42dvh;
+    padding-top: 20px;
+}
+
+.page-skeleton-heading,
+.page-skeleton-body section {
+    display: grid;
+    gap: 11px;
+}
+
+.page-skeleton-heading { max-width: 620px; }
+.page-skeleton-heading i,
+.page-skeleton-heading b,
+.page-skeleton-heading span,
+.page-skeleton-body i,
+.page-skeleton-body b,
+.page-skeleton-body span {
+    background: var(--surface-soft);
+    border-radius: 7px;
+    display: block;
+    overflow: hidden;
+    position: relative;
+}
+
+.page-skeleton-heading i { height: 12px; width: 112px; }
+.page-skeleton-heading b { height: 48px; width: min(72%, 430px); }
+.page-skeleton-heading span { height: 15px; width: min(88%, 560px); }
+
+.page-skeleton-body {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: minmax(0, 1.35fr) minmax(240px, .65fr);
+}
+
+.page-skeleton-body section {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-surface);
+    min-height: 176px;
+    padding: 22px;
+}
+
+.page-skeleton-body i { height: 12px; width: 84px; }
+.page-skeleton-body b { height: 30px; width: 62%; }
+.page-skeleton-body span { height: 13px; width: 100%; }
+.page-skeleton-body span:last-child { width: 74%; }
+
+.page-skeleton-heading i::after,
+.page-skeleton-heading b::after,
+.page-skeleton-heading span::after,
+.page-skeleton-body i::after,
+.page-skeleton-body b::after,
+.page-skeleton-body span::after {
+    animation: skeleton-sweep 1.15s linear infinite;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 72%, transparent), transparent);
+    content: "";
+    inset: 0;
+    position: absolute;
+    transform: translateX(-100%);
+}
+
+body:has(.page-skeleton) .bottom-nav { display: none; }
+body:has(.page-skeleton) .page-content { padding-bottom: 28px; }
+
 .module-heading {
     align-items: end;
     border-bottom: 1px solid var(--rule-strong);

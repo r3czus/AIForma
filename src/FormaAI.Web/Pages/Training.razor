@@ -18,7 +18,7 @@
             <MudButton Href="/assistant?prompt=Chcę utworzyć nowy plan treningowy. Przeprowadź mnie przez krótką rozmowę, przygotuj kompletny plan do sprawdzenia i zapisz go dopiero po moim zatwierdzeniu." Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AutoAwesome">Ułóż z AI</MudButton>
         </div>
     </header>
-    @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję plan</span></div> }
+    @if (_loading) { <PageSkeleton Message="Wczytuję plan" Compact="true" /> }
     else
     {
         @if (_activeSession is not null)

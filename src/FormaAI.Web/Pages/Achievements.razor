@@ -7,7 +7,7 @@
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page achievements-page">
     <header class="module-heading compact-heading"><MudIconButton Icon="@Icons.Material.Outlined.ArrowBack" Href="/progress" aria-label="Wróć" /><div><span class="page-kicker">Kamienie milowe</span><MudText Typo="Typo.h4">Twoje osiągnięcia</MudText><p>To zapis faktycznych działań, nie punkty za samo otwieranie aplikacji.</p></div></header>
-    @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" /></div> }
+    @if (_loading) { <PageSkeleton Message="Wczytuję osiągnięcia" Compact="true" /> }
     else
     {
         <div class="achievement-list">

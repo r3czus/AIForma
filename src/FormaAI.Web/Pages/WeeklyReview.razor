@@ -15,7 +15,7 @@
 
     @if (_loading)
     {
-        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Przygotowujemy tydzień</span></div>
+        <PageSkeleton Message="Przygotowuję tydzień" Compact="true" />
     }
     else if (_data is not null)
     {

@@ -17,7 +17,7 @@
         <MudButton Href="/food" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ArrowBack" Class="module-heading-action">Wróć do dziennika</MudButton>
     </header>
 
-    @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Sprawdzam zapasy</span></div> }
+    @if (_loading) { <PageSkeleton Message="Sprawdzam zapasy" Compact="true" /> }
     else
     {
         <section class="module-status pantry-status" aria-label="Stan kuchni">

@@ -13,7 +13,7 @@
         <MudFileUpload T="IBrowserFile" FilesChanged="SelectFile" Accept="image/*" MaximumFileCount="1"><ActivatorContent><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.AddAPhoto">@(_file is null ? "Wybierz zdjęcie" : _file.Name)</MudButton></ActivatorContent></MudFileUpload>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_file is null || _saving)" OnClick="Save">Zapisz prywatne zdjęcie</MudButton>
     </MudPaper>
-    @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" /></div> }
+    @if (_loading) { <PageSkeleton Message="Wczytuję zdjęcia progresu" Compact="true" /> }
     else
     {
         <div class="photo-filters">@foreach (var pose in Enum.GetValues<ProgressPhotoPose>()) { <MudButton Size="Size.Small" Variant="@(pose == _filter ? Variant.Filled : Variant.Text)" OnClick="() => _filter = pose">@PoseName(pose)</MudButton> }</div>

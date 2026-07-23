@@ -11,7 +11,7 @@
 <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap workout-mode">
     @if (_session is null)
     {
-        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Przygotowuję sesję</span></div>
+        <PageSkeleton Message="Przygotowuję sesję" Compact="true" />
     }
     else
     {

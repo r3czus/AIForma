@@ -1,0 +1,32 @@
+<div class="@CssClass" role="status" aria-live="polite" aria-busy="true">
+    <span class="sr-only">@Message</span>
+    <div class="page-skeleton-heading" aria-hidden="true">
+        <i></i>
+        <b></b>
+        <span></span>
+    </div>
+    <div class="page-skeleton-body" aria-hidden="true">
+        <section>
+            <i></i>
+            <b></b>
+            <span></span>
+            <span></span>
+        </section>
+        <section>
+            <i></i>
+            <b></b>
+            <span></span>
+            <span></span>
+        </section>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Message { get; set; } = "Wczytuję dane";
+
+    [Parameter]
+    public bool Compact { get; set; }
+
+    private string CssClass => Compact ? "page-skeleton compact" : "page-skeleton";
+}

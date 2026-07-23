@@ -10,7 +10,7 @@
 <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page profile-page">
     @if (_loading)
     {
-        <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję profil</span></div>
+        <PageSkeleton Message="Wczytuję profil" Compact="true" />
     }
     else
     {
