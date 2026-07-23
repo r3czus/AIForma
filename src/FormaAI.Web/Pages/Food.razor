@@ -13,7 +13,11 @@
             <MudText Typo="Typo.h4">Jedzenie</MudText>
             <p>Zapisuj posiłki i trzymaj dzienny rytm bez liczenia wszystkiego w pamięci.</p>
         </div>
-        <MudButton Href="/pantry" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Kitchen" Class="module-heading-action">Otwórz kuchnię</MudButton>
+        <div class="module-heading-actions">
+            <MudButton Href="/food/add" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Dodaj posiłek</MudButton>
+            <MudButton Href="/food/add?mode=text" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AutoAwesome">Dodaj z AI</MudButton>
+            <MudButton Href="/pantry" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Kitchen">Spiżarnia</MudButton>
+        </div>
     </header>
 
     @if (_loading)

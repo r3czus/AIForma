@@ -163,37 +163,46 @@
             </MudTabPanel>
 
             <MudTabPanel Text="Ustawienia">
-                <MudPaper Class="profile-section" Elevation="0">
-                    <div class="profile-section-heading"><span class="card-kicker">Rytm aplikacji</span><h2>Ustawienia</h2><p>Każda grupa otwiera się osobno. Zapisujesz tylko to, co właśnie zmieniasz.</p></div>
-                    <nav class="settings-menu" aria-label="Ustawienia aplikacji">
-                        <a href="/profile/settings/nutrition"><MudIcon Icon="@Icons.Material.Outlined.Flag" /><span><strong>Cele żywieniowe</strong><small>@(_targetCalories?.ToString("0") ?? "—") kcal · B @_proteinG.ToString("0") g · T @_fatG.ToString("0") g · W @_carbsG.ToString("0") g</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
-                        <a href="/profile/settings/meals"><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><span><strong>Posiłki i godziny</strong><small>@_mealSlots.Count aktywnych sekcji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
-                        <a href="/profile/settings/reminders"><MudIcon Icon="@Icons.Material.Outlined.Notifications" /><span><strong>Przypomnienia</strong><small>@(_mealRemindersEnabled ? "Włączone" : "Wyłączone")</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
-                        <a href="/profile/settings/workouts"><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><span><strong>Ustawienia treningów</strong><small>@_defaultSets serie · @_defaultRepetitions powt. · @_defaultRestSeconds s przerwy</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
-                        <a href="/profile/settings/calendar"><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" /><span><strong>Kalendarz i tydzień</strong><small>Początek: @WeekDayName(_weekStartsOn)</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
-                        <a href="/profile/settings/appearance"><MudIcon Icon="@Icons.Material.Outlined.Palette" /><span><strong>Wygląd</strong><small>@ThemeName(_themePreference)</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
-                    </nav>
-                </MudPaper>
+                <div class="profile-settings-layout">
+                    <MudPaper Class="profile-section settings-section" Elevation="0">
+                        <div class="profile-section-heading"><span class="card-kicker">Rytm aplikacji</span><h2>Ustawienia</h2><p>Każda grupa otwiera się osobno. Zapisujesz tylko to, co właśnie zmieniasz.</p></div>
+                        <nav class="settings-menu" aria-label="Ustawienia aplikacji">
+                            <a href="/profile/settings/nutrition"><MudIcon Icon="@Icons.Material.Outlined.Flag" /><span><strong>Cele żywieniowe</strong><small>@(_targetCalories?.ToString("0") ?? "—") kcal · B @_proteinG.ToString("0") g · T @_fatG.ToString("0") g · W @_carbsG.ToString("0") g</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                            <a href="/profile/settings/meals"><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><span><strong>Posiłki i godziny</strong><small>@_mealSlots.Count aktywnych sekcji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                            <a href="/profile/settings/reminders"><MudIcon Icon="@Icons.Material.Outlined.Notifications" /><span><strong>Przypomnienia</strong><small>@(_mealRemindersEnabled ? "Włączone" : "Wyłączone")</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                            <a href="/profile/settings/workouts"><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><span><strong>Ustawienia treningów</strong><small>@_defaultSets serie · @_defaultRepetitions powt. · @_defaultRestSeconds s przerwy</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                            <a href="/profile/settings/calendar"><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" /><span><strong>Kalendarz i tydzień</strong><small>Początek: @WeekDayName(_weekStartsOn)</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                            <a href="/profile/settings/appearance"><MudIcon Icon="@Icons.Material.Outlined.Palette" /><span><strong>Wygląd</strong><small>@ThemeName(_themePreference)</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                        </nav>
+                    </MudPaper>
 
-                <MudPaper Class="profile-section account-section" Elevation="0">
-                    <div class="profile-section-heading"><span class="card-kicker">Konto</span><h2>Dostęp i prywatność</h2><p>Zarządzaj dostępem do konta i sprawdź, jak FormaAI chroni Twoje dane.</p></div>
-                    <nav class="account-menu" aria-label="Dostęp i prywatność">
-                        @if (_user!.IsAdmin)
-                        {
-                            <a href="/admin"><MudIcon Icon="@Icons.Material.Outlined.AdminPanelSettings" /><span><strong>Panel administratora</strong><small>Konfiguracja aplikacji i integracji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
-                        }
-                        <a href="/privacy"><MudIcon Icon="@Icons.Material.Outlined.Shield" /><span><strong>Prywatność i źródła danych</strong><small>Sprawdź zasady przetwarzania informacji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
-                        <button type="button" @onclick="Logout"><MudIcon Icon="@Icons.Material.Outlined.Logout" /><span><strong>Wyloguj się</strong><small>Zakończ sesję na tym urządzeniu</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></button>
-                    </nav>
+                    <MudPaper Class="profile-section account-section" Elevation="0">
+                        <div class="profile-section-heading"><span class="card-kicker">Konto</span><h2>Dostęp i prywatność</h2><p>Zarządzaj sesją i sprawdź, jak FormaAI chroni Twoje dane.</p></div>
+                        <nav class="account-menu" aria-label="Dostęp i prywatność">
+                            @if (_user!.IsAdmin)
+                            {
+                                <a href="/admin"><MudIcon Icon="@Icons.Material.Outlined.AdminPanelSettings" /><span><strong>Panel administratora</strong><small>Konfiguracja aplikacji i integracji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                            }
+                            <a href="/privacy"><MudIcon Icon="@Icons.Material.Outlined.Shield" /><span><strong>Prywatność i źródła danych</strong><small>Zasady przetwarzania informacji</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></a>
+                            <button type="button" @onclick="Logout"><MudIcon Icon="@Icons.Material.Outlined.Logout" /><span><strong>Wyloguj się</strong><small>Zakończ sesję na tym urządzeniu</small></span><MudIcon Icon="@Icons.Material.Filled.ChevronRight" /></button>
+                        </nav>
+                    </MudPaper>
+                </div>
+
+                <section class="danger-zone" aria-labelledby="danger-zone-title">
+                    <header class="danger-zone-heading">
+                        <MudIcon Icon="@Icons.Material.Outlined.WarningAmber" />
+                        <div><span class="card-kicker">Nieodwracalna operacja</span><h2 id="danger-zone-title">Strefa zagrożenia</h2><p>Usunięcie konta kasuje profil, dziennik, plany treningowe i historię progresu.</p></div>
+                    </header>
                     <MudExpansionPanels Class="account-delete">
-                        <MudExpansionPanel Text="Usuń konto">
-                            <MudAlert Severity="Severity.Warning" Dense="true">Ta operacja trwale usunie wszystkie dane.</MudAlert>
+                        <MudExpansionPanel Text="Usuń konto i wszystkie dane">
+                            <MudAlert Severity="Severity.Error" Dense="true">Tej operacji nie można cofnąć. Przed usunięciem upewnij się, że nie potrzebujesz zapisanej historii.</MudAlert>
                             <MudTextField @bind-Value="_deletePassword" Label="Hasło" InputType="InputType.Password" />
-                            <MudTextField @bind-Value="_deleteConfirmation" Label="Wpisz USUŃ" />
+                            <MudTextField @bind-Value="_deleteConfirmation" Label="Wpisz USUŃ" HelperText="Wielkimi literami, aby potwierdzić świadomą decyzję." />
                             <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true" Disabled="@(_deleteConfirmation != "USUŃ" || string.IsNullOrEmpty(_deletePassword))" OnClick="DeleteAccount" Class="mt-3">Usuń konto na stałe</MudButton>
                         </MudExpansionPanel>
                     </MudExpansionPanels>
-                </MudPaper>
+                </section>
             </MudTabPanel>
         </MudTabs>
     }

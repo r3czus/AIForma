@@ -13,6 +13,7 @@
             <MudText Typo="Typo.h4">Progres</MudText>
             <p>Dieta, trening i zmiany sylwetki w jednym rytmie.</p>
         </div>
+        <MudButton Href="/progress/measurements" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" Class="module-heading-action">Dodaj pomiar</MudButton>
     </header>
 
     @if (_loading)
@@ -22,16 +23,16 @@
     else
     {
         <nav class="progress-tabs" aria-label="Widoki progresu">
-            <button class="@TabClass(0)" @onclick="() => _tab = 0"><i class="overview"></i>Na dziś</button>
-            <button class="@TabClass(1)" @onclick="() => _tab = 1"><i class="diet"></i>Dieta</button>
-            <button class="@TabClass(2)" @onclick="() => _tab = 2"><i class="training"></i>Trening</button>
+            <button class="@TabClass(0)" aria-pressed="@(_tab == 0)" @onclick="() => _tab = 0"><i class="overview"></i>Na dziś</button>
+            <button class="@TabClass(1)" aria-pressed="@(_tab == 1)" @onclick="() => _tab = 1"><i class="diet"></i>Dieta</button>
+            <button class="@TabClass(2)" aria-pressed="@(_tab == 2)" @onclick="() => _tab = 2"><i class="training"></i>Trening</button>
         </nav>
 
         <section class="progress-timebar" aria-label="Zakres i okres danych">
             <div class="progress-ranges" role="group" aria-label="Zakres danych">
                 @foreach (var days in Ranges)
                 {
-                    <button class="@(days == _rangeDays ? "active" : null)" @onclick="() => ChangeRange(days)">@(days == 365 ? "Rok" : $"{days} dni")</button>
+                    <button class="@(days == _rangeDays ? "active" : null)" aria-pressed="@(days == _rangeDays)" @onclick="() => ChangeRange(days)"><strong>@RangeLabel(days)</strong><small>@RangeHint(days)</small></button>
                 }
             </div>
             <div class="progress-period-nav">
@@ -274,7 +275,7 @@
                 <div class="nutrition-calendar @(_rangeDays == 7 ? "week-calendar" : null)">
                     @foreach (var label in CalendarLabels) { <span class="weekday">@label</span> }
                     @for (var i = 0; i < CalendarOffset; i++) { <span></span> }
-                    @foreach (var day in _nutrition?.Days ?? []) { <button class="nutrition-day @DayClass(day)" title="@DayStatus(day)" @onclick="() => _selectedDay = day"><b>@day.Date.Day</b></button> }
+                    @foreach (var day in _nutrition?.Days ?? []) { <button class="nutrition-day @DayClass(day) @DaySelectionClass(day)" aria-label="@DayAccessibleLabel(day)" aria-pressed="@IsSelectedDay(day)" @onclick="() => ToggleDay(day)"><b>@day.Date.Day</b></button> }
                 </div>
             }
             else
@@ -287,7 +288,7 @@
                             <strong>@firstDay.ToString("MMMM yyyy", Pl)</strong>
                             <div class="period-calendar">
                                 @for (var i = 0; i < MonthOffset(firstDay); i++) { <span></span> }
-                                @foreach (var day in month) { <button class="nutrition-day @DayClass(day)" title="@($"{day.Date:dd.MM} · {DayStatus(day)}")" @onclick="() => _selectedDay = day"><b>@day.Date.Day</b></button> }
+                                @foreach (var day in month) { <button class="nutrition-day @DayClass(day) @DaySelectionClass(day)" aria-label="@DayAccessibleLabel(day)" aria-pressed="@IsSelectedDay(day)" @onclick="() => ToggleDay(day)"><b>@day.Date.Day</b></button> }
                             </div>
                         </section>
                     }
@@ -301,7 +302,7 @@
     private RenderFragment DayDetail(NutritionAdherencePoint day) => __builder =>
     {
         <div class="calendar-day-detail">
-            <header><strong>@day.Date.ToString("dddd, d MMMM", Pl)</strong><span>Podsumowanie dnia</span></header>
+            <header><div><strong>@day.Date.ToString("dddd, d MMMM", Pl)</strong><span>Podsumowanie dnia</span></div><MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="ClearSelectedDay" aria-label="Zamknij podsumowanie dnia" /></header>
             <section><div><MudIcon Icon="@Icons.Material.Outlined.Restaurant" /><span>Dieta · @DayStatus(day)</span></div>@if (day.HasMeals) { <strong>@day.ConsumedKcal.ToString("0") <small>/ @day.TargetKcal?.ToString("0") kcal</small></strong><p>B @day.ProteinG.ToString("0") g · W @day.CarbohydratesG.ToString("0") g · T @day.FatG.ToString("0") g</p> } else { <p>Brak zapisanych posiłków</p> }<MudButton Href="@($"/food?date={day.Date:yyyy-MM-dd}")" Variant="Variant.Text" Size="Size.Small">Otwórz dziennik</MudButton></section>
             <section><div><MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" /><span>Trening</span></div>@if (day.HasCompletedWorkout) { <strong>@day.WorkoutName</strong><p>@Duration(day.WorkoutMinutes) · @day.WorkoutExercises ćwiczeń · @day.WorkoutSets serii</p><small>Objętość @day.WorkoutVolumeKg.ToString("0") kg</small>@if (day.WorkoutDetails?.Count > 0) { <div class="calendar-workout-exercises">@foreach (var item in day.WorkoutDetails) { <div><strong>@item.Name</strong><span>@item.WorkingSets serii · @item.VolumeKg.ToString("0") kg</span></div> }</div> } @if (day.WorkoutSessionId is Guid id) { <MudButton Href="@($"/workout/{id}")" Variant="Variant.Text" Size="Size.Small">Szczegóły treningu</MudButton> } } else { <p>Bez ukończonego treningu</p> }</section>
             @if (day.Achievements?.Count > 0) { <section class="day-summary-achievements"><div><MudIcon Icon="@Icons.Material.Filled.EmojiEvents" /><span>Osiągnięcia</span></div>@foreach (var item in day.Achievements) { <strong>@item</strong> }</section> }
@@ -314,6 +315,14 @@
     private int MonthOffset(DateOnly date) => (7 + (int)date.DayOfWeek - (int)_weekStartsOn) % 7;
     private IEnumerable<string> CalendarLabels => Enumerable.Range(0, 7).Select(i => ShortDay((DayOfWeek)(((int)_weekStartsOn + i) % 7)));
     private string TabClass(int tab) => _tab == tab ? "active" : string.Empty;
+    private static string RangeLabel(int days) => days switch { 7 => "7 dni", 30 => "30 dni", 90 => "90 dni", 180 => "180 dni", _ => "Rok" };
+    private static string RangeHint(int days) => days switch { 7 => "Tydzień", 30 => "Miesiąc", 90 => "Kwartał", 180 => "Pół roku", _ => "12 miesięcy" };
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+    private bool IsSelectedDay(NutritionAdherencePoint day) => _selectedDay?.Date == day.Date;
+    private string DaySelectionClass(NutritionAdherencePoint day) => $"{(day.Date == Today ? "today" : null)} {(IsSelectedDay(day) ? "selected" : null)}";
+    private static string DayAccessibleLabel(NutritionAdherencePoint day) => $"{day.Date:dddd, d MMMM}: {DayStatus(day)}{(day.HasCompletedWorkout ? ", trening ukończony" : ", bez ukończonego treningu")}";
+    private void ToggleDay(NutritionAdherencePoint day) => _selectedDay = IsSelectedDay(day) ? null : day;
+    private void ClearSelectedDay() => _selectedDay = null;
     private static string DateLabel(DateOnly from, DateOnly to) => from.Year == to.Year && from.Month == to.Month ? $"{from.Day}–{to.ToString("d MMMM yyyy", Pl)}" : $"{from.ToString("d MMM", Pl)} – {to.ToString("d MMM yyyy", Pl)}";
     private static string DayClass(NutritionAdherencePoint day) => $"{(day.HasCompletedWorkout ? "workout-done" : null)} {(!day.HasMeals || day.TargetKcal is null ? "diet-empty" : day.IsWithinTarget ? "diet-on" : day.ConsumedKcal < day.TargetKcal ? "diet-under" : "diet-over")}";
     private static string DayStatus(NutritionAdherencePoint day) => !day.HasMeals ? "brak wpisów" : day.IsWithinTarget ? "w zakresie" : day.ConsumedKcal < day.TargetKcal ? "poniżej celu" : "powyżej celu";

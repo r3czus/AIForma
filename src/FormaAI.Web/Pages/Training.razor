@@ -13,7 +13,10 @@
             <MudText Typo="Typo.h4">Trening</MudText>
             <p>Ułóż rytm tygodnia, a podczas sesji skup się już tylko na kolejnej serii.</p>
         </div>
-        <MudButton Href="/assistant?prompt=Chcę utworzyć nowy plan treningowy. Przeprowadź mnie przez krótką rozmowę, przygotuj kompletny plan do sprawdzenia i zapisz go dopiero po moim zatwierdzeniu." Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome" Class="module-heading-action">Wygeneruj plan z AI</MudButton>
+        <div class="module-heading-actions">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="StartNewPlan">Nowy plan</MudButton>
+            <MudButton Href="/assistant?prompt=Chcę utworzyć nowy plan treningowy. Przeprowadź mnie przez krótką rozmowę, przygotuj kompletny plan do sprawdzenia i zapisz go dopiero po moim zatwierdzeniu." Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AutoAwesome">Ułóż z AI</MudButton>
+        </div>
     </header>
     @if (_loading) { <div class="page-loader compact"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Wczytuję plan</span></div> }
     else
@@ -62,31 +65,47 @@
                 {
                     <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.EventNote" /><div><strong>Nie masz jeszcze planu</strong><span>Dodaj pierwszy plan i przejdź przez cztery krótkie kroki.</span></div></div>
                 }
-                @foreach (var plan in _plans)
-                {
-                    <MudPaper Class="plan-row" Elevation="0">
-                        <div class="row-copy"><MudText Typo="Typo.subtitle1">@plan.Name</MudText><MudText Typo="Typo.caption">@plan.Days.Count dni · @plan.Goal</MudText></div>
-                        <div class="plan-actions">
-                            <MudButton Size="Size.Small" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditPlan(plan)">Edytuj</MudButton>
-                            <MudButton Size="Size.Small" StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="() => DuplicatePlan(plan)">Duplikuj</MudButton>
-                            @if (plan.IsActive) { <MudChip T="string" Color="Color.Success" Size="Size.Small">Aktywny</MudChip> }
-                            else { <MudButton Size="Size.Small" OnClick="() => Activate(plan.Id)">Aktywuj</MudButton> }
-                        </div>
-                        <div class="plan-day-preview">
-                            @foreach (var day in plan.Days.OrderBy(x => x.SequenceNumber))
-                            {
-                                var dayIndex = plan.Days.OrderBy(x => x.SequenceNumber).ToList().IndexOf(day);
-                                <details class="plan-day-detail">
-                                    <summary><span><strong>Dzień @day.SequenceNumber · @day.Name</strong><small>@(day.DayOfWeek is null ? "rotacyjnie" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń</small></span><MudIcon Icon="@Icons.Material.Outlined.ExpandMore" /></summary>
-                                    <div class="plan-day-exercises">
-                                        @foreach (var exercise in day.Exercises) { <div><strong>@exercise.ExerciseName</strong><span>@exercise.Sets serie · @exercise.MinReps–@exercise.MaxReps powt.</span></div> }
-                                    </div>
-                                    <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditPlanDay(plan, dayIndex)">Edytuj ten dzień</MudButton>
-                                </details>
-                            }
-                        </div>
-                    </MudPaper>
-                }
+                <div class="training-plan-list">
+                    @foreach (var plan in _plans)
+                    {
+                        <MudPaper Class="@($"plan-card {(plan.IsActive ? "is-active" : null)}")" Elevation="0">
+                            <header class="plan-card-header">
+                                <div class="plan-card-identity">
+                                    <span class="plan-card-status">@(plan.IsActive ? "Plan aktywny" : "Plan zapisany")</span>
+                                    <div class="row-copy"><MudText Typo="Typo.h6">@plan.Name</MudText><MudText Typo="Typo.body2">@plan.Days.Count dni · @plan.Goal</MudText></div>
+                                </div>
+                                <div class="plan-actions" aria-label="Akcje planu @plan.Name">
+                                    @if (!plan.IsActive)
+                                    {
+                                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" OnClick="() => Activate(plan.Id)">Aktywuj</MudButton>
+                                    }
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditPlan(plan)" aria-label="@($"Edytuj plan {plan.Name}")" />
+                                    <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small" OnClick="() => DuplicatePlan(plan)" aria-label="@($"Duplikuj plan {plan.Name}")" />
+                                </div>
+                            </header>
+                            <div class="plan-day-grid">
+                                @foreach (var day in plan.Days.OrderBy(x => x.SequenceNumber))
+                                {
+                                    var dayIndex = plan.Days.OrderBy(x => x.SequenceNumber).ToList().IndexOf(day);
+                                    <details class="plan-day-card">
+                                        <summary>
+                                            <span class="plan-day-number">@day.SequenceNumber</span>
+                                            <span class="plan-day-copy"><strong>@day.Name</strong><small>@(day.DayOfWeek is null ? "Rotacyjnie" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń</small></span>
+                                            <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" />
+                                        </summary>
+                                        <div class="plan-day-exercises">
+                                            @foreach (var exercise in day.Exercises)
+                                            {
+                                                <div><strong>@exercise.ExerciseName</strong><span>@exercise.Sets serie · @exercise.MinReps–@exercise.MaxReps powt.</span></div>
+                                            }
+                                        </div>
+                                        <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditPlanDay(plan, dayIndex)">Edytuj dzień</MudButton>
+                                    </details>
+                                }
+                            </div>
+                        </MudPaper>
+                    }
+                </div>
             </MudTabPanel>
 
             <MudTabPanel Text="Nowy plan">
@@ -237,6 +256,8 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "new")] public string? NewQuery { get; set; }
+
     private IReadOnlyList<ExerciseResponse> _exercises = [];
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
     private TodayWorkoutResponse? _today;
@@ -264,7 +285,10 @@
         _planned.MinReps = profile.DefaultRepetitions;
         _planned.MaxReps = profile.DefaultRepetitions;
         _planned.RestSeconds = profile.DefaultRestSeconds;
-        await Reload(); _loading = false;
+        await Reload();
+        if (NewQuery?.Equals("plan", StringComparison.OrdinalIgnoreCase) == true)
+            StartNewPlan();
+        _loading = false;
     }
     private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); _activeSession = await TrainingApi.GetActiveSession(); }
     private void AddExercise()

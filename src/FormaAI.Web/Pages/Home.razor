@@ -63,8 +63,26 @@
             <MudButton Href="/assistant" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AutoAwesome">Zapytaj asystenta</MudButton>
         </header>
 
-        <MudPaper Class="daily-coach" Elevation="0">
-            <span class="card-kicker">Twój kolejny krok</span>
+        <section class="quick-capture" aria-label="Szybkie dodawanie">
+            <div class="quick-capture-intro">
+                <span class="card-kicker">Zapisz działanie</span>
+                <strong>Co chcesz zrobić?</strong>
+                <small>Ręcznie albo z pomocą AI — Ty zatwierdzasz wynik.</small>
+            </div>
+            <div class="quick-capture-group">
+                <span>Jedzenie</span>
+                <MudButton Href="/food/add" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Dodaj posiłek</MudButton>
+                <MudButton Href="/food/add?mode=text" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AutoAwesome">Opisz przez AI</MudButton>
+            </div>
+            <div class="quick-capture-group">
+                <span>Trening</span>
+                <MudButton Href="/training?new=plan" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Add">Utwórz plan</MudButton>
+                <MudButton Href="/assistant?prompt=Chcę utworzyć nowy plan treningowy. Przeprowadź mnie przez krótką rozmowę, przygotuj kompletny plan do sprawdzenia i zapisz go dopiero po moim zatwierdzeniu." Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AutoAwesome">Ułóż z AI</MudButton>
+            </div>
+        </section>
+
+        <MudPaper Class="daily-coach" Elevation="0" aria-label="Sygnał dnia">
+            <span class="card-kicker">Sygnał dnia · kolejny krok</span>
             <div class="daily-coach-content">
                 <div>
                     <h2>@CoachTitle</h2>
@@ -231,16 +249,6 @@
                 }
             </main>
 
-            <aside class="dashboard-aside">
-                <MudPaper Class="quick-actions" Elevation="0">
-                    <span class="card-kicker">Szybki start</span>
-                    <h2>Co robisz teraz?</h2>
-                    <MudButton Href="/food/add" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.RestaurantMenu" FullWidth="true">Zapisz posiłek</MudButton>
-                    <MudButton Href="/training" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.FitnessCenter" FullWidth="true">Otwórz trening</MudButton>
-                    <MudButton Href="/progress" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ShowChart" FullWidth="true">Dodaj pomiar</MudButton>
-                </MudPaper>
-
-            </aside>
         </div>
     }
 </MudContainer>

@@ -13,7 +13,7 @@
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="ReturnToDiary" aria-label="Wróć do dziennika" />
         <div>
             <span class="page-kicker">@_date.ToString("dddd, d MMMM", PolishCulture)</span>
-            <MudText Typo="Typo.h4">@(_editingMealId is null ? $"Dodaj: {_selectedMealSlot}" : $"Edytuj: {_selectedMealSlot}")</MudText>
+            <MudText Typo="Typo.h4">@(!_slotChosen ? "Wybierz porę posiłku" : _editingMealId is null ? $"Dodaj: {_selectedMealSlot}" : $"Edytuj: {_selectedMealSlot}")</MudText>
         </div>
     </header>
 
@@ -24,6 +24,28 @@
     else
     {
         <section class="meal-add-shell">
+            @if (!_slotChosen)
+            {
+                <section class="meal-slot-chooser" aria-labelledby="meal-slot-chooser-title">
+                    <div class="meal-slot-chooser-heading">
+                        <span class="card-kicker">Najpierw miejsce w dzienniku</span>
+                        <h2 id="meal-slot-chooser-title">Gdzie dodać ten posiłek?</h2>
+                        <p>Wybierz sekcję. Dzięki temu kalorie i produkty trafią w odpowiednie miejsce dnia.</p>
+                    </div>
+                    <div class="meal-slot-choice-grid">
+                        @foreach (var slot in _mealSlots)
+                        {
+                            <button type="button" @onclick="() => ChooseSlot(slot)">
+                                <MudIcon Icon="@SlotIcon(slot)" />
+                                <span><strong>@slot</strong><small>@SlotHint(slot)</small></span>
+                                <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" />
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
+            else
+            {
             <div class="meal-add-slot-row">
                 <MudSelect T="string" @bind-Value="_selectedMealSlot" Label="Posiłek">
                     @foreach (var slot in _mealSlots) { <MudSelectItem Value="@slot">@slot</MudSelectItem> }
@@ -57,15 +79,17 @@
                     }
                     else if (_catalogScope == CatalogScope.Search && string.IsNullOrWhiteSpace(_productSearch))
                     {
-                        <div class="meal-add-section-title"><span>Ostatnie w tej sekcji</span><small>Dodaj ponownie jednym dotknięciem</small></div>
                         @if (_recentMeals.Count > 0)
                         {
-                            <div class="recent-meal-list">
-                                @foreach (var recent in _recentMeals.Take(6))
-                                {
-                                    <button type="button" @onclick="() => CopyMeal(recent)"><span><strong>@RecentName(recent.Name)</strong><small>B @recent.Macro.ProteinG.ToString("0") g · T @recent.Macro.FatG.ToString("0") g · W @recent.Macro.CarbohydratesG.ToString("0") g</small></span><strong>@recent.Macro.CaloriesKcal.ToString("0") kcal</strong><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></button>
-                                }
-                            </div>
+                            <section class="saved-meals-panel">
+                                <div class="meal-add-section-title"><span>Dodaj ponownie</span><small>Gotowe dania z historii</small></div>
+                                <div class="recent-meal-list saved-meal-list">
+                                    @foreach (var recent in _recentMeals.Take(6))
+                                    {
+                                        <button type="button" @onclick="() => CopyMeal(recent)"><MudIcon Icon="@Icons.Material.Outlined.RestaurantMenu" /><span><strong>@RecentName(recent.Name)</strong><small>B @recent.Macro.ProteinG.ToString("0") g · T @recent.Macro.FatG.ToString("0") g · W @recent.Macro.CarbohydratesG.ToString("0") g</small></span><strong>@recent.Macro.CaloriesKcal.ToString("0") kcal</strong><MudIcon Icon="@Icons.Material.Outlined.Add" /></button>
+                                    }
+                                </div>
+                            </section>
                         }
                         else
                         {
@@ -76,17 +100,20 @@
                     {
                         @if (_catalogScope == CatalogScope.Own && _recentMeals.Count > 0)
                         {
-                            <div class="meal-add-section-title"><span>Twoje gotowe dania</span><small>Zapisane wcześniej</small></div>
-                            <div class="recent-meal-list compact-list">
-                                @foreach (var recent in _recentMeals.Take(4))
-                                {
-                                    <button type="button" @onclick="() => CopyMeal(recent)"><span><strong>@RecentName(recent.Name)</strong><small>B @recent.Macro.ProteinG.ToString("0") g · T @recent.Macro.FatG.ToString("0") g · W @recent.Macro.CarbohydratesG.ToString("0") g</small></span><strong>@recent.Macro.CaloriesKcal.ToString("0") kcal</strong><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></button>
-                                }
-                            </div>
+                            <section class="saved-meals-panel">
+                                <div class="meal-add-section-title"><span>Twoje gotowe dania</span><small>Cały posiłek jednym kliknięciem</small></div>
+                                <div class="recent-meal-list saved-meal-list compact-list">
+                                    @foreach (var recent in _recentMeals.Take(4))
+                                    {
+                                        <button type="button" @onclick="() => CopyMeal(recent)"><MudIcon Icon="@Icons.Material.Outlined.RestaurantMenu" /><span><strong>@RecentName(recent.Name)</strong><small>B @recent.Macro.ProteinG.ToString("0") g · T @recent.Macro.FatG.ToString("0") g · W @recent.Macro.CarbohydratesG.ToString("0") g</small></span><strong>@recent.Macro.CaloriesKcal.ToString("0") kcal</strong><MudIcon Icon="@Icons.Material.Outlined.Add" /></button>
+                                    }
+                                </div>
+                            </section>
                         }
 
                         @if (VisibleProducts.Count > 0)
                         {
+                            <div class="meal-add-section-title product-section-title"><span>Pojedyncze produkty</span><small>Zbuduj posiłek i ustaw porcje</small></div>
                             <div class="meal-product-list">
                                 @foreach (var product in VisibleProducts)
                                 {
@@ -249,6 +276,7 @@
                     </section>
                 }
             }
+            }
         </section>
     }
 </MudContainer>
@@ -257,6 +285,7 @@
     [SupplyParameterFromQuery(Name = "date")] public string? DateQuery { get; set; }
     [SupplyParameterFromQuery(Name = "slot")] public string? SlotQuery { get; set; }
     [SupplyParameterFromQuery(Name = "edit")] public Guid? EditQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "mode")] public string? ModeQuery { get; set; }
 
     private static readonly System.Globalization.CultureInfo PolishCulture = new("pl-PL");
     private const string FavoritesStorageKey = "formaai.favoriteProducts";
@@ -285,6 +314,7 @@
     private bool _savingProduct;
     private bool _catalogLoading;
     private bool _editingProduct;
+    private bool _slotChosen;
     private Guid? _editingMealId;
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
     private IReadOnlyList<ProductResponse> VisibleProducts => _catalogScope switch
@@ -300,10 +330,18 @@
     {
         if (DateOnly.TryParse(DateQuery, out var selected) && selected <= Today) _date = selected;
         if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; }
+        _entryMode = ModeQuery?.ToLowerInvariant() switch
+        {
+            "text" or "ai" => MealEntryMode.Text,
+            "photo" => MealEntryMode.Photo,
+            _ => MealEntryMode.Manual
+        };
 
         var profile = await Account.GetProfile();
         _mealSlots = profile.MealSlots?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? _mealSlots;
-        _selectedMealSlot = _mealSlots.Contains(SlotQuery, StringComparer.OrdinalIgnoreCase) ? _mealSlots.First(x => x.Equals(SlotQuery, StringComparison.OrdinalIgnoreCase)) : _mealSlots[0];
+        var requestedSlot = _mealSlots.FirstOrDefault(x => x.Equals(SlotQuery, StringComparison.OrdinalIgnoreCase));
+        _selectedMealSlot = requestedSlot ?? _mealSlots[0];
+        _slotChosen = requestedSlot is not null || EditQuery is not null;
         _products = await Nutrition.GetProducts();
         _recentMeals = await Nutrition.GetRecentMeals();
         _pantry = await PantryApi.GetPantry();
@@ -326,8 +364,29 @@
     }
 
     private void ReturnToDiary() => Navigation.NavigateTo($"/food?date={_date:yyyy-MM-dd}");
+    private void ChooseSlot(string slot) { _selectedMealSlot = slot; _slotChosen = true; }
     private void SelectMode(MealEntryMode mode) { _entryMode = mode; _aiDraft = null; }
     private void SetCatalogScope(CatalogScope scope) => _catalogScope = scope;
+
+    private static string SlotIcon(string slot) => slot.ToLowerInvariant() switch
+    {
+        var value when value.Contains("śniad") => Icons.Material.Outlined.WbSunny,
+        var value when value.Contains("lunch") => Icons.Material.Outlined.LocalCafe,
+        var value when value.Contains("obiad") => Icons.Material.Outlined.DinnerDining,
+        var value when value.Contains("przek") => Icons.Material.Outlined.LunchDining,
+        var value when value.Contains("kolac") => Icons.Material.Outlined.Bedtime,
+        _ => Icons.Material.Outlined.Restaurant
+    };
+
+    private static string SlotHint(string slot) => slot.ToLowerInvariant() switch
+    {
+        var value when value.Contains("śniad") => "Początek dnia",
+        var value when value.Contains("lunch") => "Posiłek w środku dnia",
+        var value when value.Contains("obiad") => "Główny posiłek",
+        var value when value.Contains("przek") => "Mniejsza porcja",
+        var value when value.Contains("kolac") => "Zamknięcie dnia",
+        _ => "Sekcja dziennika"
+    };
 
     private async Task SearchProducts(string value)
     {
