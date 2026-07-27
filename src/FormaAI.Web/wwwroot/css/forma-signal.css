@@ -819,9 +819,9 @@ button:disabled,
 .plan-card.is-active .plan-card-status { background: var(--recovery-soft); border-color: color-mix(in srgb, var(--recovery) 32%, var(--rule)); color: var(--recovery); }
 .plan-actions { flex: 0 0 auto; }
 .plan-actions .mud-icon-button { border: 1px solid var(--rule); height: 44px; width: 44px; }
-.plan-day-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.plan-day-card { border-right: 1px solid var(--rule); min-width: 0; }
-.plan-day-card:last-child { border-right: 0; }
+.plan-day-grid { display: grid; grid-template-columns: 1fr; }
+.plan-day-card { border-bottom: 1px solid var(--rule); min-width: 0; }
+.plan-day-card:last-child { border-bottom: 0; }
 .plan-day-card > summary { align-items: center; cursor: pointer; display: grid; gap: 10px; grid-template-columns: 32px minmax(0, 1fr) auto; list-style: none; min-height: 92px; padding: 16px; }
 .plan-day-card > summary::-webkit-details-marker { display: none; }
 .plan-day-card > summary:hover { background: var(--surface-soft); }
@@ -1208,9 +1208,7 @@ button:disabled,
     .quick-capture-group:first-of-type { border-left: 0; padding-left: 0; }
     .profile-settings-layout { grid-template-columns: 1fr; }
     .profile-settings-layout .account-section { position: static; }
-    .plan-day-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .plan-day-card:nth-child(2n) { border-right: 0; }
-    .plan-day-card:nth-child(n + 3) { border-top: 1px solid var(--rule); }
+    .plan-day-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 620px) {
@@ -1254,9 +1252,7 @@ button:disabled,
     .plan-card-identity { align-items: flex-start; flex-direction: column; gap: 9px; }
     .plan-actions { justify-content: flex-start; }
     .plan-day-grid { grid-template-columns: 1fr; }
-    .plan-day-card,
-    .plan-day-card:nth-child(2n) { border-right: 0; }
-    .plan-day-card:nth-child(n + 2) { border-top: 1px solid var(--rule); }
+    .plan-day-card { border-right: 0; }
     .plan-day-card > summary { min-height: 78px; padding: 13px 14px; }
     .danger-zone-heading { align-items: flex-start; }
 }

@@ -46,4 +46,20 @@ public sealed class ExerciseMuscleEngagementTests
         Assert.Equal(45, session.TimeLimitMinutes);
         Assert.Equal(SessionStatus.InProgress, session.Status);
     }
+
+    [Fact]
+    public void ReplacingExerciseReusesSnapshotRowsWhenEngagementCountMatches()
+    {
+        var original = new Exercise("user", "Wyciskanie", MuscleGroup.Chest, Equipment.Barbell);
+        var replacement = new Exercise("user", "Wiosłowanie", MuscleGroup.Back, Equipment.Cable);
+        var workout = new WorkoutExercise(original, 1, 3, 8, 12, 2, 90);
+        var snapshotId = Assert.Single(workout.MuscleEngagements).Id;
+
+        workout.ReplaceExercise(replacement);
+
+        var engagement = Assert.Single(workout.MuscleEngagements);
+        Assert.Equal(snapshotId, engagement.Id);
+        Assert.Equal(MuscleGroup.Back, engagement.MuscleGroup);
+        Assert.Equal(100, engagement.Percentage);
+    }
 }

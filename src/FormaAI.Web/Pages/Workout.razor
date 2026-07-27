@@ -114,6 +114,38 @@
                     <strong class="exercise-set-count">@exercise.Sets.Count/@exercise.PlannedSets</strong>
                 </div>
 
+                <MudButton Class="swap-exercise-trigger" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.SwapHoriz"
+                           OnClick="() => BeginSwap(exercise)">Zamień ćwiczenie</MudButton>
+                @if (_swapTargetId == exercise.Id)
+                {
+                    <section class="swap-exercise-panel" aria-label="Wybierz ćwiczenie zamienne">
+                        <div>
+                            <strong>@(exercise.Sets.Count == 0 ? "Zamień przed pierwszą serią" : $"Zachowam {exercise.Sets.Count} wykonanych serii")</strong>
+                            <span>@SwapExplanation(exercise)</span>
+                        </div>
+                        <MudTextField @bind-Value="_swapSearch" Immediate="true" Placeholder="Szukaj ćwiczenia" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
+                        <div class="swap-exercise-results">
+                            @foreach (var option in SwapOptions)
+                            {
+                                <button type="button" class="@(_selectedExerciseId == option.Id ? "selected" : null)" @onclick="() => _selectedExerciseId = option.Id">
+                                    <span><strong>@option.Name</strong><small>@MuscleGroupName(option.MuscleGroup) · @EquipmentName(option.Equipment)</small></span>
+                                    <MudIcon Icon="@(_selectedExerciseId == option.Id ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" />
+                                </button>
+                            }
+                            @if (SwapOptions.Count == 0)
+                            {
+                                <p>Brak innych ćwiczeń pasujących do wyszukiwania.</p>
+                            }
+                        </div>
+                        <div class="swap-exercise-actions">
+                            <MudButton Variant="Variant.Text" Disabled="_swapping" OnClick="CancelSwap">Anuluj</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_selectedExerciseId is null || _swapping)" OnClick="() => ReplaceExercise(exercise)">
+                                @(_swapping ? "Zamieniam…" : "Potwierdź zamianę")
+                            </MudButton>
+                        </div>
+                    </section>
+                }
+
                 <div class="exercise-timer-actions">
                     <button type="button" @onclick="() => StartRestTimer(exercise.RestSeconds ?? 90)"><MudIcon Icon="@Icons.Material.Outlined.Timer" /><span>Przerwa</span><strong>@FormatTime(exercise.RestSeconds ?? 90)</strong></button>
                     <button type="button" @onclick="StartInterval"><MudIcon Icon="@Icons.Material.Outlined.Timelapse" /><span>Interwał</span><strong>stoper</strong></button>
@@ -162,16 +194,6 @@
 
                 <details class="workout-options">
                     <summary>Opcje ćwiczenia i sesji</summary>
-                    <MudButton Variant="Variant.Text" OnClick="() => BeginSwap(exercise)" Disabled="@(exercise.Sets.Count > 0)">Zamień ćwiczenie</MudButton>
-                    @if (_swapTargetId == exercise.Id)
-                    {
-                        <div class="workout-inline-editor">
-                            <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Nowe ćwiczenie">
-                                @foreach (var option in _catalog.Where(x => x.Id != exercise.ExerciseId)) { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem> }
-                            </MudSelect>
-                            <MudButton Variant="Variant.Filled" Disabled="@(_selectedExerciseId is null)" OnClick="() => ReplaceExercise(exercise)">Zapisz zamianę</MudButton>
-                        </div>
-                    }
                     <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Dodaj inne ćwiczenie">
                         @foreach (var option in _catalog) { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem> }
                     </MudSelect>
@@ -200,6 +222,8 @@
     private IReadOnlyList<ExerciseProgressionResponse> _progressions = [];
     private Guid? _swapTargetId;
     private Guid? _selectedExerciseId;
+    private string _swapSearch = string.Empty;
+    private bool _swapping;
     private string? _sessionNotes;
     private bool _completed;
     private int _activeExerciseIndex;
@@ -212,6 +236,18 @@
     private decimal _trainingCalories;
 
     private IReadOnlyList<WorkoutExerciseResponse> OrderedExercises => _session?.Exercises.OrderBy(x => x.Order).ToList() ?? [];
+    private IReadOnlyList<ExerciseResponse> SwapOptions
+    {
+        get
+        {
+            var used = _session?.Exercises.Where(x => x.ExerciseId is not null).Select(x => x.ExerciseId!.Value).ToHashSet() ?? [];
+            return _catalog
+                .Where(x => !used.Contains(x.Id) && (string.IsNullOrWhiteSpace(_swapSearch) || x.Name.Contains(_swapSearch.Trim(), StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(x => x.Name)
+                .Take(12)
+                .ToList();
+        }
+    }
     private WorkoutExerciseResponse? ActiveExercise => OrderedExercises.ElementAtOrDefault(_activeExerciseIndex);
     private int CompletedSets => _session?.Exercises.Sum(x => x.Sets.Count) ?? 0;
     private int PlannedSets => _session?.Exercises.Sum(x => x.PlannedSets) ?? 0;
@@ -297,15 +333,42 @@
     private void SelectExercise(int index) => _activeExerciseIndex = Math.Clamp(index, 0, Math.Max(0, OrderedExercises.Count - 1));
     private void PreviousExercise() => SelectExercise(_activeExerciseIndex - 1);
     private void NextExercise() => SelectExercise(_activeExerciseIndex + 1);
-    private void BeginSwap(WorkoutExerciseResponse exercise) { _swapTargetId = exercise.Id; _selectedExerciseId = null; }
+    private void BeginSwap(WorkoutExerciseResponse exercise)
+    {
+        _swapTargetId = exercise.Id;
+        _selectedExerciseId = null;
+        _swapSearch = string.Empty;
+    }
+    private void CancelSwap()
+    {
+        _swapTargetId = null;
+        _selectedExerciseId = null;
+        _swapSearch = string.Empty;
+    }
 
     private async Task ReplaceExercise(WorkoutExerciseResponse exercise)
     {
         if (_selectedExerciseId is null) return;
-        await TrainingApi.ReplaceExercise(Id, exercise.Id, _selectedExerciseId.Value);
-        _swapTargetId = null;
-        _selectedExerciseId = null;
-        await Reload();
+        _swapping = true;
+        try
+        {
+            var replacement = await TrainingApi.ReplaceExercise(Id, exercise.Id, _selectedExerciseId.Value);
+            await Reload();
+            _forms.TryAdd(replacement.Id, new SetForm());
+            if (replacement.ExerciseId is Guid replacementExerciseId && !_history.ContainsKey(replacementExerciseId))
+                _history[replacementExerciseId] = (await TrainingApi.GetHistory(replacementExerciseId)).FirstOrDefault();
+            _activeExerciseIndex = OrderedExercises.ToList().FindIndex(x => x.Id == replacement.Id);
+            Snackbar.Add(exercise.Sets.Count == 0 ? "Ćwiczenie zostało zamienione." : "Wykonane serie zostały zachowane, a zamiennik dodany jako następne ćwiczenie.", Severity.Success);
+            CancelSwap();
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się zamienić ćwiczenia.", Severity.Error);
+        }
+        finally
+        {
+            _swapping = false;
+        }
     }
 
     private async Task AddExercise()
@@ -407,6 +470,14 @@
     private static string FormatTime(int seconds) => $"{seconds / 60:00}:{seconds % 60:00}";
     private static string FormatElapsed(TimeSpan elapsed) => $"{(int)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
     private static decimal SuggestedWeight(decimal weight) => Math.Ceiling((weight + (weight < 30 ? 1.25m : 2.5m)) * 4m) / 4m;
+    private static string SwapExplanation(WorkoutExerciseResponse exercise)
+    {
+        if (exercise.Sets.Count == 0) return "Nowe ćwiczenie przejmie serie, zakres powtórzeń, RIR i przerwę.";
+        var remaining = Math.Max(1, exercise.PlannedSets - exercise.Sets.Count);
+        return $"Zamiennik pojawi się jako następne ćwiczenie z liczbą serii: {remaining}.";
+    }
+    private static string EquipmentName(Equipment equipment) => equipment switch { Equipment.Barbell => "Sztanga", Equipment.Dumbbell => "Hantle", Equipment.Machine => "Maszyna", Equipment.Cable => "Wyciąg", Equipment.Bodyweight => "Masa ciała", Equipment.Kettlebell => "Kettlebell", _ => "Inny sprzęt" };
+    private static string MuscleGroupName(MuscleGroup group) => group switch { MuscleGroup.Chest => "Klatka piersiowa", MuscleGroup.Back => "Plecy", MuscleGroup.Shoulders => "Barki", MuscleGroup.Biceps => "Biceps", MuscleGroup.Triceps => "Triceps", MuscleGroup.Quadriceps => "Czworogłowe uda", MuscleGroup.Hamstrings => "Dwugłowe uda", MuscleGroup.Glutes => "Pośladki", MuscleGroup.Calves => "Łydki", MuscleGroup.Core => "Core", MuscleGroup.Forearms => "Przedramiona", _ => "Całe ciało" };
 
     private async Task LoadTrainingCalories()
     {

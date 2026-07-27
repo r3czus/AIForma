@@ -1,0 +1,123 @@
+@page "/training/exercises/{ExerciseId:guid}"
+@inject AccountClient Account
+@inject TrainingClient TrainingApi
+@inject NavigationManager Navigation
+
+<PageTitle>@(_exercise?.Name ?? "Ćwiczenie") · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap exercise-details-page">
+    <header class="module-heading compact-heading">
+        <MudIconButton Icon="@Icons.Material.Outlined.ArrowBack" OnClick="BackToTraining" aria-label="Wróć do planu" />
+        <div>
+            <span class="page-kicker">Rozpiska ćwiczenia</span>
+            <MudText Typo="Typo.h4">@(_exercise?.Name ?? "Ćwiczenie")</MudText>
+            @if (_exercise is not null)
+            {
+                <p>@EquipmentName(_exercise.Equipment)@(_exercise.IsUnilateral ? " · ćwiczenie jednostronne" : null)</p>
+            }
+        </div>
+    </header>
+
+    @if (_loading)
+    {
+        <PageSkeleton Message="Wczytuję ćwiczenie" Compact="true" />
+    }
+    else if (_exercise is null)
+    {
+        <div class="module-empty">
+            <MudIcon Icon="@Icons.Material.Outlined.SearchOff" />
+            <div><strong>Ćwiczenie jest niedostępne</strong><span>Mogło zostać usunięte albo nie należy do Twojej biblioteki.</span></div>
+        </div>
+    }
+    else
+    {
+        <MudPaper Class="exercise-detail-card" Elevation="0">
+            <section>
+                <span class="card-kicker">Wykonanie</span>
+                <h2>Opis i wskazówki</h2>
+                <p>@(string.IsNullOrWhiteSpace(_exercise.Description) ? "Do tego ćwiczenia nie dodano jeszcze wskazówek wykonania." : _exercise.Description)</p>
+            </section>
+
+            <section>
+                <span class="card-kicker">Zaangażowanie</span>
+                <h2>Pracujące mięśnie</h2>
+                <div class="muscle-engagement-list">
+                    @foreach (var engagement in Engagements)
+                    {
+                        <div>
+                            <span><strong>@MuscleGroupName(engagement.MuscleGroup)</strong><small>@engagement.Percentage%</small></span>
+                            <i style="@($"--engagement:{engagement.Percentage}%")"></i>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            @if (_planned is not null)
+            {
+                <section>
+                    <span class="card-kicker">Parametry planu</span>
+                    <h2>@_day?.Name</h2>
+                    <div class="exercise-prescription-grid">
+                        <div><strong>@_planned.Sets</strong><span>serie</span></div>
+                        <div><strong>@_planned.MinReps–@_planned.MaxReps</strong><span>powtórzenia</span></div>
+                        <div><strong>@(_planned.TargetRir?.ToString("0.#") ?? "—")</strong><span>RIR</span></div>
+                        <div><strong>@FormatRest(_planned.RestSeconds)</strong><span>przerwa</span></div>
+                    </div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Edit"
+                               OnClick="EditPlanDay">Edytuj parametry w planie</MudButton>
+                </section>
+            }
+
+            @if (_exercise.IsOwn)
+            {
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.EditNote"
+                           OnClick="EditExercise">Edytuj opis ćwiczenia</MudButton>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public Guid ExerciseId { get; set; }
+    [SupplyParameterFromQuery(Name = "plan")] public Guid? PlanId { get; set; }
+    [SupplyParameterFromQuery(Name = "day")] public Guid? DayId { get; set; }
+
+    private ExerciseResponse? _exercise;
+    private TrainingDayResponse? _day;
+    private PlannedExerciseResponse? _planned;
+    private bool _loading = true;
+    private IReadOnlyList<ExerciseMuscleEngagementResponse> Engagements =>
+        _exercise?.MuscleEngagements is { Count: > 0 } values
+            ? values.OrderByDescending(x => x.Percentage).ToList()
+            : _exercise is null ? [] : [new(_exercise.MuscleGroup, 100)];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Account.GetCurrentUser() is null)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        _exercise = await TrainingApi.GetExercise(ExerciseId);
+        if (_exercise is not null && PlanId is Guid planId && DayId is Guid dayId)
+        {
+            var plans = await TrainingApi.GetPlans();
+            var plan = plans.FirstOrDefault(x => x.Id == planId);
+            _day = plan?.Days.FirstOrDefault(x => x.Id == dayId);
+            _planned = _day?.Exercises.FirstOrDefault(x => x.ExerciseId == ExerciseId);
+        }
+        _loading = false;
+    }
+
+    private void BackToTraining() => Navigation.NavigateTo("/training");
+    private void EditPlanDay()
+    {
+        if (PlanId is Guid planId && DayId is Guid dayId)
+            Navigation.NavigateTo($"/training?editPlan={planId}&editDay={dayId}");
+    }
+    private void EditExercise() => Navigation.NavigateTo($"/training?editExercise={ExerciseId}");
+    private static string FormatRest(int? seconds) => seconds is null ? "—" : seconds >= 60 ? $"{seconds / 60}:{seconds % 60:00} min" : $"{seconds} s";
+    private static string EquipmentName(Equipment equipment) => equipment switch { Equipment.Barbell => "Sztanga", Equipment.Dumbbell => "Hantle", Equipment.Machine => "Maszyna", Equipment.Cable => "Wyciąg", Equipment.Bodyweight => "Masa ciała", Equipment.Kettlebell => "Kettlebell", _ => "Inny sprzęt" };
+    private static string MuscleGroupName(MuscleGroup group) => group switch { MuscleGroup.Chest => "Klatka piersiowa", MuscleGroup.Back => "Plecy", MuscleGroup.Shoulders => "Barki", MuscleGroup.Biceps => "Biceps", MuscleGroup.Triceps => "Triceps", MuscleGroup.Quadriceps => "Czworogłowe uda", MuscleGroup.Hamstrings => "Dwugłowe uda", MuscleGroup.Glutes => "Pośladki", MuscleGroup.Calves => "Łydki", MuscleGroup.Core => "Core", MuscleGroup.Forearms => "Przedramiona", _ => "Całe ciało" };
+}

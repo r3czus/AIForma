@@ -14,6 +14,11 @@ public sealed class TrainingClient(HttpClient http)
             : $"api/v1/exercises?query={Uri.EscapeDataString(query.Trim())}";
         return await http.GetFromJsonAsync<List<ExerciseResponse>>(uri) ?? [];
     }
+    public async Task<ExerciseResponse?> GetExercise(Guid id)
+    {
+        using var response = await http.GetAsync($"api/v1/exercises/{id}");
+        return response.StatusCode == HttpStatusCode.NotFound ? null : await Read<ExerciseResponse>(response);
+    }
     public async Task<IReadOnlyList<TrainingPlanResponse>> GetPlans() => await http.GetFromJsonAsync<List<TrainingPlanResponse>>("api/v1/training-plans") ?? [];
     public async Task<TodayWorkoutResponse?> GetToday()
     {

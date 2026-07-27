@@ -33,6 +33,16 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         return (await exercises.OrderBy(x => x.Name).Take(50).ToListAsync()).Select(ExerciseResponse).ToList();
     }
 
+    [HttpGet("exercises/{id:guid}")]
+    public async Task<ActionResult<ExerciseResponse>> Exercise(Guid id)
+    {
+        var userId = UserId();
+        var exercise = await db.Exercises.Include(x => x.MuscleEngagements)
+            .SingleOrDefaultAsync(x => x.Id == id && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId));
+        if (exercise is null) return NotFound();
+        return ExerciseResponse(exercise);
+    }
+
     [HttpPost("exercises")]
     [ValidateAntiForgeryToken]
     public async Task<ActionResult<ExerciseResponse>> CreateExercise(SaveExerciseRequest request)
@@ -315,14 +325,29 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     {
         var session = await SessionQuery().SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
         if (session is null) return NotFound();
+        if (session.Status != SessionStatus.InProgress) return Conflict("Trening jest już zakończony.");
         var item = session.Exercises.SingleOrDefault(x => x.Id == workoutExerciseId);
         if (item is null) return NotFound();
-        if (item.Sets.Count > 0) return Conflict("Nie można zamienić ćwiczenia po zapisaniu serii.");
+        if (session.Exercises.Any(x => x.Id != item.Id && x.ExerciseId == request.ExerciseId))
+            return Conflict("To ćwiczenie jest już w tej sesji.");
         var exercise = await db.Exercises.Include(x => x.MuscleEngagements).SingleOrDefaultAsync(x => x.Id == request.ExerciseId && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == UserId()));
         if (exercise is null) return NotFound();
-        item.ReplaceExercise(exercise);
+
+        if (item.Sets.Count == 0)
+        {
+            item.ReplaceExercise(exercise);
+            await db.SaveChangesAsync();
+            return ExerciseResponse(item);
+        }
+
+        foreach (var later in session.Exercises.Where(x => x.Order > item.Order))
+            later.ChangeOrder(later.Order + 1);
+        var remainingSets = Math.Max(1, item.PlannedSets - item.Sets.Count);
+        var replacement = new WorkoutExercise(exercise, item.Order + 1, remainingSets, item.MinReps, item.MaxReps, item.TargetRir, item.RestSeconds);
+        session.Exercises.Add(replacement);
+        db.WorkoutExercises.Add(replacement);
         await db.SaveChangesAsync();
-        return ExerciseResponse(item);
+        return ExerciseResponse(replacement);
     }
 
     [HttpPut("workout-sessions/{id:guid}/notes")]

@@ -96,7 +96,11 @@
                                         <div class="plan-day-exercises">
                                             @foreach (var exercise in day.Exercises)
                                             {
-                                                <div><strong>@exercise.ExerciseName</strong><span>@exercise.Sets serie · @exercise.MinReps-@exercise.MaxReps powt.</span></div>
+                                                <button type="button" class="plan-exercise-link" @onclick="() => OpenExercise(plan.Id, day.Id, exercise.ExerciseId)">
+                                                    <strong>@exercise.ExerciseName</strong>
+                                                    <span>@exercise.Sets serie · @exercise.MinReps-@exercise.MaxReps powt.</span>
+                                                    <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" />
+                                                </button>
                                             }
                                         </div>
                                         <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditPlanDay(plan, dayIndex)">Edytuj dzień</MudButton>
@@ -259,6 +263,9 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "new")] public string? NewQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "editPlan")] public Guid? EditPlanQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "editDay")] public Guid? EditDayQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "editExercise")] public Guid? EditExerciseQuery { get; set; }
 
     private IReadOnlyList<ExerciseResponse> _exercises = [];
     private string _exerciseSearch = string.Empty;
@@ -292,6 +299,19 @@
         await Reload();
         if (NewQuery?.Equals("plan", StringComparison.OrdinalIgnoreCase) == true)
             StartNewPlan();
+        else if (EditPlanQuery is Guid planId && EditDayQuery is Guid dayId)
+        {
+            var plan = _plans.FirstOrDefault(x => x.Id == planId);
+            var dayIndex = plan?.Days.OrderBy(x => x.SequenceNumber).ToList().FindIndex(x => x.Id == dayId) ?? -1;
+            if (plan is not null && dayIndex >= 0)
+                EditPlanDay(plan, dayIndex);
+        }
+        else if (EditExerciseQuery is Guid exerciseId)
+        {
+            var exercise = _exercises.FirstOrDefault(x => x.Id == exerciseId && x.IsOwn);
+            if (exercise is not null)
+                EditLibraryExercise(exercise);
+        }
         _loading = false;
     }
     private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); _activeSession = await TrainingApi.GetActiveSession(); }
@@ -371,6 +391,9 @@
         await Reload();
         Snackbar.Add("Utworzono kopię planu do dalszej edycji.", Severity.Success);
     }
+
+    private void OpenExercise(Guid planId, Guid dayId, Guid exerciseId) =>
+        Navigation.NavigateTo($"/training/exercises/{exerciseId}?plan={planId}&day={dayId}");
 
     private void EditDraftDay(int index)
     {

@@ -183,13 +183,24 @@ public sealed class WorkoutExercise
     public List<WorkoutExerciseMuscleEngagement> MuscleEngagements { get; private set; } = [];
     public void ReplaceExercise(Exercise exercise) { ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Snapshot(exercise); }
     public void Shorten(int sets) => PlannedSets = Math.Min(PlannedSets, sets);
+    public void ChangeOrder(int order)
+    {
+        if (order < 1) throw new ArgumentOutOfRangeException(nameof(order));
+        Order = order;
+    }
     private void Snapshot(Exercise exercise)
     {
         var source = exercise.MuscleEngagements.Count > 0
             ? exercise.MuscleEngagements.Select(x => (x.MuscleGroup, x.Percentage))
             : [(exercise.PrimaryMuscleGroup, 100)];
-        MuscleEngagements.Clear();
-        MuscleEngagements.AddRange(source.Select(x => new WorkoutExerciseMuscleEngagement(Id, x.MuscleGroup, x.Percentage)));
+        var desired = source.ToList();
+        var sharedCount = Math.Min(MuscleEngagements.Count, desired.Count);
+        for (var index = 0; index < sharedCount; index++)
+            MuscleEngagements[index].Update(desired[index].MuscleGroup, desired[index].Percentage);
+        if (MuscleEngagements.Count > desired.Count)
+            MuscleEngagements.RemoveRange(desired.Count, MuscleEngagements.Count - desired.Count);
+        for (var index = sharedCount; index < desired.Count; index++)
+            MuscleEngagements.Add(new WorkoutExerciseMuscleEngagement(Id, desired[index].MuscleGroup, desired[index].Percentage));
     }
 }
 
@@ -204,6 +215,12 @@ public sealed class WorkoutExerciseMuscleEngagement
     public Guid WorkoutExerciseId { get; private set; }
     public MuscleGroup MuscleGroup { get; private set; }
     public int Percentage { get; private set; }
+    public void Update(MuscleGroup muscleGroup, int percentage)
+    {
+        if (percentage is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(percentage));
+        MuscleGroup = muscleGroup;
+        Percentage = percentage;
+    }
 }
 
 public sealed class CompletedSet

@@ -4,7 +4,9 @@ using FormaAI.Contracts.Training;
 using FormaAI.Contracts.Nutrition;
 using FormaAI.Contracts.Users;
 using FormaAI.Domain.Training;
+using FormaAI.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FormaAI.Api.IntegrationTests;
 
@@ -83,6 +85,131 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
         Assert.Equal(2, item.TargetRir);
         Assert.Equal(90, item.RestSeconds);
     }
+
+    [Fact]
+    public async Task ExerciseDetailsExposeGlobalAndOwnButNotForeignExercises()
+    {
+        var options = new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") };
+        var owner = _factory.CreateClient(options);
+        var other = _factory.CreateClient(options);
+        await Register(owner, "exercise-details-owner@example.test");
+        await Register(other, "exercise-details-other@example.test");
+
+        var own = await Send<SaveExerciseRequest, ExerciseResponse>(
+            owner,
+            HttpMethod.Post,
+            "api/v1/exercises",
+            new("Moje ćwiczenie", MuscleGroup.Chest, Equipment.Dumbbell, false, "Opis własnego ćwiczenia."));
+        var foreign = await Send<SaveExerciseRequest, ExerciseResponse>(
+            other,
+            HttpMethod.Post,
+            "api/v1/exercises",
+            new("Cudze ćwiczenie", MuscleGroup.Back, Equipment.Cable, false));
+
+        var global = new Exercise(null, "Ćwiczenie globalne", MuscleGroup.Quadriceps, Equipment.Barbell, description: "Opis globalny.");
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Exercises.Add(global);
+            await db.SaveChangesAsync();
+        }
+
+        var globalResponse = await owner.GetFromJsonAsync<ExerciseResponse>($"api/v1/exercises/{global.Id}");
+        var ownResponse = await owner.GetFromJsonAsync<ExerciseResponse>($"api/v1/exercises/{own.Id}");
+        var foreignResponse = await owner.GetAsync($"api/v1/exercises/{foreign.Id}");
+
+        Assert.Equal(global.Id, globalResponse!.Id);
+        Assert.Equal("Opis globalny.", globalResponse.Description);
+        Assert.Equal(own.Id, ownResponse!.Id);
+        Assert.Equal(HttpStatusCode.NotFound, foreignResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReplacementBeforeFirstSetKeepsPrescriptionAndReplacesInPlace()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "replace-before-set@example.test");
+        var originalExercise = await CreateExercise(client, "Wyciskanie sztangi", MuscleGroup.Chest, Equipment.Barbell);
+        var replacementExercise = await CreateExercise(client, "Wyciskanie hantli", MuscleGroup.Chest, Equipment.Dumbbell);
+        var session = await StartQuickWorkout(client, "Zamiana przed serią", (originalExercise.Id, 4));
+        var original = Assert.Single(session.Exercises);
+
+        var replacement = await Send<ReplaceWorkoutExerciseRequest, WorkoutExerciseResponse>(
+            client,
+            HttpMethod.Put,
+            $"api/v1/workout-sessions/{session.Id}/exercises/{original.Id}",
+            new(replacementExercise.Id));
+
+        Assert.Equal(original.Id, replacement.Id);
+        Assert.Equal(replacementExercise.Id, replacement.ExerciseId);
+        Assert.Equal(original.PlannedSets, replacement.PlannedSets);
+        Assert.Equal(original.MinReps, replacement.MinReps);
+        Assert.Equal(original.MaxReps, replacement.MaxReps);
+        Assert.Equal(original.TargetRir, replacement.TargetRir);
+        Assert.Equal(original.RestSeconds, replacement.RestSeconds);
+    }
+
+    [Fact]
+    public async Task ReplacementAfterASetPreservesHistoryAndAddsRemainingSetsNext()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "replace-after-set@example.test");
+        var originalExercise = await CreateExercise(client, "Przysiad", MuscleGroup.Quadriceps, Equipment.Barbell);
+        var replacementExercise = await CreateExercise(client, "Suwnica", MuscleGroup.Quadriceps, Equipment.Machine);
+        var session = await StartQuickWorkout(client, "Zamiana po serii", (originalExercise.Id, 4));
+        var original = Assert.Single(session.Exercises);
+        await Send<SaveSetRequest, CompletedSetResponse>(
+            client,
+            HttpMethod.Post,
+            $"api/v1/workout-sessions/{session.Id}/sets",
+            new(original.Id, 1, 100, 8, 2, SetType.Working));
+
+        var replacement = await Send<ReplaceWorkoutExerciseRequest, WorkoutExerciseResponse>(
+            client,
+            HttpMethod.Put,
+            $"api/v1/workout-sessions/{session.Id}/exercises/{original.Id}",
+            new(replacementExercise.Id));
+        var refreshed = await client.GetFromJsonAsync<WorkoutSessionResponse>($"api/v1/workout-sessions/{session.Id}");
+
+        Assert.NotEqual(original.Id, replacement.Id);
+        Assert.Equal(replacementExercise.Id, replacement.ExerciseId);
+        Assert.Equal(original.Order + 1, replacement.Order);
+        Assert.Equal(3, replacement.PlannedSets);
+        Assert.Single(refreshed!.Exercises.Single(x => x.Id == original.Id).Sets);
+        Assert.Equal([original.Id, replacement.Id], refreshed.Exercises.OrderBy(x => x.Order).Select(x => x.Id).ToArray());
+    }
+
+    [Fact]
+    public async Task ReplacementRejectsExerciseAlreadyPresentInSession()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "replace-duplicate@example.test");
+        var firstExercise = await CreateExercise(client, "Wiosłowanie", MuscleGroup.Back, Equipment.Cable);
+        var secondExercise = await CreateExercise(client, "Ściąganie drążka", MuscleGroup.Back, Equipment.Cable);
+        var session = await StartQuickWorkout(client, "Duplikat zamiany", (firstExercise.Id, 3), (secondExercise.Id, 3));
+        var rows = session.Exercises.OrderBy(x => x.Order).ToList();
+
+        using var response = await client.SendAsync(await Request(
+            client,
+            HttpMethod.Put,
+            $"api/v1/workout-sessions/{session.Id}/exercises/{rows[0].Id}",
+            new ReplaceWorkoutExerciseRequest(rows[1].ExerciseId!.Value)));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    private static Task<ExerciseResponse> CreateExercise(HttpClient client, string name, MuscleGroup group, Equipment equipment) =>
+        Send<SaveExerciseRequest, ExerciseResponse>(client, HttpMethod.Post, "api/v1/exercises", new(name, group, equipment, false));
+
+    private static Task<WorkoutSessionResponse> StartQuickWorkout(
+        HttpClient client,
+        string name,
+        params (Guid ExerciseId, int Sets)[] exercises) =>
+        Send<StartQuickWorkoutRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/workout-sessions/quick",
+            new(name, 45, exercises.Select(x => new QuickWorkoutExerciseRequest(x.ExerciseId, x.Sets)).ToList()));
 
     private static async Task Register(HttpClient client, string email) =>
         _ = await Send<RegisterRequest, CurrentUserResponse>(client, HttpMethod.Post, "api/account/register", new(email, "FormaAI!123", "UTC"));
