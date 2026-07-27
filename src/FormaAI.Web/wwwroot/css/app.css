@@ -809,6 +809,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .ai-food-name { align-items: center; display: grid; gap: 6px; grid-template-columns: 1fr auto; }
 .ai-food-values { display: grid; gap: 8px; grid-template-columns: 1.15fr repeat(4, 1fr); }
 .ai-meal-draft > .mud-typography-caption { color: var(--muted); display: block; line-height: 1.45; margin-top: 10px; }
+.meal-calorie-scaler { align-items: end; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; display: grid; gap: 12px; grid-template-columns: minmax(130px, 1fr) minmax(130px, .8fr) auto; margin: 14px 0; padding: 14px; }
+.meal-calorie-scaler > div:first-child { align-self: center; display: grid; gap: 2px; }
+.meal-calorie-scaler > div:first-child span { color: var(--muted); font-size: .76rem; }
+.meal-calorie-scaler > div:first-child strong { font-size: 1.05rem; }
 .module-empty {
     align-items: center;
     background: var(--surface-soft);
@@ -1395,6 +1399,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .meal-entry-modes-wide button { padding: 9px 7px; }
     .meal-entry-modes-wide button span { display: none; }
     .meal-add-shell { border-radius: 20px; padding: 14px; }
+    .meal-calorie-scaler { align-items: stretch; grid-template-columns: 1fr; }
     .meal-catalog-tabs button { font-size: .69rem; padding-left: 2px; padding-right: 2px; }
     .meal-product-open { gap: 7px; }
     .meal-product-open > span:nth-child(2) strong { font-size: .67rem; }

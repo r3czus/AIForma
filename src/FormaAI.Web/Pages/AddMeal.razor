@@ -168,6 +168,11 @@
                             <div><span><strong>@item.Name</strong><small>Ustaw ilość</small></span><MudNumericField @bind-Value="item.AmountGrams" Min="0.01m" Adornment="Adornment.End" AdornmentText="g" HideSpinButtons="true" aria-label="Ilość produktu" /><MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="() => _meal.Items.Remove(item)" aria-label="Usuń produkt" /></div>
                         }
                     </div>
+                    <div class="meal-calorie-scaler">
+                        <div><span>Kaloryczność dania</span><strong>@ManualCalories.ToString("0") kcal</strong></div>
+                        <MudNumericField @bind-Value="_manualTargetCalories" Label="Docelowe kcal" Min="1m" HideSpinButtons="true" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_manualTargetCalories is null || ManualCalories <= 0)" OnClick="ScaleManualMeal">Dopasuj porcje</MudButton>
+                    </div>
                 }
                 <MudCheckBox @bind-Value="_meal.DeductFromPantry" Label="Odejmij składniki ze spiżarni" />
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@(_saving || _meal.Items.Count == 0)" OnClick="SaveMeal" Class="meal-add-submit">
@@ -277,6 +282,11 @@
                                 </div>
                             </div>
                         }
+                        <div class="meal-calorie-scaler">
+                            <div><span>Kaloryczność propozycji</span><strong>@AiCalories.ToString("0") kcal</strong></div>
+                            <MudNumericField @bind-Value="_aiTargetCalories" Label="Docelowe kcal" Min="1m" HideSpinButtons="true" />
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_aiTargetCalories is null || AiCalories <= 0)" OnClick="ScaleAiMeal">Dopasuj porcje</MudButton>
+                        </div>
                         <MudButton Variant="Variant.Text" OnClick="AddAiItem" StartIcon="@Icons.Material.Outlined.Add">Dodaj składnik</MudButton>
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@(_saving || _aiDraft.Items.Count == 0)" OnClick="SaveAiMeal">@(_saving ? "Zapisuję…" : "Dodaj do dziennika")</MudButton>
                         <MudText Typo="Typo.caption">Wartości rozpoznane przez AI są szacunkowe i możesz je poprawić.</MudText>
@@ -324,6 +334,10 @@
     private bool _editingProduct;
     private bool _slotChosen;
     private Guid? _editingMealId;
+    private decimal? _manualTargetCalories;
+    private decimal? _aiTargetCalories;
+    private decimal ManualCalories => _meal.Items.Sum(item =>
+        (_products.FirstOrDefault(product => product.Id == item.ProductId)?.CaloriesPer100 ?? 0) * item.AmountGrams / 100m);
     private decimal AiCalories => _aiDraft?.Items.Sum(x => x.AmountGrams * x.CaloriesPer100 / 100m) ?? 0;
     private IReadOnlyList<ProductResponse> VisibleProducts => _catalogScope switch
     {
@@ -366,6 +380,7 @@
                 _editingMealId = id;
                 _meal.Name = DisplayMealName(meal.Name);
                 _meal.Items.AddRange(meal.Items.Where(x => x.ProductId is not null).Select(x => new MealDraftItem(x.ProductId!.Value, x.ProductName, x.AmountGrams)));
+                _manualTargetCalories = meal.Macro.CaloriesKcal;
             }
         }
         _loading = false;
@@ -523,6 +538,14 @@
         if (_editingMealId is Guid id) await Nutrition.UpdateMeal(id, request); else await Nutrition.SaveMeal(request);
     });
 
+    private void ScaleManualMeal()
+    {
+        if (_manualTargetCalories is not > 0 || ManualCalories <= 0) return;
+        var amounts = MealCalorieScaler.ScaleAmounts(_meal.Items.Select(x => x.AmountGrams).ToList(), ManualCalories, _manualTargetCalories.Value);
+        for (var index = 0; index < amounts.Count; index++) _meal.Items[index].AmountGrams = amounts[index];
+        Snackbar.Add($"Porcje dopasowane do około {_manualTargetCalories:0} kcal.", Severity.Success);
+    }
+
     private async Task AnalyzePhoto(InputFileChangeEventArgs args)
     {
         if (args.File.Size > 12 * 1024 * 1024) { Snackbar.Add("Zdjęcie może mieć maksymalnie 12 MB.", Severity.Warning); return; }
@@ -537,6 +560,7 @@
             var draft = await action();
             if (draft.Items.Count == 0) { Snackbar.Add("AI nie rozpoznało posiłku. Spróbuj ponownie z wyraźniejszym zdjęciem lub opisem.", Severity.Info); return; }
             _aiDraft = new AiMealForm(draft.MealName, draft.Note, draft.Items.Select(x => new AiFoodForm(x)).ToList());
+            _aiTargetCalories = AiCalories;
         }
         catch (HttpRequestException ex)
         {
@@ -545,6 +569,13 @@
                 _aiDraft = new AiMealForm("Przykładowy posiłek", "Model osiągnął limit. Popraw szkic przed zapisem.", [new AiFoodForm { Name = "Pierś z kurczaka", AmountGrams = 150, CaloriesPer100 = 165, ProteinPer100 = 31, FatPer100 = 3.6m }, new AiFoodForm { Name = "Ryż gotowany", AmountGrams = 200, CaloriesPer100 = 130, ProteinPer100 = 2.7m, FatPer100 = .3m, CarbohydratesPer100 = 28 }]);
         }
         finally { _aiBusy = false; }
+    }
+    private void ScaleAiMeal()
+    {
+        if (_aiDraft is null || _aiTargetCalories is not > 0 || AiCalories <= 0) return;
+        var amounts = MealCalorieScaler.ScaleAmounts(_aiDraft.Items.Select(x => x.AmountGrams).ToList(), AiCalories, _aiTargetCalories.Value);
+        for (var index = 0; index < amounts.Count; index++) _aiDraft.Items[index].AmountGrams = amounts[index];
+        Snackbar.Add($"Propozycja dopasowana do około {_aiTargetCalories:0} kcal.", Severity.Success);
     }
     private void AddAiItem() => _aiDraft?.Items.Add(new AiFoodForm());
     private async Task SaveAiMeal()
