@@ -1,4 +1,5 @@
 @page "/"
+@using FormaAI.Web.Components.Nutrition
 @inject AccountClient Account
 @inject NutritionClient Nutrition
 @inject TrainingClient TrainingApi
@@ -268,6 +269,9 @@
                                     }
                                     else
                                     {
+                                        <MudMenu Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="@($"Opcje sekcji {slot}")">
+                                            <MudMenuItem Icon="@Icons.Material.Outlined.ContentCopy" OnClick="CopyFrom">Kopiuj z innego dnia</MudMenuItem>
+                                        </MudMenu>
                                         <MudIconButton Icon="@(IsMealSlotOpen(slot) ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)" OnClick="() => ToggleMealSlot(slot)" aria-label="@($"Pokaż lub ukryj sekcję {slot}")" />
                                     }
                                 </header>
@@ -276,13 +280,15 @@
                                     @foreach (var meal in meals)
                                     {
                                         <MudPaper Class="meal-row" Elevation="0">
-                                            <div class="row-copy">
+                                            <a class="meal-row-link row-copy" href="@MealEditUrl(meal.Id, slot)" aria-label="@($"Edytuj posiłek {DisplayMealName(meal.Name, slot)}")">
                                                 <MudText Typo="Typo.subtitle1">@DisplayMealName(meal.Name, slot)</MudText>
                                                 <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => x.ProductName))</MudText>
-                                            </div>
+                                            </a>
                                             <div class="meal-actions">
                                                 <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
-                                                <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Href="@MealEditUrl(meal.Id, slot)" aria-label="Edytuj pozycję" />
+                                                <MudMenu Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="Opcje posiłku">
+                                                    <MudMenuItem Icon="@Icons.Material.Outlined.ContentCopy" OnClick="() => CopyTo(meal)">Kopiuj do…</MudMenuItem>
+                                                </MudMenu>
                                                 <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" aria-label="Usuń pozycję" />
                                             </div>
                                         </MudPaper>
@@ -304,13 +310,15 @@
                                 @foreach (var meal in UnassignedMeals)
                                 {
                                     <MudPaper Class="meal-row" Elevation="0">
-                                        <div class="row-copy">
+                                        <a class="meal-row-link row-copy" href="@MealEditUrl(meal.Id, null)" aria-label="@($"Edytuj posiłek {meal.Name}")">
                                             <MudText Typo="Typo.subtitle1">@meal.Name</MudText>
                                             <MudText Typo="Typo.caption">@string.Join(" · ", meal.Items.Select(x => x.ProductName))</MudText>
-                                        </div>
+                                        </a>
                                         <div class="meal-actions">
                                             <MudText Class="data-value">@meal.Macro.CaloriesKcal.ToString("0") kcal</MudText>
-                                            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Href="@MealEditUrl(meal.Id, null)" aria-label="Edytuj pozycję" />
+                                            <MudMenu Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="Opcje posiłku">
+                                                <MudMenuItem Icon="@Icons.Material.Outlined.ContentCopy" OnClick="() => CopyTo(meal)">Kopiuj do…</MudMenuItem>
+                                            </MudMenu>
                                             <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMeal(meal.Id)" aria-label="Usuń pozycję" />
                                         </div>
                                     </MudPaper>
@@ -325,6 +333,13 @@
     }
 </MudContainer>
 
+<MealCopyDialog Open="_copyDialogOpen"
+                InitialSource="_copySource"
+                InitialSourceDate="@(_day?.Date ?? DateOnly.FromDateTime(DateTime.Today))"
+                MealSlots="_mealSlots"
+                Closed="CloseCopyDialog"
+                Copied="MealCopied" />
+
 @code {
     private readonly LoginForm _login = new();
     private readonly RegisterForm _register = new();
@@ -334,6 +349,8 @@
     private List<string> _mealSlots = ["Śniadanie", "Lunch", "Obiad", "Przekąska", "Kolacja"];
     private IReadOnlyList<MealScheduleEntry> _mealSchedule = [];
     private readonly HashSet<string> _openMealSlots = new(StringComparer.OrdinalIgnoreCase);
+    private bool _copyDialogOpen;
+    private MealResponse? _copySource;
     private TodayWorkoutResponse? _todayWorkout;
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
     private WorkoutSessionResponse? _activeSession;
@@ -585,6 +602,27 @@
             _day = await Nutrition.GetDay(DateOnly.FromDateTime(DateTime.Now));
             Snackbar.Add("Pozycja została usunięta.", Severity.Success);
         }, "Nie udało się usunąć pozycji.");
+    }
+
+    private void CopyTo(MealResponse meal)
+    {
+        _copySource = meal;
+        _copyDialogOpen = true;
+    }
+
+    private void CopyFrom()
+    {
+        _copySource = null;
+        _copyDialogOpen = true;
+    }
+
+    private void CloseCopyDialog() => _copyDialogOpen = false;
+
+    private async Task MealCopied(MealResponse _)
+    {
+        _copyDialogOpen = false;
+        _day = await Nutrition.GetDay(DateOnly.FromDateTime(DateTime.Now));
+        Snackbar.Add("Posiłek został skopiowany. Oryginał pozostał bez zmian.", Severity.Success);
     }
 
     private async Task Run(Func<Task> action, string error)
