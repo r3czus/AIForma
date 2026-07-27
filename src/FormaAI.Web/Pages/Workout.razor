@@ -25,6 +25,21 @@
             <span class="data-chip">@CompletedSets / @PlannedSets serii</span>
         </header>
 
+        @if (_session.CardioEntries is { Count: > 0 })
+        {
+            <section class="workout-cardio-summary">
+                <span class="card-kicker">Cardio w tej sesji</span>
+                @foreach (var cardio in _session.CardioEntries)
+                {
+                    <div>
+                        <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
+                        <strong>@cardio.ActivityName</strong>
+                        <span>@cardio.DurationMinutes min@if (cardio.DistanceKm is not null) { <text> · @cardio.DistanceKm.GetValueOrDefault().ToString("0.##") km</text> }</span>
+                    </div>
+                }
+            </section>
+        }
+
         @if (_completed)
         {
             <section class="workout-finish-summary">
@@ -151,8 +166,12 @@
                     <strong class="exercise-set-count">@exercise.Sets.Count/@exercise.PlannedSets</strong>
                 </div>
 
-                <MudButton Class="swap-exercise-trigger" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.SwapHoriz"
-                           OnClick="() => BeginSwap(exercise)">Zamień ćwiczenie</MudButton>
+                <div class="exercise-live-actions">
+                    <MudButton Class="swap-exercise-trigger" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.SwapHoriz"
+                               OnClick="() => BeginSwap(exercise)">Zamień ćwiczenie</MudButton>
+                    <MudButton Class="superset-builder-trigger" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Layers"
+                               OnClick="() => BeginSuperset(exercise)">Połącz w superserię</MudButton>
+                </div>
                 @if (_swapTargetId == exercise.Id)
                 {
                     <section class="swap-exercise-panel" aria-label="Wybierz ćwiczenie zamienne">
@@ -180,6 +199,38 @@
                                 @(_swapping ? "Zamieniam…" : "Potwierdź zamianę")
                             </MudButton>
                         </div>
+                    </section>
+                }
+
+                @if (_supersetBuilderOpen)
+                {
+                    <section class="superset-builder" aria-label="Utwórz superserię">
+                        <header>
+                            <div><span class="card-kicker">Superseria</span><strong>Wybierz ćwiczenia wykonywane po sobie</strong></div>
+                            <MudIconButton Icon="@Icons.Material.Outlined.Close" OnClick="CancelSuperset" aria-label="Zamknij wybór superserii" />
+                        </header>
+                        <div class="superset-builder-list">
+                            @foreach (var item in OrderedExercises)
+                            {
+                                var selected = _supersetExerciseIds.Contains(item.Id);
+                                <button type="button" class="@(selected ? "selected" : null)" aria-pressed="@selected"
+                                        disabled="@(!selected && _supersetExerciseIds.Count >= 5)"
+                                        @onclick="() => ToggleSupersetExercise(item.Id)">
+                                    <span>@(OrderedExercises.ToList().FindIndex(x => x.Id == item.Id) + 1)</span>
+                                    <strong>@item.ExerciseName</strong>
+                                    <MudIcon Icon="@(selected ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" />
+                                </button>
+                            }
+                        </div>
+                        <div class="superset-builder-timing">
+                            <MudNumericField @bind-Value="_supersetIntervalSeconds" Label="Między ćwiczeniami (s)" Min="0" Max="3600" HideSpinButtons="true" />
+                            <MudNumericField @bind-Value="_supersetRestSeconds" Label="Po rundzie (s)" Min="0" Max="3600" HideSpinButtons="true" />
+                        </div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                   Disabled="@(_supersetExerciseIds.Count < 2 || _savingSuperset)"
+                                   OnClick="SaveSuperset">
+                            @(_savingSuperset ? "Łączę…" : $"Utwórz superserię ({_supersetExerciseIds.Count})")
+                        </MudButton>
                     </section>
                 }
 
@@ -263,6 +314,15 @@
                 <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
             </div>
         }
+        else if (_session.CardioEntries is { Count: > 0 })
+        {
+            <section class="cardio-only-workout">
+                <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
+                <div><span class="page-kicker">Cardio gotowe do zapisania</span><h2>@_session.Name</h2><p>Sprawdź rozpoznany czas i zakończ sesję, aby zapisać ją w historii.</p></div>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ trening cardio</MudButton>
+                <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
+            </section>
+        }
     }
 </MudContainer>
 
@@ -279,6 +339,11 @@
     private Guid? _selectedExerciseId;
     private string _swapSearch = string.Empty;
     private bool _swapping;
+    private bool _supersetBuilderOpen;
+    private bool _savingSuperset;
+    private readonly HashSet<Guid> _supersetExerciseIds = [];
+    private int _supersetIntervalSeconds = 15;
+    private int _supersetRestSeconds = 90;
     private string? _sessionNotes;
     private bool _completed;
     private int _activeExerciseIndex;
@@ -497,6 +562,59 @@
         finally
         {
             _swapping = false;
+        }
+    }
+
+    private void BeginSuperset(WorkoutExerciseResponse exercise)
+    {
+        _supersetExerciseIds.Clear();
+        if (exercise.SupersetGroupId is Guid groupId)
+        {
+            foreach (var member in OrderedExercises.Where(x => x.SupersetGroupId == groupId))
+                _supersetExerciseIds.Add(member.Id);
+            _supersetIntervalSeconds = exercise.IntervalSeconds ?? 15;
+            _supersetRestSeconds = exercise.RestSeconds ?? 90;
+        }
+        else
+        {
+            _supersetExerciseIds.Add(exercise.Id);
+        }
+        _supersetBuilderOpen = true;
+        CancelSwap();
+    }
+
+    private void ToggleSupersetExercise(Guid exerciseId)
+    {
+        if (!_supersetExerciseIds.Remove(exerciseId) && _supersetExerciseIds.Count < 5)
+            _supersetExerciseIds.Add(exerciseId);
+    }
+
+    private void CancelSuperset()
+    {
+        _supersetBuilderOpen = false;
+        _supersetExerciseIds.Clear();
+    }
+
+    private async Task SaveSuperset()
+    {
+        if (_supersetExerciseIds.Count < 2 || _savingSuperset) return;
+        _savingSuperset = true;
+        try
+        {
+            var orderedIds = OrderedExercises.Where(x => _supersetExerciseIds.Contains(x.Id)).Select(x => x.Id).ToList();
+            _session = await TrainingApi.UpdateSuperset(
+                Id,
+                new UpdateWorkoutSupersetRequest(orderedIds, _supersetIntervalSeconds, _supersetRestSeconds));
+            CancelSuperset();
+            Snackbar.Add("Superseria została zapisana.", Severity.Success);
+        }
+        catch (HttpRequestException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _savingSuperset = false;
         }
     }
 

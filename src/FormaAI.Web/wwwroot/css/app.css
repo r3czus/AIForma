@@ -480,6 +480,20 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     justify-content: space-between;
     padding: 15px 4px;
 }
+.meal-row-link {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    flex: 1 1 auto;
+    font: inherit;
+    gap: 3px;
+    justify-items: start;
+    min-width: 0;
+    padding: 0;
+    text-align: left;
+}
 
 .meal-actions { align-items: center; display: flex; gap: 4px; }
 .plan-actions, .row-actions, .exercise-card-actions { align-items: center; display: flex; flex-direction: row; gap: 4px; }
@@ -1841,6 +1855,17 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .plan-exercise-copy strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.05rem; }
 .plan-exercise-copy small { color: var(--muted); font-size: .74rem; }
 .plan-exercise-copy .superset-label { color: var(--action); font-weight: 700; }
+.training-entry-panel { display: grid; gap: 16px; }
+.training-entry-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.training-entry-note { color: var(--muted); margin: 0; max-width: 62ch; }
+.training-tab-today {
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    box-shadow: none;
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+}
 .superset-builder {
     background: var(--surface-soft);
     border: 1px solid var(--rule);
@@ -1872,6 +1897,64 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     text-align: center;
 }
 .workout-motion-placeholder .mud-icon-root { color: var(--action); font-size: 2.5rem; }
+.workout-cardio-summary {
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+}
+.workout-cardio-summary > div {
+    align-items: center;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+}
+.workout-cardio-summary .mud-icon-root { color: var(--action); }
+.workout-cardio-summary span:last-child { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .78rem; }
+.cardio-only-workout { display: grid; gap: 14px; justify-items: start; padding: 28px 0; }
+.cardio-only-workout > .mud-icon-root { color: var(--action); font-size: 3rem; }
+.cardio-only-workout h2,
+.cardio-only-workout p { margin: 0; }
+.cardio-only-workout p { color: var(--muted); margin-top: 5px; }
+.exercise-live-actions {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 14px 0 4px;
+}
+.exercise-live-actions .swap-exercise-trigger,
+.exercise-live-actions .superset-builder-trigger { margin: 0; width: 100%; }
+.superset-builder > header {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+.superset-builder > header > div { display: grid; gap: 2px; }
+.superset-builder-list { display: grid; gap: 6px; margin: 6px 0; }
+.superset-builder-list button {
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    color: var(--ink);
+    cursor: pointer;
+    display: grid;
+    font: inherit;
+    gap: 10px;
+    grid-template-columns: 28px minmax(0, 1fr) 24px;
+    min-height: 48px;
+    padding: 8px 10px;
+    text-align: left;
+}
+.superset-builder-list button.selected { border-color: var(--action); box-shadow: inset 0 0 0 1px var(--action); }
+.superset-builder-list button > span { color: var(--action); font-weight: 800; text-align: center; }
+.superset-builder-list button > .mud-icon-root { color: var(--action); }
+.superset-builder-timing {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .ai-preset-badge {
     align-items: center;
     color: var(--action);
@@ -2258,6 +2341,19 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 }
 .workout-start-bar > span { display: grid; gap: 2px; }
 .workout-start-bar small { color: var(--muted); }
+.workout-start-actions { display: flex; gap: 8px; }
+.ai-cardio-review {
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    gap: 10px;
+    padding: 6px 0 18px;
+}
+.ai-cardio-review article {
+    align-items: end;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(150px, 1.6fr) repeat(3, minmax(90px, 1fr)) 42px;
+}
 
 @media (max-width: 600px) {
     .plan-day-tabs { margin-inline: -1px; }
@@ -2270,6 +2366,8 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .plan-exercise-row { grid-template-columns: 54px minmax(0, 1fr) 20px; }
     .workout-exercise-focus { padding: 12px; }
     .workout-motion-hero { border-radius: 12px; margin: -4px -4px 16px; }
+    .exercise-live-actions { grid-template-columns: 1fr; }
+    .superset-builder-timing { grid-template-columns: 1fr; }
     .workout-entry-modes { grid-template-columns: 1fr; }
     .workout-builder-stage { border-radius: 14px; padding: 16px; }
     .workout-builder-stage-heading,
@@ -2287,6 +2385,9 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
         padding: 12px 16px max(12px, env(safe-area-inset-bottom));
     }
     .workout-start-bar .mud-button-root { width: 100%; }
+    .workout-start-actions { display: grid; }
+    .ai-cardio-review article { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ai-cardio-review article > :first-child { grid-column: 1 / -1; }
 }
 
 * { box-sizing: border-box; }

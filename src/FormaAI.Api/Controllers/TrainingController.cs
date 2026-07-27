@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FormaAI.Application.Common;
+using FormaAI.Application.Training;
 using FormaAI.Contracts.Training;
 using FormaAI.Domain.Training;
 using FormaAI.Domain.Progress;
@@ -83,8 +84,9 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         var exercise = await db.Exercises.Include(x => x.MuscleEngagements).SingleOrDefaultAsync(x => x.Id == id && x.IsActive, cancellationToken);
         if (exercise is null || !CanEditMedia(exercise)) return NotFound();
         var contentType = media.ContentType.ToLowerInvariant();
-        if (media.Length is 0 or > 15 * 1024 * 1024 || contentType is not ("image/gif" or "video/mp4" or "video/webm"))
-            return BadRequest("Wybierz GIF, MP4 albo WebM do 15 MB.");
+        if (media.Length is 0 or > 15 * 1024 * 1024 ||
+            contentType is not ("image/jpeg" or "image/png" or "image/webp" or "image/gif" or "video/mp4" or "video/webm"))
+            return BadRequest("Wybierz JPG, PNG, WebP, GIF, MP4 albo WebM do 15 MB.");
         if (string.IsNullOrWhiteSpace(author) || author.Length > 150 || string.IsNullOrWhiteSpace(license) || license.Length > 100)
             return BadRequest("Podaj autora i licencję materiału.");
         if (!string.IsNullOrWhiteSpace(sourceUrl) &&
@@ -93,7 +95,15 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
 
         var storage = Path.Combine(environment.ContentRootPath, "App_Data", "exercise-media");
         Directory.CreateDirectory(storage);
-        var extension = contentType switch { "image/gif" => ".gif", "video/mp4" => ".mp4", _ => ".webm" };
+        var extension = contentType switch
+        {
+            "image/jpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            "image/gif" => ".gif",
+            "video/mp4" => ".mp4",
+            _ => ".webm"
+        };
         var storageName = $"{Guid.NewGuid():N}{extension}";
         await using (var stream = System.IO.File.Create(Path.Combine(storage, storageName)))
             await media.CopyToAsync(stream, cancellationToken);
@@ -428,6 +438,40 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         return ExerciseResponse(replacement);
     }
 
+    [HttpPut("workout-sessions/{id:guid}/superset")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<WorkoutSessionResponse>> UpdateWorkoutSuperset(
+        Guid id,
+        UpdateWorkoutSupersetRequest request)
+    {
+        var session = await SessionQuery().SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
+        if (session is null) return NotFound();
+        if (session.Status != SessionStatus.InProgress) return Conflict("Trening jest już zakończony.");
+        if (request.WorkoutExerciseIds.Count is < 2 or > 5 ||
+            request.WorkoutExerciseIds.Distinct().Count() != request.WorkoutExerciseIds.Count)
+            return ValidationProblem("Superseria musi zawierać od 2 do 5 różnych ćwiczeń.");
+
+        var selected = request.WorkoutExerciseIds
+            .Select(exerciseId => session.Exercises.SingleOrDefault(x => x.Id == exerciseId))
+            .ToList();
+        if (selected.Any(x => x is null))
+            return ValidationProblem("Wybrane ćwiczenie nie należy do tej sesji.");
+
+        var previousGroups = selected
+            .Where(x => x!.SupersetGroupId is not null)
+            .Select(x => x!.SupersetGroupId!.Value)
+            .ToHashSet();
+        foreach (var exercise in session.Exercises.Where(x => x.SupersetGroupId is Guid groupId && previousGroups.Contains(groupId)))
+            exercise.DetachFromSuperset();
+
+        var supersetId = Guid.NewGuid();
+        for (var index = 0; index < selected.Count; index++)
+            selected[index]!.ConfigureSuperset(supersetId, index + 1, request.IntervalSeconds, request.RestSeconds);
+
+        await db.SaveChangesAsync();
+        return SessionResponse(session);
+    }
+
     [HttpPut("workout-sessions/{id:guid}/notes")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveWorkoutNotes(Guid id, SaveWorkoutNotesRequest request)
@@ -589,7 +633,8 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
     private IQueryable<WorkoutSession> SessionQuery() => db.WorkoutSessions
         .Include(x => x.Exercises).ThenInclude(x => x.Sets)
         .Include(x => x.Exercises).ThenInclude(x => x.Presets)
-        .Include(x => x.Exercises).ThenInclude(x => x.MuscleEngagements);
+        .Include(x => x.Exercises).ThenInclude(x => x.MuscleEngagements)
+        .Include(x => x.CardioEntries);
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static bool ValidEngagements(SaveExerciseRequest request)
     {
@@ -640,10 +685,31 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
                        positions.OrderBy(x => x).SequenceEqual(Enumerable.Range(1, positions.Count).Select(x => (int?)x));
             });
     }
-    private ExerciseResponse ExerciseResponse(Exercise x) => new(x.Id, x.Name, x.PrimaryMuscleGroup, x.Equipment, x.IsUnilateral, x.OwnerUserId != null, x.Description,
-        x.MuscleEngagements.Count > 0 ? x.MuscleEngagements.OrderByDescending(e => e.Percentage).Select(e => new ExerciseMuscleEngagementResponse(e.MuscleGroup, e.Percentage)).ToList() : [new(x.PrimaryMuscleGroup, 100)],
-        x.MediaStorageName is not null ? $"api/v1/exercises/{x.Id}/media/content" : x.MediaExternalUrl,
-        x.MediaContentType, x.MediaAttribution, x.MediaSourceUrl, CanEditMedia(x));
+    private ExerciseResponse ExerciseResponse(Exercise x)
+    {
+        var mediaDefault = x.MediaStorageName is null && x.MediaExternalUrl is null
+            ? ExerciseMediaDefaults.Resolve(x.Name)
+            : null;
+        return new ExerciseResponse(
+            x.Id,
+            x.Name,
+            x.PrimaryMuscleGroup,
+            x.Equipment,
+            x.IsUnilateral,
+            x.OwnerUserId != null,
+            x.Description,
+            x.MuscleEngagements.Count > 0
+                ? x.MuscleEngagements.OrderByDescending(e => e.Percentage)
+                    .Select(e => new ExerciseMuscleEngagementResponse(e.MuscleGroup, e.Percentage)).ToList()
+                : [new(x.PrimaryMuscleGroup, 100)],
+            x.MediaStorageName is not null
+                ? $"api/v1/exercises/{x.Id}/media/content"
+                : x.MediaExternalUrl ?? mediaDefault?.Url,
+            x.MediaContentType ?? mediaDefault?.ContentType,
+            x.MediaAttribution ?? mediaDefault?.Attribution,
+            x.MediaSourceUrl,
+            CanEditMedia(x));
+    }
     private bool CanEditMedia(Exercise exercise) => exercise.OwnerUserId == UserId() ||
         exercise.OwnerUserId is null && string.Equals(User.Identity?.Name, configuration["Admin:Email"], StringComparison.OrdinalIgnoreCase);
     private static void DeleteStoredMedia(string storage, string? storageName)
@@ -670,6 +736,16 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         e.Presets.OrderBy(p => p.SetNumber)
             .Select(p => new WorkoutSetPresetResponse(p.SetNumber, p.WeightKg, p.Repetitions, p.Rir))
             .ToList());
-    private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(x.Id, x.NameSnapshot, x.StartedAtUtc, x.FinishedAtUtc, x.Status,
-        x.Exercises.OrderBy(e => e.Order).Select(ExerciseResponse).ToList(), x.IsShortened, x.TimeLimitMinutes);
+    private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(
+        x.Id,
+        x.NameSnapshot,
+        x.StartedAtUtc,
+        x.FinishedAtUtc,
+        x.Status,
+        x.Exercises.OrderBy(e => e.Order).Select(ExerciseResponse).ToList(),
+        x.IsShortened,
+        x.TimeLimitMinutes,
+        x.CardioEntries.OrderBy(e => e.CompletedAtUtc)
+            .Select(e => new WorkoutCardioEntryResponse(e.Id, e.ActivityName, e.DurationMinutes, e.DistanceKm, e.AverageHeartRate, e.CompletedAtUtc))
+            .ToList());
 }

@@ -26,6 +26,66 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("ApplyNextPreset", source);
     }
 
+    [Fact]
+    public void AiWorkoutReviewCanBeSavedAsCompletedOrStarted()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "NewWorkout.razor"));
+
+        Assert.Contains("Zapisz jako wykonany", source);
+        Assert.Contains("SaveAiWorkoutAsCompleted", source);
+        Assert.Contains("Rozpocznij ten trening", source);
+        Assert.Contains("StartAiWorkout", source);
+    }
+
+    [Fact]
+    public void ExerciseMediaPickerAcceptsPhotosAnimationsAndVideos()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "ExerciseDetails.razor"));
+
+        Assert.Contains("image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm", source);
+        Assert.Contains("Dodaj zdjęcie, GIF lub film", source);
+    }
+
+    [Fact]
+    public void LiveWorkoutCanCreateSupersetFromSessionExercises()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+
+        Assert.Contains("Połącz w superserię", source);
+        Assert.Contains("SaveSuperset", source);
+        Assert.Contains("superset-builder", source);
+    }
+
+    [Fact]
+    public void TrainingModuleUsesThreeStableTabs()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Training.razor"));
+
+        Assert.Contains("<MudTabPanel Text=\"Trening\">", source);
+        Assert.Contains("<MudTabPanel Text=\"Plany\">", source);
+        Assert.Contains("<MudTabPanel Text=\"Ćwiczenia\">", source);
+        Assert.DoesNotContain("<MudTabPanel Text=\"Nowy plan\">", source);
+        Assert.DoesNotContain("<MudTabPanel Text=\"Nowe ćwiczenie\">", source);
+    }
+
+    [Fact]
+    public void SavedMealClickableCopyIsLeftAligned()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
+
+        Assert.Contains(".meal-row-link", source);
+        Assert.Contains("text-align: left", source);
+    }
+
+    [Fact]
+    public void CardioOnlyLiveWorkoutCanBeFinished()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+
+        Assert.Contains("workout-cardio-summary", source);
+        Assert.Contains("Zakończ trening cardio", source);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

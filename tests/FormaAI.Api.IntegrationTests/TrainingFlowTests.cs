@@ -289,6 +289,53 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task OwnerCanUploadExercisePhoto()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "exercise-photo-owner@example.test");
+        var exercise = await CreateExercise(client, "Ćwiczenie ze zdjęciem", MuscleGroup.FullBody, Equipment.Bodyweight);
+
+        using var content = new MultipartFormDataContent();
+        var bytes = new ByteArrayContent([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        bytes.Headers.ContentType = new("image/png");
+        content.Add(bytes, "media", "ruch.png");
+        content.Add(new StringContent("Użytkownik"), "author");
+        content.Add(new StringContent("Materiał własny"), "license");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/exercises/{exercise.Id}/media") { Content = content };
+        var csrf = await client.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+
+        var upload = await client.SendAsync(request);
+        upload.EnsureSuccessStatusCode();
+        var saved = (await upload.Content.ReadFromJsonAsync<ExerciseResponse>())!;
+
+        Assert.Equal("image/png", saved.MediaContentType);
+        Assert.NotNull(saved.MediaUrl);
+        Assert.Equal("image/png", (await client.GetAsync(saved.MediaUrl)).Content.Headers.ContentType!.MediaType);
+    }
+
+    [Fact]
+    public async Task UserCanCreateSupersetDuringWorkout()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "live-superset@example.test");
+        var first = await CreateExercise(client, "Wyciskanie superseria", MuscleGroup.Chest, Equipment.Barbell);
+        var second = await CreateExercise(client, "Wiosłowanie superseria", MuscleGroup.Back, Equipment.Machine);
+        var session = await StartQuickWorkout(client, "Superseria na żywo", (first.Id, 3), (second.Id, 3));
+
+        var updated = await Send<UpdateWorkoutSupersetRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Put,
+            $"api/v1/workout-sessions/{session.Id}/superset",
+            new([session.Exercises[0].Id, session.Exercises[1].Id], 20, 120));
+
+        Assert.All(updated.Exercises, exercise => Assert.NotNull(exercise.SupersetGroupId));
+        Assert.Equal([1, 2], updated.Exercises.OrderBy(x => x.SupersetPosition).Select(x => x.SupersetPosition));
+        Assert.All(updated.Exercises, exercise => Assert.Equal(20, exercise.IntervalSeconds));
+        Assert.All(updated.Exercises, exercise => Assert.Equal(120, exercise.RestSeconds));
+    }
+
+    [Fact]
     public async Task ReplacementBeforeFirstSetKeepsPrescriptionAndReplacesInPlace()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

@@ -25,18 +25,26 @@ public sealed record AssistantWorkoutExerciseDraft(
     Guid ExerciseId,
     string ExerciseName,
     IReadOnlyList<AssistantWorkoutSetDraft> Sets);
+public sealed record AssistantWorkoutCardioDraft(
+    string ActivityName,
+    int DurationMinutes,
+    decimal? DistanceKm = null,
+    int? AverageHeartRate = null);
 public sealed record AssistantCompletedWorkoutDraftPayload(
     DateOnly LocalDate,
     string Name,
-    IReadOnlyList<AssistantWorkoutExerciseDraft> Exercises);
+    IReadOnlyList<AssistantWorkoutExerciseDraft> Exercises,
+    IReadOnlyList<AssistantWorkoutCardioDraft>? Cardio = null);
 public sealed record AssistantCompletedWorkoutDraftResponse(
     Guid Id,
     AssistantDraftStatus Status,
     DateOnly LocalDate,
     string Name,
     IReadOnlyList<AssistantWorkoutExerciseDraft> Exercises,
-    DateTime ExpiresAtUtc);
+    DateTime ExpiresAtUtc,
+    IReadOnlyList<AssistantWorkoutCardioDraft>? Cardio = null);
 public sealed record UpdateAssistantCompletedWorkoutDraftRequest(
     [Required, MaxLength(150)] string Name,
     DateOnly LocalDate,
-    [MinLength(1)] IReadOnlyList<AssistantWorkoutExerciseDraft> Exercises);
+    IReadOnlyList<AssistantWorkoutExerciseDraft> Exercises,
+    IReadOnlyList<AssistantWorkoutCardioDraft>? Cardio = null);

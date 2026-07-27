@@ -190,9 +190,45 @@ public sealed class WorkoutSession
     public bool IsShortened { get; private set; }
     public int? TimeLimitMinutes { get; private set; }
     public List<WorkoutExercise> Exercises { get; private set; } = [];
+    public List<WorkoutCardioEntry> CardioEntries { get; private set; } = [];
     public void Finish(SessionStatus status) { Status = status; FinishedAtUtc = DateTime.UtcNow; }
     public void UpdateNotes(string? notes) => Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
     public void MarkShortened(int minutes) { IsShortened = true; TimeLimitMinutes = minutes; }
+}
+
+public sealed class WorkoutCardioEntry
+{
+    private WorkoutCardioEntry() { }
+    public WorkoutCardioEntry(
+        Guid workoutSessionId,
+        string activityName,
+        int durationMinutes,
+        decimal? distanceKm,
+        int? averageHeartRate)
+    {
+        if (string.IsNullOrWhiteSpace(activityName) || activityName.Trim().Length > 150)
+            throw new ArgumentException("Nieprawidłowa nazwa aktywności.", nameof(activityName));
+        if (durationMinutes is < 1 or > 1440)
+            throw new ArgumentOutOfRangeException(nameof(durationMinutes));
+        if (distanceKm is < 0 or > 1000)
+            throw new ArgumentOutOfRangeException(nameof(distanceKm));
+        if (averageHeartRate is < 30 or > 250)
+            throw new ArgumentOutOfRangeException(nameof(averageHeartRate));
+        Id = Guid.NewGuid();
+        WorkoutSessionId = workoutSessionId;
+        ActivityName = activityName.Trim();
+        DurationMinutes = durationMinutes;
+        DistanceKm = distanceKm;
+        AverageHeartRate = averageHeartRate;
+        CompletedAtUtc = DateTime.UtcNow;
+    }
+    public Guid Id { get; private set; }
+    public Guid WorkoutSessionId { get; private set; }
+    public string ActivityName { get; private set; } = null!;
+    public int DurationMinutes { get; private set; }
+    public decimal? DistanceKm { get; private set; }
+    public int? AverageHeartRate { get; private set; }
+    public DateTime CompletedAtUtc { get; private set; }
 }
 
 public sealed class WorkoutExercise
@@ -251,6 +287,16 @@ public sealed class WorkoutExercise
         SupersetGroupId = null;
         SupersetPosition = null;
         IntervalSeconds = null;
+    }
+    public void ConfigureSuperset(Guid groupId, int position, int intervalSeconds, int restSeconds)
+    {
+        ValidateSuperset(groupId, position, intervalSeconds);
+        if (restSeconds is < 0 or > 3600)
+            throw new ArgumentOutOfRangeException(nameof(restSeconds));
+        SupersetGroupId = groupId;
+        SupersetPosition = position;
+        IntervalSeconds = intervalSeconds;
+        RestSeconds = restSeconds;
     }
     public void ChangeOrder(int order)
     {

@@ -61,6 +61,10 @@ public sealed record SaveSetRequest(Guid WorkoutExerciseId, [Range(1, 50)] int S
 public sealed record CompletedSetResponse(Guid Id, int SetNumber, decimal WeightKg, int Repetitions, decimal? Rir, SetType SetType, DateTime CompletedAtUtc, string? Notes = null);
 public sealed record AddWorkoutExerciseRequest(Guid ExerciseId, [Range(1, 10)] int PlannedSets = 3, [Range(1, 100)] int MinReps = 8, [Range(1, 100)] int MaxReps = 12, [Range(0, 10)] decimal? TargetRir = 2, [Range(0, 3600)] int? RestSeconds = 90);
 public sealed record ReplaceWorkoutExerciseRequest(Guid ExerciseId);
+public sealed record UpdateWorkoutSupersetRequest(
+    [MinLength(2), MaxLength(5)] IReadOnlyList<Guid> WorkoutExerciseIds,
+    [Range(0, 3600)] int IntervalSeconds = 15,
+    [Range(0, 3600)] int RestSeconds = 90);
 public sealed record SaveWorkoutNotesRequest([MaxLength(1000)] string? Notes);
 public sealed record WorkoutSetPresetResponse(
     int SetNumber,
@@ -82,7 +86,23 @@ public sealed record WorkoutExerciseResponse(
     int? SupersetPosition = null,
     int? IntervalSeconds = null,
     IReadOnlyList<WorkoutSetPresetResponse>? Presets = null);
-public sealed record WorkoutSessionResponse(Guid Id, string Name, DateTime StartedAtUtc, DateTime? FinishedAtUtc, SessionStatus Status, IReadOnlyList<WorkoutExerciseResponse> Exercises, bool IsShortened = false, int? TimeLimitMinutes = null);
+public sealed record WorkoutCardioEntryResponse(
+    Guid Id,
+    string ActivityName,
+    int DurationMinutes,
+    decimal? DistanceKm,
+    int? AverageHeartRate,
+    DateTime CompletedAtUtc);
+public sealed record WorkoutSessionResponse(
+    Guid Id,
+    string Name,
+    DateTime StartedAtUtc,
+    DateTime? FinishedAtUtc,
+    SessionStatus Status,
+    IReadOnlyList<WorkoutExerciseResponse> Exercises,
+    bool IsShortened = false,
+    int? TimeLimitMinutes = null,
+    IReadOnlyList<WorkoutCardioEntryResponse>? CardioEntries = null);
 public sealed record ExerciseHistoryEntry(DateTime CompletedAtUtc, decimal WeightKg, int Repetitions, decimal? Rir, decimal Volume);
 public sealed record ExerciseProgressionResponse(Guid Id, Guid ExerciseId, string ExerciseName, decimal SuggestedWeightKg, int MinReps, int MaxReps, string Reason, ProgressionDecision Decision, decimal? AcceptedWeightKg);
 public sealed record DecideProgressionRequest(ProgressionDecision Decision, [Range(0, 1000)] decimal? WeightKg = null);

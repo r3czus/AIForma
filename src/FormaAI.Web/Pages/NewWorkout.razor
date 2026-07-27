@@ -92,6 +92,29 @@
                     </div>
                     <MudTextField @bind-Value="_aiDraft.Name" Label="Nazwa treningu" MaxLength="150" />
 
+                    @if (_aiDraft.Cardio.Count > 0)
+                    {
+                        <section class="ai-cardio-review">
+                            <span class="card-kicker">Cardio rozpoznane z opisu</span>
+                            @for (var cardioIndex = 0; cardioIndex < _aiDraft.Cardio.Count; cardioIndex++)
+                            {
+                                var currentCardioIndex = cardioIndex;
+                                var cardio = _aiDraft.Cardio[currentCardioIndex];
+                                <article>
+                                    <MudTextField @bind-Value="cardio.ActivityName" Label="Aktywność" MaxLength="150" />
+                                    <MudNumericField @bind-Value="cardio.DurationMinutes" Label="Czas (min)" Min="1" Max="1440" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="cardio.DistanceKm" Label="Dystans (km)" Min="0m" Max="1000m" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="cardio.AverageHeartRate" Label="Śr. tętno" Min="30" Max="250" HideSpinButtons="true" />
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Delete"
+                                                   Color="Color.Error"
+                                                   Disabled="_saving"
+                                                   OnClick="() => RemoveAiCardio(currentCardioIndex)"
+                                                   aria-label="@($"Usuń cardio {cardio.ActivityName}")" />
+                                </article>
+                            }
+                        </section>
+                    }
+
                     <div class="ai-workout-exercises">
                         @for (var exerciseIndex = 0; exerciseIndex < _aiDraft.Exercises.Count; exerciseIndex++)
                         {
@@ -134,15 +157,28 @@
                         </MudAlert>
                     }
                     <div class="workout-start-bar">
-                        <span><strong>@_aiDraft.Exercises.Count ćwiczeń</strong><small>@_aiDraft.Exercises.Sum(x => x.Sets.Count) zaplanowanych serii</small></span>
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   Size="Size.Large"
-                                   StartIcon="@Icons.Material.Filled.PlayArrow"
-                                   Disabled="@(_saving || AiValidationErrors.Count > 0)"
-                                   OnClick="StartAiWorkout">
-                            @(_saving ? "Rozpoczynam…" : "Rozpocznij ten trening")
-                        </MudButton>
+                        <span>
+                            <strong>@_aiDraft.Exercises.Count ćwiczeń@if (_aiDraft.Cardio.Count > 0) { <text> · @_aiDraft.Cardio.Count cardio</text> }</strong>
+                            <small>@_aiDraft.Exercises.Sum(x => x.Sets.Count) zaplanowanych serii</small>
+                        </span>
+                        <div class="workout-start-actions">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Large"
+                                       StartIcon="@Icons.Material.Outlined.CheckCircle"
+                                       Disabled="@(_saving || AiValidationErrors.Count > 0)"
+                                       OnClick="SaveAiWorkoutAsCompleted">
+                                @(_saving ? "Zapisuję…" : "Zapisz jako wykonany")
+                            </MudButton>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Size="Size.Large"
+                                       StartIcon="@Icons.Material.Filled.PlayArrow"
+                                       Disabled="@(_saving || AiValidationErrors.Count > 0)"
+                                       OnClick="StartAiWorkout">
+                                @(_saving ? "Rozpoczynam…" : "Rozpocznij ten trening")
+                            </MudButton>
+                        </div>
                     </div>
                 }
             </section>
@@ -317,8 +353,9 @@
         try
         {
             var instruction =
-                "Przygotuj edytowalny szkic treningu do rozpoczęcia teraz. " +
+                "Przygotuj edytowalny szkic treningu. " +
                 "Użyj create_completed_workout_draft wyłącznie jako formatu szkicu i niczego jeszcze nie zapisuj. " +
+                "Użytkownik zdecyduje, czy zapisać trening jako wykonany, czy rozpocząć go jako sesję na żywo. " +
                 $"Opis użytkownika: {description}";
             var response = await AssistantApi.Send(new SendAssistantMessageRequest(
                 null,
@@ -349,6 +386,7 @@
     }
 
     private void RemoveAiExercise(int index) => _aiDraft?.Exercises.RemoveAt(index);
+    private void RemoveAiCardio(int index) => _aiDraft?.Cardio.RemoveAt(index);
 
     private static void AddAiSet(CompletedWorkoutExerciseForm exercise)
     {
@@ -373,6 +411,27 @@
             await AssistantApi.UpdateCompletedWorkout(_aiDraft.Id, _aiDraft.ToRequest());
             var session = await AssistantApi.StartWorkout(_aiDraft.Id);
             Navigation.NavigateTo($"/workout/{session.Id}");
+        }
+        catch (HttpRequestException ex)
+        {
+            await HandleStartError(ex);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveAiWorkoutAsCompleted()
+    {
+        if (_aiDraft is null || AiValidationErrors.Count > 0 || _saving) return;
+        _saving = true;
+        try
+        {
+            await AssistantApi.UpdateCompletedWorkout(_aiDraft.Id, _aiDraft.ToRequest());
+            await AssistantApi.ConfirmCompletedWorkout(_aiDraft.Id);
+            Snackbar.Add("Trening został zapisany jako wykonany.", Severity.Success);
+            Navigation.NavigateTo("/training");
         }
         catch (HttpRequestException ex)
         {
