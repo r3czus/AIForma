@@ -35,4 +35,3 @@ Referencje produkcyjne znajdują się w `docs/design/training-references/`. Są 
 - Zakładki `Historia`, `Wykres`, `Technika` rozdzielają trzy różne zadania.
 - Historia grupuje serie według dat i wyróżnia najlepsze 1RM kolorem akcentu.
 - Nie literalizujemy fotograficznych kadrów z makiet. Aplikacja korzysta z istniejących adresów mediów ćwiczeń i poprawnego stanu zastępczego.
-
