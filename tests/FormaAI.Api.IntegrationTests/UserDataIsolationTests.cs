@@ -134,6 +134,7 @@ public class FormaAiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("Admin:Email", "admin@example.test");
+        builder.UseSetting("RateLimiting:PermitLimit", "10000");
         builder.ConfigureLogging(logging => logging.ClearProviders().AddConsole());
         builder.ConfigureServices(services =>
         {

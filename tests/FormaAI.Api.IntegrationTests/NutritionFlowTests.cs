@@ -119,7 +119,8 @@ public sealed class NutritionFlowTests : IClassFixture<FormaAiFactory>
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         await Register(client, "nutrition-copy@example.test", "Europe/Warsaw");
-        var sourceDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        var sourceDate = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow, "Europe/Warsaw").DateTime);
         var targetDate = sourceDate.AddDays(1);
         var product = await Send<SaveProductRequest, ProductResponse>(
             client,
