@@ -108,6 +108,28 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
         Assert.Equal("Mam już potrzebne ćwiczenia i mogę ułożyć plan.", response.Reply);
     }
 
+    [Fact]
+    public async Task NutritionSummaryExposesMissingMacrosAndOverages()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "assistant-macros@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        await Send<SaveNutritionTargetRequest, NutritionTargetResponse>(
+            client, HttpMethod.Post, "api/v1/nutrition-targets", new(today, 2000, 150, 70, 220));
+        _factory.Model.Enqueue(new AssistantModelTurn(null,
+            new AssistantToolCall("get_today_nutrition_summary", JsonSerializer.SerializeToElement(new { })), 10, 5));
+        _factory.Model.Enqueue(new AssistantModelTurn("Proponuję konkretne danie.", null, 20, 8));
+
+        await Send<SendAssistantMessageRequest, AssistantMessageResponse>(
+            client, HttpMethod.Post, "api/v1/assistant/messages", new(null, "Co zjeść, żeby dobić makro?", today));
+
+        var result = _factory.Model.LastRequest!.ToolResults.Single().Result;
+        using var json = JsonDocument.Parse(result);
+        Assert.True(json.RootElement.GetProperty("hasTarget").GetBoolean());
+        Assert.Equal(2000, json.RootElement.GetProperty("remaining").GetProperty("caloriesKcal").GetDecimal());
+        Assert.Equal(0, json.RootElement.GetProperty("overBy").GetProperty("proteinG").GetDecimal());
+    }
+
     private static async Task Register(HttpClient client, string email) =>
         _ = await Send<RegisterRequest, CurrentUserResponse>(client, HttpMethod.Post, "api/account/register", new(email, "FormaAI!123", "UTC"));
 
@@ -140,9 +162,13 @@ public sealed class AssistantFormaAiFactory : FormaAiFactory
 public sealed class FakeAssistantModel : IAssistantModel
 {
     private readonly ConcurrentQueue<AssistantModelTurn> _turns = new();
+    public AssistantModelRequest? LastRequest { get; private set; }
     public void Enqueue(AssistantModelTurn turn) => _turns.Enqueue(turn);
-    public Task<AssistantModelTurn> Generate(AssistantModelRequest request, CancellationToken cancellationToken) =>
-        Task.FromResult(_turns.TryDequeue(out var turn) ? turn : new AssistantModelTurn("Nie mam kolejnej odpowiedzi.", null, 0, 0));
+    public Task<AssistantModelTurn> Generate(AssistantModelRequest request, CancellationToken cancellationToken)
+    {
+        LastRequest = request;
+        return Task.FromResult(_turns.TryDequeue(out var turn) ? turn : new AssistantModelTurn("Nie mam kolejnej odpowiedzi.", null, 0, 0));
+    }
     public Task<MealPhotoDraftResponse> AnalyzeMealPhotos(IReadOnlyList<MealImage> images, CancellationToken cancellationToken) =>
         Task.FromResult(new MealPhotoDraftResponse("Test", null, []));
     public Task<MealPhotoDraftResponse> AnalyzeMealText(string description, CancellationToken cancellationToken) =>
