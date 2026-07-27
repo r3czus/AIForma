@@ -797,6 +797,10 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .meal-photo-capture strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.3rem; }
 .meal-photo-capture span { color: var(--muted); font-size: .78rem; line-height: 1.45; max-width: 420px; }
 .meal-photo-capture input { height: 1px; opacity: 0; overflow: hidden; position: absolute; width: 1px; }
+.multi-photo-picker { align-items: center; background: var(--surface-soft); border: 1px dashed var(--rule-strong); border-radius: 14px; cursor: pointer; display: grid; gap: 4px; justify-items: center; overflow: hidden; padding: 18px; position: relative; text-align: center; }
+.multi-photo-picker span, .multi-photo-picker small { color: var(--muted); }
+.multi-photo-picker small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multi-photo-picker input { inset: 0; opacity: 0; position: absolute; width: 100%; }
 .meal-photo-capture.busy { cursor: wait; opacity: .72; }
 .ai-analysis-status { align-items: center; background: var(--action-soft); border: 1px solid var(--action); border-radius: 16px; display: flex; gap: 13px; margin: 14px 0; padding: 14px 16px; }
 .ai-analysis-status > div { display: flex; flex-direction: column; gap: 3px; }

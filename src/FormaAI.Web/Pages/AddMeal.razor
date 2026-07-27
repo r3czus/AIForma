@@ -242,9 +242,10 @@
                 {
                     <label class="meal-photo-capture @(_aiBusy ? "busy" : null)">
                         <MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" />
-                        <strong>@(_aiBusy ? "AI analizuje zdjęcie…" : "Zrób zdjęcie posiłku")</strong>
-                        <span>Na iPhonie otworzy się aparat. Możesz też wskazać zdjęcie z galerii.</span>
-                        <InputFile OnChange="AnalyzePhoto" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" disabled="@_aiBusy" />
+                        <strong>@(_aiBusy ? "AI analizuje zdjęcia…" : "Wybierz zdjęcia posiłku")</strong>
+                        <span>Dodaj od 1 do 5 ujęć z galerii telefonu. AI potraktuje je jako jeden posiłek.</span>
+                        @if (_selectedMealPhotos.Count > 0) { <small>@string.Join(" · ", _selectedMealPhotos.Select(x => x.Name))</small> }
+                        <InputFile OnChange="AnalyzePhoto" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple disabled="@_aiBusy" />
                     </label>
                 }
                 else
@@ -326,6 +327,7 @@
     private CatalogScope _catalogScope;
     private string _mealDescription = string.Empty;
     private AiMealForm? _aiDraft;
+    private IReadOnlyList<IBrowserFile> _selectedMealPhotos = [];
     private bool _loading = true;
     private bool _aiBusy;
     private bool _saving;
@@ -548,8 +550,12 @@
 
     private async Task AnalyzePhoto(InputFileChangeEventArgs args)
     {
-        if (args.File.Size > 12 * 1024 * 1024) { Snackbar.Add("Zdjęcie może mieć maksymalnie 12 MB.", Severity.Warning); return; }
-        await Analyze(() => Nutrition.AnalyzeMealPhoto(args.File));
+        if (args.FileCount is < 1 or > 5) { Snackbar.Add("Wybierz od 1 do 5 zdjęć.", Severity.Warning); return; }
+        var photos = args.GetMultipleFiles(5);
+        var error = MealImageBatchValidator.Validate(photos.Select(x => new MealImageDescriptor(x.ContentType, x.Size)).ToList());
+        if (error is not null) { Snackbar.Add(error, Severity.Warning); return; }
+        _selectedMealPhotos = photos;
+        await Analyze(() => Nutrition.AnalyzeMealPhotos(photos));
     }
     private async Task AnalyzeText() => await Analyze(() => Nutrition.AnalyzeMealText(_mealDescription));
     private async Task Analyze(Func<Task<MealPhotoDraftResponse>> action)

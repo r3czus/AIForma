@@ -41,20 +41,21 @@ public sealed class GeminiAssistantModel(
             : await SendOpenAi(config, request.SystemInstruction, prompt, cancellationToken);
     }
 
-    public async Task<MealPhotoDraftResponse> AnalyzeMealPhoto(byte[] image, string mimeType, CancellationToken cancellationToken)
+    public async Task<MealPhotoDraftResponse> AnalyzeMealPhotos(IReadOnlyList<MealImage> images, CancellationToken cancellationToken)
     {
         var config = await RuntimeSettings(cancellationToken);
         if (string.IsNullOrWhiteSpace(config.ApiKey)) throw new AssistantModelUnavailableException("Brak klucza API.");
 
         var prompt = """
-            Przeanalizuj zdjęcie jedzenia. Rozpoznaj osobne składniki widoczne na talerzu i oszacuj ich masę oraz wartości odżywcze na 100 g.
+            Przeanalizuj wszystkie zdjęcia jako różne ujęcia tego samego posiłku. Nie licz ponownie składnika widocznego na kilku zdjęciach.
+            Rozpoznaj osobne składniki widoczne na talerzu i oszacuj ich masę oraz wartości odżywcze na 100 g.
             Nie udawaj pewności: w polu note krótko opisz najważniejsze założenia. Gdy zdjęcie nie przedstawia jedzenia, zwróć pustą listę items.
             Nazwy podaj po polsku. Nie dodawaj składników, których nie widać, poza oczywistym olejem lub sosem potrzebnym do przygotowania potrawy.
             """;
 
         var json = config.Provider == AiProvider.Gemini
-            ? await SendGeminiMeal(config, prompt, image, mimeType, cancellationToken)
-            : await SendOpenAiMeal(config, prompt, image, mimeType, cancellationToken);
+            ? await SendGeminiMeal(config, prompt, images, cancellationToken)
+            : await SendOpenAiMeal(config, prompt, images, cancellationToken);
         return ParseMeal(json);
     }
 
@@ -68,8 +69,8 @@ public sealed class GeminiAssistantModel(
             Opis użytkownika: {description}
             """;
         var json = config.Provider == AiProvider.Gemini
-            ? await SendGeminiMeal(config, prompt, null, null, cancellationToken)
-            : await SendOpenAiMeal(config, prompt, null, null, cancellationToken);
+            ? await SendGeminiMeal(config, prompt, [], cancellationToken)
+            : await SendOpenAiMeal(config, prompt, [], cancellationToken);
         return ParseMeal(json);
     }
 
@@ -89,11 +90,10 @@ public sealed class GeminiAssistantModel(
         return new MealPhotoDraftResponse(string.IsNullOrWhiteSpace(parsed.MealName) ? "Posiłek ze zdjęcia" : parsed.MealName.Trim(), parsed.Note?.Trim(), items);
     }
 
-    private async Task<string> SendGeminiMeal(RuntimeConfig config, string prompt, byte[]? image, string? mimeType, CancellationToken cancellationToken)
+    private async Task<string> SendGeminiMeal(RuntimeConfig config, string prompt, IReadOnlyList<MealImage> images, CancellationToken cancellationToken)
     {
-        object[] parts = image is null
-            ? [new { text = prompt }]
-            : [new { text = prompt }, new { inlineData = new { mimeType, data = Convert.ToBase64String(image) } }];
+        var parts = new List<object> { new { text = prompt } };
+        parts.AddRange(images.Select(image => (object)new { inlineData = new { mimeType = image.MimeType, data = Convert.ToBase64String(image.Content) } }));
         var body = new
         {
             contents = new[]
@@ -121,12 +121,11 @@ public sealed class GeminiAssistantModel(
         return string.IsNullOrWhiteSpace(text) ? throw new AssistantModelUnavailableException("Model nie rozpoznał zawartości zdjęcia.") : text;
     }
 
-    private async Task<string> SendOpenAiMeal(RuntimeConfig config, string prompt, byte[]? image, string? mimeType, CancellationToken cancellationToken)
+    private async Task<string> SendOpenAiMeal(RuntimeConfig config, string prompt, IReadOnlyList<MealImage> images, CancellationToken cancellationToken)
     {
         var format = " Zwróć JSON: mealName, note oraz items z polami name, amountGrams, caloriesPer100, proteinPer100, fatPer100, carbohydratesPer100.";
-        object[] content = image is null
-            ? [new { type = "text", text = prompt + format }]
-            : [new { type = "text", text = prompt + format }, new { type = "image_url", image_url = new { url = $"data:{mimeType};base64,{Convert.ToBase64String(image)}" } }];
+        var content = new List<object> { new { type = "text", text = prompt + format } };
+        content.AddRange(images.Select(image => (object)new { type = "image_url", image_url = new { url = $"data:{image.MimeType};base64,{Convert.ToBase64String(image.Content)}" } }));
         var body = new
         {
             model = config.Model,

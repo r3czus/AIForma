@@ -62,14 +62,18 @@ public sealed class NutritionClient(HttpClient http)
         return await ReadAnalysis(response);
     }
 
-    public async Task<MealPhotoDraftResponse> AnalyzeMealPhoto(IBrowserFile photo)
+    public Task<MealPhotoDraftResponse> AnalyzeMealPhoto(IBrowserFile photo) => AnalyzeMealPhotos([photo]);
+
+    public async Task<MealPhotoDraftResponse> AnalyzeMealPhotos(IReadOnlyList<IBrowserFile> photos)
     {
         var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
         using var content = new MultipartFormDataContent();
-        await using var stream = photo.OpenReadStream(12 * 1024 * 1024);
-        using var file = new StreamContent(stream);
-        file.Headers.ContentType = new MediaTypeHeaderValue(photo.ContentType);
-        content.Add(file, "photo", photo.Name);
+        foreach (var photo in photos)
+        {
+            var file = new StreamContent(photo.OpenReadStream(12 * 1024 * 1024));
+            file.Headers.ContentType = new MediaTypeHeaderValue(photo.ContentType);
+            content.Add(file, "photos", photo.Name);
+        }
         using var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/nutrition/meal-photo") { Content = content };
         request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
         using var response = await http.SendAsync(request);

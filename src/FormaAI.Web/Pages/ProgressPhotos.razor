@@ -10,8 +10,14 @@
     <header class="module-heading compact-heading"><MudIconButton Icon="@Icons.Material.Outlined.ArrowBack" Href="/progress" aria-label="Wróć" /><div><span class="page-kicker">Prywatna historia</span><MudText Typo="Typo.h4">Zdjęcia progresu</MudText><p>Porównuj tę samą pozę i podobne warunki. Zdjęcia wymagają zalogowania i nie są publicznymi plikami.</p></div></header>
     <MudPaper Class="progress-card photo-upload-card" Elevation="0">
         <div class="field-grid"><MudDatePicker Label="Data zdjęcia" @bind-Date="_date" DateFormat="dd.MM.yyyy" /><MudSelect T="ProgressPhotoPose" @bind-Value="_pose" Label="Poza"><MudSelectItem Value="ProgressPhotoPose.Front">Przód</MudSelectItem><MudSelectItem Value="ProgressPhotoPose.Side">Bok</MudSelectItem><MudSelectItem Value="ProgressPhotoPose.Back">Tył</MudSelectItem></MudSelect></div>
-        <MudFileUpload T="IBrowserFile" FilesChanged="SelectFile" Accept="image/*" MaximumFileCount="1"><ActivatorContent><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.AddAPhoto">@(_file is null ? "Wybierz zdjęcie" : _file.Name)</MudButton></ActivatorContent></MudFileUpload>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_file is null || _saving)" OnClick="Save">Zapisz prywatne zdjęcie</MudButton>
+        <label class="multi-photo-picker">
+            <MudIcon Icon="@Icons.Material.Outlined.AddAPhoto" />
+            <strong>@(_files.Count == 0 ? "Wybierz zdjęcia z galerii" : $"Wybrano: {_files.Count}")</strong>
+            <span>Maksymalnie 5 zdjęć, każde do 15 MB.</span>
+            @if (_files.Count > 0) { <small>@string.Join(" · ", _files.Select(x => x.Name))</small> }
+            <InputFile OnChange="SelectFiles" accept="image/*" multiple disabled="@_saving" />
+        </label>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_files.Count == 0 || _saving)" OnClick="Save">@(_saving ? "Zapisuję zdjęcia…" : "Zapisz prywatne zdjęcia")</MudButton>
     </MudPaper>
     @if (_loading) { <PageSkeleton Message="Wczytuję zdjęcia progresu" Compact="true" /> }
     else
@@ -27,11 +33,34 @@
 </MudContainer>
 
 @code {
-    private IReadOnlyList<ProgressPhotoResponse> _photos = []; private readonly HashSet<Guid> _selected = []; private IBrowserFile? _file; private DateTime? _date = DateTime.Today; private ProgressPhotoPose _pose; private ProgressPhotoPose _filter; private bool _loading = true; private bool _saving;
+    private IReadOnlyList<ProgressPhotoResponse> _photos = []; private readonly HashSet<Guid> _selected = []; private IReadOnlyList<IBrowserFile> _files = []; private DateTime? _date = DateTime.Today; private ProgressPhotoPose _pose; private ProgressPhotoPose _filter; private bool _loading = true; private bool _saving;
     private IReadOnlyList<ProgressPhotoResponse> Filtered => _photos.Where(x => x.Pose == _filter).OrderBy(x => x.LocalDate).ToList();
     protected override async Task OnInitializedAsync() { if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; } await Reload(); _loading = false; }
-    private void SelectFile(IBrowserFile? file) => _file = file;
-    private async Task Save() { if (_file is null || _date is null) return; _saving = true; try { await Coaching.AddPhoto(_file, DateOnly.FromDateTime(_date.Value), _pose); _file = null; _filter = _pose; await Reload(); Snackbar.Add("Zdjęcie zapisane prywatnie.", Severity.Success); } finally { _saving = false; } }
+    private void SelectFiles(InputFileChangeEventArgs args)
+    {
+        if (args.FileCount is < 1 or > 5) { Snackbar.Add("Wybierz od 1 do 5 zdjęć.", Severity.Warning); return; }
+        var files = args.GetMultipleFiles(5);
+        var invalid = files.FirstOrDefault(x => x.Size is 0 or > 15 * 1024 * 1024);
+        if (invalid is not null) { Snackbar.Add($"Plik {invalid.Name} jest pusty albo przekracza 15 MB.", Severity.Warning); return; }
+        _files = files;
+    }
+    private async Task Save()
+    {
+        if (_files.Count == 0 || _date is null) return;
+        _saving = true;
+        var saved = 0;
+        var failed = 0;
+        foreach (var file in _files)
+        {
+            try { await Coaching.AddPhoto(file, DateOnly.FromDateTime(_date.Value), _pose); saved++; }
+            catch (HttpRequestException) { failed++; }
+        }
+        _files = [];
+        _filter = _pose;
+        await Reload();
+        Snackbar.Add(failed == 0 ? $"Zapisano prywatnie {saved} zdjęć." : $"Zapisano {saved}, odrzucono {failed}.", failed == 0 ? Severity.Success : Severity.Warning);
+        _saving = false;
+    }
     private void Toggle(Guid id) { if (!_selected.Remove(id)) { if (_selected.Count == 2) _selected.Remove(_selected.First()); _selected.Add(id); } }
     private async Task Delete(Guid id) { await Coaching.DeletePhoto(id); _selected.Remove(id); await Reload(); }
     private async Task Reload() => _photos = await Coaching.GetPhotos();

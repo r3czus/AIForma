@@ -6,9 +6,11 @@ namespace FormaAI.Application.Assistant;
 public interface IAssistantModel
 {
     Task<AssistantModelTurn> Generate(AssistantModelRequest request, CancellationToken cancellationToken);
-    Task<MealPhotoDraftResponse> AnalyzeMealPhoto(byte[] image, string mimeType, CancellationToken cancellationToken);
+    Task<MealPhotoDraftResponse> AnalyzeMealPhotos(IReadOnlyList<MealImage> images, CancellationToken cancellationToken);
     Task<MealPhotoDraftResponse> AnalyzeMealText(string description, CancellationToken cancellationToken);
 }
+
+public sealed record MealImage(byte[] Content, string MimeType);
 
 public sealed record AssistantModelRequest(string SystemInstruction, IReadOnlyList<AssistantModelMessage> Messages, IReadOnlyList<AssistantToolResult> ToolResults);
 public sealed record AssistantModelMessage(string Role, string Text);

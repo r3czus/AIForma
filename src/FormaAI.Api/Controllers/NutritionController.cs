@@ -182,16 +182,19 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
     [HttpPost("nutrition/meal-photo")]
     [ValidateAntiForgeryToken]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(12 * 1024 * 1024)]
-    public async Task<ActionResult<MealPhotoDraftResponse>> AnalyzePhoto([FromForm] IFormFile photo, CancellationToken cancellationToken)
+    [RequestSizeLimit(61 * 1024 * 1024)]
+    public async Task<ActionResult<MealPhotoDraftResponse>> AnalyzePhoto([FromForm] IReadOnlyList<IFormFile> photos, CancellationToken cancellationToken)
     {
-        var mime = photo.ContentType.ToLowerInvariant();
-        if (photo.Length is 0 or > 12 * 1024 * 1024) return BadRequest("Zdjęcie może mieć maksymalnie 12 MB.");
-        if (mime is not ("image/jpeg" or "image/png" or "image/webp" or "image/heic" or "image/heif"))
-            return BadRequest("Obsługiwane formaty to JPEG, PNG, WEBP, HEIC i HEIF.");
-        await using var stream = new MemoryStream((int)photo.Length);
-        await photo.CopyToAsync(stream, cancellationToken);
-        try { return await assistant.AnalyzeMealPhoto(stream.ToArray(), mime, cancellationToken); }
+        var validation = MealImageBatchValidator.Validate(photos.Select(x => new MealImageDescriptor(x.ContentType, x.Length)).ToList());
+        if (validation is not null) return BadRequest(validation);
+        var images = new List<MealImage>(photos.Count);
+        foreach (var photo in photos)
+        {
+            await using var stream = new MemoryStream((int)photo.Length);
+            await photo.CopyToAsync(stream, cancellationToken);
+            images.Add(new MealImage(stream.ToArray(), photo.ContentType.ToLowerInvariant()));
+        }
+        try { return await assistant.AnalyzeMealPhotos(images, cancellationToken); }
         catch (AssistantModelUnavailableException ex) { return StatusCode(StatusCodes.Status503ServiceUnavailable, ex.Message); }
     }
 
