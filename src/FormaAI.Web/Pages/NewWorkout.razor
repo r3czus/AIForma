@@ -135,14 +135,24 @@
                     }
                     <div class="workout-start-bar">
                         <span><strong>@_aiDraft.Exercises.Count ćwiczeń</strong><small>@_aiDraft.Exercises.Sum(x => x.Sets.Count) zaplanowanych serii</small></span>
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   Size="Size.Large"
-                                   StartIcon="@Icons.Material.Filled.PlayArrow"
-                                   Disabled="@(_saving || AiValidationErrors.Count > 0)"
-                                   OnClick="StartAiWorkout">
-                            @(_saving ? "Rozpoczynam…" : "Rozpocznij ten trening")
-                        </MudButton>
+                        <div class="workout-start-actions">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Large"
+                                       StartIcon="@Icons.Material.Outlined.CheckCircle"
+                                       Disabled="@(_saving || AiValidationErrors.Count > 0)"
+                                       OnClick="SaveAiWorkoutAsCompleted">
+                                @(_saving ? "Zapisuję…" : "Zapisz jako wykonany")
+                            </MudButton>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Size="Size.Large"
+                                       StartIcon="@Icons.Material.Filled.PlayArrow"
+                                       Disabled="@(_saving || AiValidationErrors.Count > 0)"
+                                       OnClick="StartAiWorkout">
+                                @(_saving ? "Rozpoczynam…" : "Rozpocznij ten trening")
+                            </MudButton>
+                        </div>
                     </div>
                 }
             </section>
@@ -317,8 +327,9 @@
         try
         {
             var instruction =
-                "Przygotuj edytowalny szkic treningu do rozpoczęcia teraz. " +
+                "Przygotuj edytowalny szkic treningu. " +
                 "Użyj create_completed_workout_draft wyłącznie jako formatu szkicu i niczego jeszcze nie zapisuj. " +
+                "Użytkownik zdecyduje, czy zapisać trening jako wykonany, czy rozpocząć go jako sesję na żywo. " +
                 $"Opis użytkownika: {description}";
             var response = await AssistantApi.Send(new SendAssistantMessageRequest(
                 null,
@@ -373,6 +384,27 @@
             await AssistantApi.UpdateCompletedWorkout(_aiDraft.Id, _aiDraft.ToRequest());
             var session = await AssistantApi.StartWorkout(_aiDraft.Id);
             Navigation.NavigateTo($"/workout/{session.Id}");
+        }
+        catch (HttpRequestException ex)
+        {
+            await HandleStartError(ex);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveAiWorkoutAsCompleted()
+    {
+        if (_aiDraft is null || AiValidationErrors.Count > 0 || _saving) return;
+        _saving = true;
+        try
+        {
+            await AssistantApi.UpdateCompletedWorkout(_aiDraft.Id, _aiDraft.ToRequest());
+            await AssistantApi.ConfirmCompletedWorkout(_aiDraft.Id);
+            Snackbar.Add("Trening został zapisany jako wykonany.", Severity.Success);
+            Navigation.NavigateTo("/training");
         }
         catch (HttpRequestException ex)
         {

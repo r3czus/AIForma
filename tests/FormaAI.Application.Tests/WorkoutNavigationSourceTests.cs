@@ -26,6 +26,17 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("ApplyNextPreset", source);
     }
 
+    [Fact]
+    public void AiWorkoutReviewCanBeSavedAsCompletedOrStarted()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "NewWorkout.razor"));
+
+        Assert.Contains("Zapisz jako wykonany", source);
+        Assert.Contains("SaveAiWorkoutAsCompleted", source);
+        Assert.Contains("Rozpocznij ten trening", source);
+        Assert.Contains("StartAiWorkout", source);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

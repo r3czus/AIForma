@@ -87,7 +87,7 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
                 toolResults.Add(new AssistantToolResult(turn.ToolCall.Name, turn.ToolCall.Arguments, result.Json));
                 if (!result.Succeeded && ++failedCalls > 1)
                 {
-                    reply = "Nie udało się sprawdzić podanych danych. Doprecyzuj produkt i wielkość porcji.";
+                    reply = AssistantFailureCopy.ForRequest(request.Message);
                     break;
                 }
             }
