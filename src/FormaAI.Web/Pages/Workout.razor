@@ -25,6 +25,21 @@
             <span class="data-chip">@CompletedSets / @PlannedSets serii</span>
         </header>
 
+        @if (_session.CardioEntries is { Count: > 0 })
+        {
+            <section class="workout-cardio-summary">
+                <span class="card-kicker">Cardio w tej sesji</span>
+                @foreach (var cardio in _session.CardioEntries)
+                {
+                    <div>
+                        <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
+                        <strong>@cardio.ActivityName</strong>
+                        <span>@cardio.DurationMinutes min@if (cardio.DistanceKm is not null) { <text> · @cardio.DistanceKm.GetValueOrDefault().ToString("0.##") km</text> }</span>
+                    </div>
+                }
+            </section>
+        }
+
         @if (_completed)
         {
             <section class="workout-finish-summary">
@@ -198,7 +213,9 @@
                             @foreach (var item in OrderedExercises)
                             {
                                 var selected = _supersetExerciseIds.Contains(item.Id);
-                                <button type="button" class="@(selected ? "selected" : null)" aria-pressed="@selected" @onclick="() => ToggleSupersetExercise(item.Id)">
+                                <button type="button" class="@(selected ? "selected" : null)" aria-pressed="@selected"
+                                        disabled="@(!selected && _supersetExerciseIds.Count >= 5)"
+                                        @onclick="() => ToggleSupersetExercise(item.Id)">
                                     <span>@(OrderedExercises.ToList().FindIndex(x => x.Id == item.Id) + 1)</span>
                                     <strong>@item.ExerciseName</strong>
                                     <MudIcon Icon="@(selected ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" />
@@ -296,6 +313,15 @@
                 <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ i zobacz podsumowanie</MudButton>
                 <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
             </div>
+        }
+        else if (_session.CardioEntries is { Count: > 0 })
+        {
+            <section class="cardio-only-workout">
+                <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
+                <div><span class="page-kicker">Cardio gotowe do zapisania</span><h2>@_session.Name</h2><p>Sprawdź rozpoznany czas i zakończ sesję, aby zapisać ją w historii.</p></div>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ trening cardio</MudButton>
+                <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
+            </section>
         }
     }
 </MudContainer>
@@ -559,7 +585,7 @@
 
     private void ToggleSupersetExercise(Guid exerciseId)
     {
-        if (!_supersetExerciseIds.Remove(exerciseId))
+        if (!_supersetExerciseIds.Remove(exerciseId) && _supersetExerciseIds.Count < 5)
             _supersetExerciseIds.Add(exerciseId);
     }
 

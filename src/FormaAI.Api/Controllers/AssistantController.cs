@@ -227,8 +227,20 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
                         x.IsActive &&
                         (x.OwnerUserId == null || x.OwnerUserId == userId))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
-        var duration = Math.Clamp(payload.Exercises.Count * 12, 30, 120);
+        var duration = Math.Clamp(
+            payload.Exercises.Count * 12 + (payload.Cardio ?? []).Sum(x => x.DurationMinutes),
+            30,
+            180);
         var session = new WorkoutSession(userId, payload.Name, duration);
+        foreach (var cardio in payload.Cardio ?? [])
+        {
+            session.CardioEntries.Add(new WorkoutCardioEntry(
+                session.Id,
+                cardio.ActivityName,
+                cardio.DurationMinutes,
+                cardio.DistanceKm,
+                cardio.AverageHeartRate));
+        }
 
         for (var index = 0; index < payload.Exercises.Count; index++)
         {

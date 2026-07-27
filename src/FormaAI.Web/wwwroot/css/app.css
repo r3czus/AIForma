@@ -1897,6 +1897,26 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     text-align: center;
 }
 .workout-motion-placeholder .mud-icon-root { color: var(--action); font-size: 2.5rem; }
+.workout-cardio-summary {
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+}
+.workout-cardio-summary > div {
+    align-items: center;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+}
+.workout-cardio-summary .mud-icon-root { color: var(--action); }
+.workout-cardio-summary span:last-child { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: .78rem; }
+.cardio-only-workout { display: grid; gap: 14px; justify-items: start; padding: 28px 0; }
+.cardio-only-workout > .mud-icon-root { color: var(--action); font-size: 3rem; }
+.cardio-only-workout h2,
+.cardio-only-workout p { margin: 0; }
+.cardio-only-workout p { color: var(--muted); margin-top: 5px; }
 .exercise-live-actions {
     display: grid;
     gap: 8px;

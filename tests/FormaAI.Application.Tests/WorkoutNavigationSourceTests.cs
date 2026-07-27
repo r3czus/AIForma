@@ -77,6 +77,15 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("text-align: left", source);
     }
 
+    [Fact]
+    public void CardioOnlyLiveWorkoutCanBeFinished()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+
+        Assert.Contains("workout-cardio-summary", source);
+        Assert.Contains("Zakończ trening cardio", source);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

@@ -196,6 +196,39 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
     }
 
     [Fact]
+    public async Task CardioDraftCanStartLiveSessionWithoutLosingCardio()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "assistant-cardio-live@example.test");
+        var localDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        _factory.Model.Enqueue(new AssistantModelTurn(null, new AssistantToolCall(
+            "create_completed_workout_draft",
+            JsonSerializer.SerializeToElement(new
+            {
+                name = "Cardio na żywo",
+                localDate,
+                exercises = Array.Empty<object>(),
+                cardio = new[] { new { activityName = "Orbitrek", durationMinutes = 30, distanceKm = (decimal?)null, averageHeartRate = (int?)140 } }
+            })), 20, 8));
+        _factory.Model.Enqueue(new AssistantModelTurn("Szkic gotowy.", null, 20, 8));
+        var response = await Send<SendAssistantMessageRequest, AssistantMessageResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/assistant/messages",
+            new(null, "30 minut na orbitreku", localDate));
+
+        var started = await Send<object, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            $"api/v1/assistant/actions/{response.CompletedWorkoutDraft!.Id}/start-workout",
+            new { });
+
+        Assert.Equal(FormaAI.Domain.Training.SessionStatus.InProgress, started.Status);
+        Assert.Equal(30, Assert.Single(started.CardioEntries!).DurationMinutes);
+    }
+
+    [Fact]
     public async Task CompletedWorkoutDraftStartsActiveWorkoutOnlyAfterExplicitApproval()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

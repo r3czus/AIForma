@@ -258,9 +258,19 @@
                 <div hidden="@_exerciseEditorOpen">
                 <div class="tab-section-heading"><div><span class="card-kicker">Biblioteka</span><h2>Ćwiczenia</h2></div><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="StartNewExercise">Dodaj ćwiczenie</MudButton></div>
                 <div class="exercise-index">
-                    @foreach (var exercise in _exercises)
+                    @foreach (var exercise in _allExercises)
                     {
-                        <article class="exercise-card"><div><strong>@exercise.Name</strong>@if (exercise.IsOwn) { <div class="exercise-card-actions"><small>Własne</small><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditLibraryExercise(exercise)" aria-label="Edytuj własne ćwiczenie" /></div> }</div><span>@EngagementLabel(exercise) · @EquipmentName(exercise.Equipment)</span>@if (!string.IsNullOrWhiteSpace(exercise.Description)) { <p>@exercise.Description</p> }</article>
+                        <article class="exercise-card">
+                            <div>
+                                <strong>@exercise.Name</strong>
+                                <div class="exercise-card-actions">
+                                    @if (exercise.IsOwn) { <small>Własne</small><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditLibraryExercise(exercise)" aria-label="Edytuj własne ćwiczenie" /> }
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Image" Size="Size.Small" Href="@($"/training/exercises/{exercise.Id}")" aria-label="@($"Otwórz szczegóły i media: {exercise.Name}")" />
+                                </div>
+                            </div>
+                            <span>@EngagementLabel(exercise) · @EquipmentName(exercise.Equipment)</span>
+                            @if (!string.IsNullOrWhiteSpace(exercise.Description)) { <p>@exercise.Description</p> }
+                        </article>
                     }
                 </div>
                 </div>
@@ -317,6 +327,7 @@
     [SupplyParameterFromQuery(Name = "editExercise")] public Guid? EditExerciseQuery { get; set; }
 
     private IReadOnlyList<ExerciseResponse> _exercises = [];
+    private IReadOnlyList<ExerciseResponse> _allExercises = [];
     private string _exerciseSearch = string.Empty;
     private int _exerciseSearchVersion;
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
@@ -360,13 +371,20 @@
         }
         else if (EditExerciseQuery is Guid exerciseId)
         {
-            var exercise = _exercises.FirstOrDefault(x => x.Id == exerciseId && x.IsOwn);
+            var exercise = _allExercises.FirstOrDefault(x => x.Id == exerciseId && x.IsOwn);
             if (exercise is not null)
                 EditLibraryExercise(exercise);
         }
         _loading = false;
     }
-    private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); _activeSession = await TrainingApi.GetActiveSession(); }
+    private async Task Reload()
+    {
+        _allExercises = await TrainingApi.GetExercises();
+        _exercises = _allExercises;
+        _plans = await TrainingApi.GetPlans();
+        _today = await TrainingApi.GetToday();
+        _activeSession = await TrainingApi.GetActiveSession();
+    }
     private TrainingDayResponse SelectedDay(TrainingPlanResponse plan)
     {
         var ordered = plan.Days.OrderBy(x => x.SequenceNumber).ToList();
@@ -375,12 +393,12 @@
         return ordered[0];
     }
     private void SelectPlanDay(Guid planId, Guid dayId) => _selectedPlanDays[planId] = dayId;
-    private ExerciseResponse? ExerciseMedia(Guid exerciseId) => _exercises.FirstOrDefault(x => x.Id == exerciseId);
+    private ExerciseResponse? ExerciseMedia(Guid exerciseId) => _allExercises.FirstOrDefault(x => x.Id == exerciseId);
     private async Task SearchExercises(string value)
     {
         _exerciseSearch = value;
         var searchVersion = ++_exerciseSearchVersion;
-        var selected = _exercises.FirstOrDefault(x => x.Id == _planned.ExerciseId);
+        var selected = _allExercises.FirstOrDefault(x => x.Id == _planned.ExerciseId);
         try
         {
             var results = (await TrainingApi.GetExercises(value)).ToList();
