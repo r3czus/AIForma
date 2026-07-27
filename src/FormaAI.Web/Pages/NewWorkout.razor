@@ -92,6 +92,29 @@
                     </div>
                     <MudTextField @bind-Value="_aiDraft.Name" Label="Nazwa treningu" MaxLength="150" />
 
+                    @if (_aiDraft.Cardio.Count > 0)
+                    {
+                        <section class="ai-cardio-review">
+                            <span class="card-kicker">Cardio rozpoznane z opisu</span>
+                            @for (var cardioIndex = 0; cardioIndex < _aiDraft.Cardio.Count; cardioIndex++)
+                            {
+                                var currentCardioIndex = cardioIndex;
+                                var cardio = _aiDraft.Cardio[currentCardioIndex];
+                                <article>
+                                    <MudTextField @bind-Value="cardio.ActivityName" Label="Aktywność" MaxLength="150" />
+                                    <MudNumericField @bind-Value="cardio.DurationMinutes" Label="Czas (min)" Min="1" Max="1440" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="cardio.DistanceKm" Label="Dystans (km)" Min="0m" Max="1000m" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="cardio.AverageHeartRate" Label="Śr. tętno" Min="30" Max="250" HideSpinButtons="true" />
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Delete"
+                                                   Color="Color.Error"
+                                                   Disabled="_saving"
+                                                   OnClick="() => RemoveAiCardio(currentCardioIndex)"
+                                                   aria-label="@($"Usuń cardio {cardio.ActivityName}")" />
+                                </article>
+                            }
+                        </section>
+                    }
+
                     <div class="ai-workout-exercises">
                         @for (var exerciseIndex = 0; exerciseIndex < _aiDraft.Exercises.Count; exerciseIndex++)
                         {
@@ -134,7 +157,10 @@
                         </MudAlert>
                     }
                     <div class="workout-start-bar">
-                        <span><strong>@_aiDraft.Exercises.Count ćwiczeń</strong><small>@_aiDraft.Exercises.Sum(x => x.Sets.Count) zaplanowanych serii</small></span>
+                        <span>
+                            <strong>@_aiDraft.Exercises.Count ćwiczeń@if (_aiDraft.Cardio.Count > 0) { <text> · @_aiDraft.Cardio.Count cardio</text> }</strong>
+                            <small>@_aiDraft.Exercises.Sum(x => x.Sets.Count) zaplanowanych serii</small>
+                        </span>
                         <div class="workout-start-actions">
                             <MudButton Variant="Variant.Outlined"
                                        Color="Color.Primary"
@@ -360,6 +386,7 @@
     }
 
     private void RemoveAiExercise(int index) => _aiDraft?.Exercises.RemoveAt(index);
+    private void RemoveAiCardio(int index) => _aiDraft?.Cardio.RemoveAt(index);
 
     private static void AddAiSet(CompletedWorkoutExerciseForm exercise)
     {

@@ -469,7 +469,7 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
         }
         if (draft.Status != AssistantDraftStatus.Pending)
             return Conflict("Ten szkic nie oczekuje już na zatwierdzenie.");
-        var payload = new AssistantCompletedWorkoutDraftPayload(request.LocalDate, request.Name, request.Exercises);
+        var payload = new AssistantCompletedWorkoutDraftPayload(request.LocalDate, request.Name, request.Exercises, request.Cardio);
         await ValidateCompletedWorkout(userId, payload, cancellationToken);
         draft.UpdatePayload(JsonSerializer.Serialize(payload, JsonOptions));
         await db.SaveChangesAsync(cancellationToken);
@@ -559,6 +559,15 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
             .Where(x => exerciseIds.Contains(x.Id) && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
         var session = new WorkoutSession(userId, payload.Name, null);
+        foreach (var cardio in payload.Cardio ?? [])
+        {
+            session.CardioEntries.Add(new WorkoutCardioEntry(
+                session.Id,
+                cardio.ActivityName,
+                cardio.DurationMinutes,
+                cardio.DistanceKm,
+                cardio.AverageHeartRate));
+        }
         for (var index = 0; index < payload.Exercises.Count; index++)
         {
             var source = payload.Exercises[index];
@@ -597,7 +606,9 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
         AssistantCompletedWorkoutDraftPayload payload,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(payload.Name) || payload.Name.Length > 150 || payload.Exercises.Count is < 1 or > 20)
+        var cardio = payload.Cardio ?? [];
+        if (string.IsNullOrWhiteSpace(payload.Name) || payload.Name.Length > 150 ||
+            payload.Exercises.Count > 20 || payload.Exercises.Count == 0 && cardio.Count == 0)
             throw new ArgumentException("invalid_completed_workout");
         if (payload.Exercises.Any(x =>
                 string.IsNullOrWhiteSpace(x.ExerciseName) ||
@@ -607,6 +618,13 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
                                   set.Repetitions is < 1 or > 1000 ||
                                   set.Rir is < 0 or > 10)))
             throw new ArgumentException("invalid_completed_workout_exercise");
+        if (cardio.Count > 10 || cardio.Any(x =>
+                string.IsNullOrWhiteSpace(x.ActivityName) ||
+                x.ActivityName.Length > 150 ||
+                x.DurationMinutes is < 1 or > 1440 ||
+                x.DistanceKm is < 0 or > 1000 ||
+                x.AverageHeartRate is < 30 or > 250))
+            throw new ArgumentException("invalid_completed_workout_cardio");
         var ids = payload.Exercises.Select(x => x.ExerciseId).Distinct().ToList();
         var count = await db.Exercises.CountAsync(
             x => ids.Contains(x.Id) && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId),
@@ -624,6 +642,7 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
             .ThenInclude(x => x.Sets)
             .Include(x => x.Exercises)
             .ThenInclude(x => x.Presets)
+            .Include(x => x.CardioEntries)
             .SingleAsync(x => x.Id == sessionId && x.UserId == userId, cancellationToken);
 
     private async Task ValidateTrainingPlan(string userId, SaveTrainingPlanRequest request, CancellationToken cancellationToken)
@@ -697,7 +716,8 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
             payload.LocalDate,
             payload.Name,
             payload.Exercises,
-            draft.ExpiresAtUtc);
+            draft.ExpiresAtUtc,
+            payload.Cardio);
     }
 
     private async Task<DateOnly> LocalDate(string userId, DateTime utc, CancellationToken cancellationToken)
@@ -731,7 +751,8 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
         Narzędzia treningowe: get_active_training_plan({}), get_recommended_workout({}), get_recent_workouts({"limit":5}),
         get_exercise_history({"exerciseId":"guid","limit":10}), get_training_progress({"from":"YYYY-MM-DD","to":"YYYY-MM-DD"}),
         search_exercises({"query":"...","limit":15}), create_training_plan_draft({"plan":{"name":"...","goal":"...","startsOn":"YYYY-MM-DD","days":[{"name":"...","dayOfWeek":1,"exercises":[{"exerciseId":"guid","sets":3,"minReps":6,"maxReps":10,"targetRir":2,"restSeconds":120}]}]}}),
-        create_completed_workout_draft({"localDate":"YYYY-MM-DD","name":"...","exercises":[{"exerciseId":"guid","exerciseName":"...","sets":[{"weightKg":50,"repetitions":10,"rir":2}]}]}).
+        create_completed_workout_draft({"localDate":"YYYY-MM-DD","name":"...","exercises":[{"exerciseId":"guid","exerciseName":"...","sets":[{"weightKg":50,"repetitions":10,"rir":2}]}],"cardio":[{"activityName":"Bieg na bieżni","durationMinutes":40,"distanceKm":5,"averageHeartRate":null}]}).
+        Cardio zapisuj w polu cardio, a nie jako serię siłową. Gdy opis zawiera tylko cardio, tablica exercises może być pusta.
         Opis wykonanego treningu zamień na szkic przez create_completed_workout_draft. Nie zapisuj go i nie twierdź, że jest zapisany, zanim użytkownik sprawdzi serie i jawnie zatwierdzi szkic.
         Zwróć zwięzłą odpowiedź albo dokładnie jedno wywołanie narzędzia.
         """;
@@ -793,7 +814,16 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
                         .ToList()))
                 .ToList(),
             session.IsShortened,
-            session.TimeLimitMinutes);
+            session.TimeLimitMinutes,
+            session.CardioEntries.OrderBy(x => x.CompletedAtUtc)
+                .Select(x => new WorkoutCardioEntryResponse(
+                    x.Id,
+                    x.ActivityName,
+                    x.DurationMinutes,
+                    x.DistanceKm,
+                    x.AverageHeartRate,
+                    x.CompletedAtUtc))
+                .ToList());
 
     private sealed record ToolResult(bool Succeeded, string Json);
     private sealed record RequestedItem(Guid ProductId, decimal AmountGrams, bool IsEstimated);

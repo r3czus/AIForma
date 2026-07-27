@@ -86,7 +86,23 @@ public sealed record WorkoutExerciseResponse(
     int? SupersetPosition = null,
     int? IntervalSeconds = null,
     IReadOnlyList<WorkoutSetPresetResponse>? Presets = null);
-public sealed record WorkoutSessionResponse(Guid Id, string Name, DateTime StartedAtUtc, DateTime? FinishedAtUtc, SessionStatus Status, IReadOnlyList<WorkoutExerciseResponse> Exercises, bool IsShortened = false, int? TimeLimitMinutes = null);
+public sealed record WorkoutCardioEntryResponse(
+    Guid Id,
+    string ActivityName,
+    int DurationMinutes,
+    decimal? DistanceKm,
+    int? AverageHeartRate,
+    DateTime CompletedAtUtc);
+public sealed record WorkoutSessionResponse(
+    Guid Id,
+    string Name,
+    DateTime StartedAtUtc,
+    DateTime? FinishedAtUtc,
+    SessionStatus Status,
+    IReadOnlyList<WorkoutExerciseResponse> Exercises,
+    bool IsShortened = false,
+    int? TimeLimitMinutes = null,
+    IReadOnlyList<WorkoutCardioEntryResponse>? CardioEntries = null);
 public sealed record ExerciseHistoryEntry(DateTime CompletedAtUtc, decimal WeightKg, int Repetitions, decimal? Rir, decimal Volume);
 public sealed record ExerciseProgressionResponse(Guid Id, Guid ExerciseId, string ExerciseName, decimal SuggestedWeightKg, int MinReps, int MaxReps, string Reason, ProgressionDecision Decision, decimal? AcceptedWeightKg);
 public sealed record DecideProgressionRequest(ProgressionDecision Decision, [Range(0, 1000)] decimal? WeightKg = null);

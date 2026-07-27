@@ -25,6 +25,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<TrainingDay> TrainingDays => Set<TrainingDay>();
     public DbSet<PlannedExercise> PlannedExercises => Set<PlannedExercise>();
     public DbSet<WorkoutSession> WorkoutSessions => Set<WorkoutSession>();
+    public DbSet<WorkoutCardioEntry> WorkoutCardioEntries => Set<WorkoutCardioEntry>();
     public DbSet<WorkoutExercise> WorkoutExercises => Set<WorkoutExercise>();
     public DbSet<WorkoutSetPreset> WorkoutSetPresets => Set<WorkoutSetPreset>();
     public DbSet<WorkoutExerciseMuscleEngagement> WorkoutExerciseMuscleEngagements => Set<WorkoutExerciseMuscleEngagement>();
@@ -184,9 +185,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             session.Property(x => x.NameSnapshot).HasMaxLength(150).IsRequired();
             session.Property(x => x.Notes).HasMaxLength(1000);
             session.HasMany(x => x.Exercises).WithOne().HasForeignKey(x => x.WorkoutSessionId).OnDelete(DeleteBehavior.Cascade);
+            session.HasMany(x => x.CardioEntries).WithOne().HasForeignKey(x => x.WorkoutSessionId).OnDelete(DeleteBehavior.Cascade);
             session.HasOne<TrainingPlan>().WithMany().HasForeignKey(x => x.TrainingPlanId).OnDelete(DeleteBehavior.NoAction);
             session.HasOne<TrainingDay>().WithMany().HasForeignKey(x => x.TrainingDayId).OnDelete(DeleteBehavior.NoAction);
             session.HasIndex(x => new { x.UserId, x.StartedAtUtc });
+        });
+
+        builder.Entity<WorkoutCardioEntry>(cardio =>
+        {
+            cardio.HasKey(x => x.Id);
+            cardio.Property(x => x.ActivityName).HasMaxLength(150).IsRequired();
+            cardio.Property(x => x.DistanceKm).HasPrecision(7, 2);
+            cardio.HasIndex(x => new { x.WorkoutSessionId, x.CompletedAtUtc });
         });
 
         builder.Entity<WorkoutExercise>(workout =>

@@ -2322,6 +2322,18 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .workout-start-bar > span { display: grid; gap: 2px; }
 .workout-start-bar small { color: var(--muted); }
 .workout-start-actions { display: flex; gap: 8px; }
+.ai-cardio-review {
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    gap: 10px;
+    padding: 6px 0 18px;
+}
+.ai-cardio-review article {
+    align-items: end;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(150px, 1.6fr) repeat(3, minmax(90px, 1fr)) 42px;
+}
 
 @media (max-width: 600px) {
     .plan-day-tabs { margin-inline: -1px; }
@@ -2354,6 +2366,8 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     }
     .workout-start-bar .mud-button-root { width: 100%; }
     .workout-start-actions { display: grid; }
+    .ai-cardio-review article { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ai-cardio-review article > :first-child { grid-column: 1 / -1; }
 }
 
 * { box-sizing: border-box; }

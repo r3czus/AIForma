@@ -8,6 +8,7 @@ public sealed class CompletedWorkoutDraftForm
     public DateOnly LocalDate { get; init; }
     public string Name { get; set; } = string.Empty;
     public List<CompletedWorkoutExerciseForm> Exercises { get; set; } = [];
+    public List<CompletedWorkoutCardioForm> Cardio { get; set; } = [];
 
     public static CompletedWorkoutDraftForm From(AssistantCompletedWorkoutDraftResponse response) =>
         new()
@@ -25,6 +26,13 @@ public sealed class CompletedWorkoutDraftForm
                     Repetitions = set.Repetitions,
                     Rir = set.Rir
                 }).ToList()
+            }).ToList(),
+            Cardio = (response.Cardio ?? []).Select(x => new CompletedWorkoutCardioForm
+            {
+                ActivityName = x.ActivityName,
+                DurationMinutes = x.DurationMinutes,
+                DistanceKm = x.DistanceKm,
+                AverageHeartRate = x.AverageHeartRate
             }).ToList()
         };
 
@@ -35,8 +43,10 @@ public sealed class CompletedWorkoutDraftForm
             errors.Add("Podaj nazwę treningu.");
         else if (Name.Trim().Length > 150)
             errors.Add("Nazwa treningu może mieć maksymalnie 150 znaków.");
-        if (Exercises.Count is < 1 or > 20)
-            errors.Add("Szkic musi zawierać od 1 do 20 ćwiczeń.");
+        if (Exercises.Count > 20)
+            errors.Add("Szkic może zawierać maksymalnie 20 ćwiczeń.");
+        if (Exercises.Count == 0 && Cardio.Count == 0)
+            errors.Add("Szkic musi zawierać ćwiczenie siłowe albo aktywność cardio.");
         foreach (var exercise in Exercises)
         {
             if (exercise.Sets.Count is < 1 or > 50)
@@ -46,6 +56,15 @@ public sealed class CompletedWorkoutDraftForm
                     set.Repetitions is < 1 or > 1000 ||
                     set.Rir is < 0 or > 10))
                 errors.Add($"{exercise.ExerciseName}: sprawdź ciężar, powtórzenia i RIR.");
+        }
+        foreach (var cardio in Cardio)
+        {
+            if (string.IsNullOrWhiteSpace(cardio.ActivityName) ||
+                cardio.ActivityName.Trim().Length > 150 ||
+                cardio.DurationMinutes is < 1 or > 1440 ||
+                cardio.DistanceKm is < 0 or > 1000 ||
+                cardio.AverageHeartRate is < 30 or > 250)
+                errors.Add("Sprawdź nazwę, czas, dystans i tętno aktywności cardio.");
         }
         return errors;
     }
@@ -64,7 +83,12 @@ public sealed class CompletedWorkoutDraftForm
                 x.Sets.Select(set => new AssistantWorkoutSetDraft(
                     set.WeightKg,
                     set.Repetitions,
-                    set.Rir)).ToList())).ToList());
+                    set.Rir)).ToList())).ToList(),
+            Cardio.Select(x => new AssistantWorkoutCardioDraft(
+                x.ActivityName.Trim(),
+                x.DurationMinutes,
+                x.DistanceKm,
+                x.AverageHeartRate)).ToList());
     }
 }
 
@@ -80,4 +104,12 @@ public sealed class CompletedWorkoutSetForm
     public decimal WeightKg { get; set; }
     public int Repetitions { get; set; }
     public decimal? Rir { get; set; }
+}
+
+public sealed class CompletedWorkoutCardioForm
+{
+    public string ActivityName { get; set; } = string.Empty;
+    public int DurationMinutes { get; set; }
+    public decimal? DistanceKm { get; set; }
+    public int? AverageHeartRate { get; set; }
 }

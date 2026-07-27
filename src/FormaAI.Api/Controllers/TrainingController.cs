@@ -633,7 +633,8 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
     private IQueryable<WorkoutSession> SessionQuery() => db.WorkoutSessions
         .Include(x => x.Exercises).ThenInclude(x => x.Sets)
         .Include(x => x.Exercises).ThenInclude(x => x.Presets)
-        .Include(x => x.Exercises).ThenInclude(x => x.MuscleEngagements);
+        .Include(x => x.Exercises).ThenInclude(x => x.MuscleEngagements)
+        .Include(x => x.CardioEntries);
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static bool ValidEngagements(SaveExerciseRequest request)
     {
@@ -735,6 +736,16 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         e.Presets.OrderBy(p => p.SetNumber)
             .Select(p => new WorkoutSetPresetResponse(p.SetNumber, p.WeightKg, p.Repetitions, p.Rir))
             .ToList());
-    private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(x.Id, x.NameSnapshot, x.StartedAtUtc, x.FinishedAtUtc, x.Status,
-        x.Exercises.OrderBy(e => e.Order).Select(ExerciseResponse).ToList(), x.IsShortened, x.TimeLimitMinutes);
+    private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(
+        x.Id,
+        x.NameSnapshot,
+        x.StartedAtUtc,
+        x.FinishedAtUtc,
+        x.Status,
+        x.Exercises.OrderBy(e => e.Order).Select(ExerciseResponse).ToList(),
+        x.IsShortened,
+        x.TimeLimitMinutes,
+        x.CardioEntries.OrderBy(e => e.CompletedAtUtc)
+            .Select(e => new WorkoutCardioEntryResponse(e.Id, e.ActivityName, e.DurationMinutes, e.DistanceKm, e.AverageHeartRate, e.CompletedAtUtc))
+            .ToList());
 }

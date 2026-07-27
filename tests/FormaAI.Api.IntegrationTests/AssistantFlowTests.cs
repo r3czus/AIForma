@@ -160,6 +160,42 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
     }
 
     [Fact]
+    public async Task CompletedWorkoutDraftPersistsRecognizedCardio()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "assistant-cardio-workout@example.test");
+        var localDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        _factory.Model.Enqueue(new AssistantModelTurn(null, new AssistantToolCall(
+            "create_completed_workout_draft",
+            JsonSerializer.SerializeToElement(new
+            {
+                name = "Bieg na bieżni",
+                localDate,
+                exercises = Array.Empty<object>(),
+                cardio = new[]
+                {
+                    new { activityName = "Bieg na bieżni", durationMinutes = 40, distanceKm = (decimal?)5, averageHeartRate = (int?)null }
+                }
+            })), 20, 8));
+        _factory.Model.Enqueue(new AssistantModelTurn("Sprawdź rozpoznane cardio i zatwierdź zapis.", null, 20, 8));
+
+        var response = await Send<SendAssistantMessageRequest, AssistantMessageResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/assistant/messages",
+            new(null, "Biegałem 40 minut na bieżni", localDate));
+        var saved = await Send<object, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            $"api/v1/assistant/actions/{response.CompletedWorkoutDraft!.Id}/confirm",
+            new { });
+
+        Assert.Empty(saved.Exercises);
+        Assert.Equal(40, Assert.Single(saved.CardioEntries!).DurationMinutes);
+    }
+
+    [Fact]
     public async Task CompletedWorkoutDraftStartsActiveWorkoutOnlyAfterExplicitApproval()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

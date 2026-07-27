@@ -53,4 +53,24 @@ public sealed class CompletedWorkoutDraftFormTests
         Assert.Contains(form.Validate(), error => error.Contains("serię", StringComparison.OrdinalIgnoreCase));
         Assert.Throws<InvalidOperationException>(() => form.ToRequest());
     }
+
+    [Fact]
+    public void FormPreservesCardioFromAiDraft()
+    {
+        var response = new AssistantCompletedWorkoutDraftResponse(
+            Guid.NewGuid(),
+            AssistantDraftStatus.Pending,
+            new DateOnly(2026, 7, 28),
+            "Bieg i siła",
+            [],
+            DateTime.UtcNow.AddMinutes(30),
+            [new AssistantWorkoutCardioDraft("Bieg na bieżni", 40, 5, null)]);
+
+        var form = CompletedWorkoutDraftForm.From(response);
+        var request = form.ToRequest();
+
+        Assert.Empty(form.Validate());
+        Assert.Equal(40, Assert.Single(request.Cardio!).DurationMinutes);
+        Assert.Empty(request.Exercises);
+    }
 }

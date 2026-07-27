@@ -20,6 +20,18 @@ public sealed class TrainingSupersetTests
     }
 
     [Fact]
+    public void WorkoutSessionCanStoreCompletedCardio()
+    {
+        var session = new WorkoutSession("user-1", "Bieg i siła", null);
+        var cardio = new WorkoutCardioEntry(session.Id, "Bieg na bieżni", 40, 5, null);
+
+        session.CardioEntries.Add(cardio);
+
+        Assert.Equal(40, Assert.Single(session.CardioEntries).DurationMinutes);
+        Assert.Equal(5, cardio.DistanceKm);
+    }
+
+    [Fact]
     public void PlannedExerciseAcceptsValidSupersetSettings()
     {
         var groupId = Guid.NewGuid();
