@@ -69,6 +69,9 @@
             };
             return { ready, done };
         })();
+        window.formaMotion = {
+            allowsMotion: () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        };
     </script>
 </body>
 

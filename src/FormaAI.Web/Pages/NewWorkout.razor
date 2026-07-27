@@ -25,12 +25,12 @@
         </header>
 
         <section class="workout-entry-modes" aria-label="Sposób dodawania treningu">
-            <button type="button" class="@ModeClass(WorkoutBuilderMode.Ai)" @onclick="() => SelectMode(WorkoutBuilderMode.Ai)">
+            <button type="button" class="@ModeClass(WorkoutBuilderMode.Ai)" aria-pressed="@(_mode == WorkoutBuilderMode.Ai)" @onclick="() => SelectMode(WorkoutBuilderMode.Ai)">
                 <span class="workout-mode-icon ai"><MudIcon Icon="@Icons.Material.Filled.AutoAwesome" /></span>
                 <span><strong>Dodaj z AI</strong><small>Opisz ćwiczenia, serie i ciężary.</small></span>
                 <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
             </button>
-            <button type="button" class="@ModeClass(WorkoutBuilderMode.Manual)" @onclick="() => SelectMode(WorkoutBuilderMode.Manual)">
+            <button type="button" class="@ModeClass(WorkoutBuilderMode.Manual)" aria-pressed="@(_mode == WorkoutBuilderMode.Manual)" @onclick="() => SelectMode(WorkoutBuilderMode.Manual)">
                 <span class="workout-mode-icon"><MudIcon Icon="@Icons.Material.Outlined.EditNote" /></span>
                 <span><strong>Dodaj ręcznie</strong><small>Wybierz ćwiczenia i ustaw parametry.</small></span>
                 <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
@@ -376,7 +376,7 @@
         }
         catch (HttpRequestException ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            await HandleStartError(ex);
         }
         finally
         {
@@ -445,12 +445,25 @@
         }
         catch (HttpRequestException ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            await HandleStartError(ex);
         }
         finally
         {
             _saving = false;
         }
+    }
+
+    private async Task HandleStartError(HttpRequestException exception)
+    {
+        var active = await TrainingApi.GetActiveSession();
+        if (active is not null)
+        {
+            Snackbar.Add("Masz już aktywny trening. Wracam do rozpoczętej sesji.", Severity.Info);
+            Navigation.NavigateTo($"/workout/{active.Id}", replace: true);
+            return;
+        }
+
+        Snackbar.Add(exception.Message, Severity.Error);
     }
 
     private static string ExerciseMeta(ExerciseResponse exercise) =>

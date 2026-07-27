@@ -92,7 +92,7 @@
                     {
                         var navIndex = index;
                         var item = OrderedExercises[index];
-                        <button type="button" class="@(index == _activeExerciseIndex ? "active" : null) @(item.Sets.Count >= item.PlannedSets ? "done" : null)" @onclick="() => SelectExercise(navIndex)" aria-label="@item.ExerciseName" title="@item.ExerciseName"><span></span></button>
+                        <button type="button" class="@(index == _activeExerciseIndex ? "active" : null) @(item.Sets.Count >= item.PlannedSets ? "done" : null)" @onclick="() => SelectExercise(navIndex)" aria-label="@item.ExerciseName" aria-current="@(index == _activeExerciseIndex ? "step" : null)" title="@item.ExerciseName"><span></span></button>
                     }
                 </div>
                 <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_activeExerciseIndex >= OrderedExercises.Count - 1)" OnClick="NextExercise" aria-label="Następne ćwiczenie" />
@@ -110,7 +110,7 @@
 
             <article class="workout-exercise workout-exercise-focus">
                 <section class="workout-motion-hero" aria-label="Podgląd ruchu ćwiczenia">
-                    @if (ActiveExerciseMedia is { MediaUrl: not null } media)
+                    @if (ActiveExerciseMedia is { MediaUrl: not null } media && _motionPreferenceLoaded && _allowMotionMedia)
                     {
                         @if (media.MediaContentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true)
                         {
@@ -120,6 +120,14 @@
                         {
                             <img src="@media.MediaUrl" alt="Podgląd wykonania: @exercise.ExerciseName" />
                         }
+                    }
+                    else if (ActiveExerciseMedia is { MediaUrl: not null })
+                    {
+                        <div class="workout-motion-placeholder">
+                            <MudIcon Icon="@Icons.Material.Outlined.MotionPhotosPaused" />
+                            <span>Animacja jest wstrzymana zgodnie z ustawieniem ograniczenia ruchu</span>
+                            <MudButton Variant="Variant.Text" OnClick="EnableMotionMedia">Pokaż animację</MudButton>
+                        </div>
                     }
                     else
                     {
@@ -156,7 +164,7 @@
                         <div class="swap-exercise-results">
                             @foreach (var option in SwapOptions)
                             {
-                                <button type="button" class="@(_selectedExerciseId == option.Id ? "selected" : null)" @onclick="() => _selectedExerciseId = option.Id">
+                                <button type="button" class="@(_selectedExerciseId == option.Id ? "selected" : null)" aria-pressed="@(_selectedExerciseId == option.Id)" @onclick="() => _selectedExerciseId = option.Id">
                                     <span><strong>@option.Name</strong><small>@MuscleGroupName(option.MuscleGroup) · @EquipmentName(option.Equipment)</small></span>
                                     <MudIcon Icon="@(_selectedExerciseId == option.Id ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" />
                                 </button>
@@ -188,7 +196,7 @@
                             @foreach (var member in SupersetMembers)
                             {
                                 var memberIndex = OrderedExercises.ToList().FindIndex(x => x.Id == member.Id);
-                                <button type="button" class="@(member.Id == exercise.Id ? "active" : null)" @onclick="() => SelectExercise(memberIndex)">
+                                <button type="button" class="@(member.Id == exercise.Id ? "active" : null)" aria-current="@(member.Id == exercise.Id ? "step" : null)" @onclick="() => SelectExercise(memberIndex)">
                                     <span>A@(member.SupersetPosition)</span>
                                     <strong>@member.ExerciseName</strong>
                                     <small>@member.Sets.Count/@member.PlannedSets serii</small>
@@ -279,6 +287,8 @@
     private int _timerSeconds;
     private int _timerStartSeconds;
     private bool _timerRunning;
+    private bool _motionPreferenceLoaded;
+    private bool _allowMotionMedia;
     private TimeSpan _elapsed;
     private decimal _trainingCalories;
 
@@ -349,6 +359,29 @@
             _clockCancellation = new CancellationTokenSource();
             _ = RunClock(_clockCancellation.Token);
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            _allowMotionMedia = await JS.InvokeAsync<bool>("formaMotion.allowsMotion");
+        }
+        catch (JSException)
+        {
+            _allowMotionMedia = true;
+        }
+
+        _motionPreferenceLoaded = true;
+        StateHasChanged();
+    }
+
+    private void EnableMotionMedia()
+    {
+        _allowMotionMedia = true;
+        _motionPreferenceLoaded = true;
     }
 
     private async Task SaveSet(WorkoutExerciseResponse exercise, SetForm form)
