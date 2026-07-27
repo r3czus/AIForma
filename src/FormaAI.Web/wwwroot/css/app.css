@@ -1872,6 +1872,16 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     text-align: center;
 }
 .workout-motion-placeholder .mud-icon-root { color: var(--action); font-size: 2.5rem; }
+.ai-preset-badge {
+    align-items: center;
+    color: var(--action);
+    display: inline-flex;
+    font-size: .72rem;
+    font-weight: 750;
+    gap: 5px;
+    margin-top: 5px;
+}
+.ai-preset-badge .mud-icon-root { font-size: 1rem; }
 .workout-superset-strip {
     border-bottom: 1px solid var(--rule);
     border-top: 1px solid var(--rule);

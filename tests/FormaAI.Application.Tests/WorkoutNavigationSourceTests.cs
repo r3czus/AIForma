@@ -14,6 +14,18 @@ public sealed class WorkoutNavigationSourceTests
         Assert.DoesNotContain("_quickWorkoutOpen", source);
     }
 
+    [Fact]
+    public void WorkoutKeepsStrictSessionControlsAndAppliesAiPresets()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+
+        Assert.Contains("workout-motion-hero", source);
+        Assert.Contains("workout-superset-strip", source);
+        Assert.Contains("swap-exercise-trigger", source);
+        Assert.Contains("exercise-timer-actions", source);
+        Assert.Contains("ApplyNextPreset", source);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

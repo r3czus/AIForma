@@ -131,7 +131,15 @@
                 </section>
                 <div class="exercise-live-heading">
                     <span class="exercise-order">@(_activeExerciseIndex + 1)</span>
-                    <div><span class="card-kicker">Ćwiczenie @(_activeExerciseIndex + 1) z @OrderedExercises.Count</span><MudText Typo="Typo.h4">@exercise.ExerciseName</MudText><MudText Typo="Typo.caption">@exercise.PlannedSets × @exercise.MinReps-@exercise.MaxReps @if (exercise.TargetRir is not null) { <span>· RIR @exercise.TargetRir</span> }</MudText></div>
+                    <div>
+                        <span class="card-kicker">Ćwiczenie @(_activeExerciseIndex + 1) z @OrderedExercises.Count</span>
+                        <MudText Typo="Typo.h4">@exercise.ExerciseName</MudText>
+                        <MudText Typo="Typo.caption">@exercise.PlannedSets × @exercise.MinReps-@exercise.MaxReps @if (exercise.TargetRir is not null) { <span>· RIR @exercise.TargetRir</span> }</MudText>
+                        @if (exercise.Presets is { Count: > 0 })
+                        {
+                            <span class="ai-preset-badge"><MudIcon Icon="@Icons.Material.Filled.AutoAwesome" /> Serie przygotowane przez AI</span>
+                        }
+                    </div>
                     <strong class="exercise-set-count">@exercise.Sets.Count/@exercise.PlannedSets</strong>
                 </div>
 
@@ -322,10 +330,11 @@
         foreach (var exercise in _session.Exercises)
         {
             _forms.TryAdd(exercise.Id, new SetForm());
+            var presetApplied = exercise.Sets.Count == 0 && ApplyNextPreset(exercise, _forms[exercise.Id]);
             if (exercise.ExerciseId is Guid exerciseId && !_history.ContainsKey(exerciseId))
             {
                 _history[exerciseId] = (await TrainingApi.GetHistory(exerciseId)).FirstOrDefault();
-                if (_history[exerciseId] is { } last && exercise.Sets.Count == 0)
+                if (_history[exerciseId] is { } last && exercise.Sets.Count == 0 && !presetApplied)
                 {
                     _forms[exercise.Id].WeightKg = last.WeightKg;
                     _forms[exercise.Id].Repetitions = last.Repetitions;
@@ -359,6 +368,8 @@
             form.SetNumber = null;
             form.Notes = null;
             form.IsWarmup = false;
+            var refreshedExercise = OrderedExercises.First(x => x.Id == exercise.Id);
+            ApplyNextPreset(refreshedExercise, form);
             if (request.SetType != SetType.Warmup)
             {
                 var step = WorkoutSequence.Next(
@@ -402,6 +413,17 @@
         form.Rir = set.Rir;
         form.IsWarmup = set.SetType == SetType.Warmup;
         form.Notes = set.Notes;
+    }
+
+    private static bool ApplyNextPreset(WorkoutExerciseResponse exercise, SetForm form)
+    {
+        var nextNumber = exercise.Sets.Count(x => x.SetType == SetType.Working) + 1;
+        var preset = exercise.Presets?.FirstOrDefault(x => x.SetNumber == nextNumber);
+        if (preset is null) return false;
+        form.WeightKg = preset.WeightKg;
+        form.Repetitions = preset.Repetitions;
+        form.Rir = preset.Rir;
+        return true;
     }
 
     private void SelectExercise(int index) => _activeExerciseIndex = Math.Clamp(index, 0, Math.Max(0, OrderedExercises.Count - 1));
