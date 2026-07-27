@@ -5,6 +5,21 @@ namespace FormaAI.Domain.Tests;
 public sealed class TrainingSupersetTests
 {
     [Fact]
+    public void WorkoutExerciseCanJoinSupersetDuringLiveSession()
+    {
+        var exercise = new Exercise(null, "Wyciskanie", MuscleGroup.Chest, Equipment.Barbell, false, null);
+        var workoutExercise = new WorkoutExercise(exercise, 1, 3, 6, 8, 2, 90);
+        var groupId = Guid.NewGuid();
+
+        workoutExercise.ConfigureSuperset(groupId, 2, 15, 120);
+
+        Assert.Equal(groupId, workoutExercise.SupersetGroupId);
+        Assert.Equal(2, workoutExercise.SupersetPosition);
+        Assert.Equal(15, workoutExercise.IntervalSeconds);
+        Assert.Equal(120, workoutExercise.RestSeconds);
+    }
+
+    [Fact]
     public void PlannedExerciseAcceptsValidSupersetSettings()
     {
         var groupId = Guid.NewGuid();

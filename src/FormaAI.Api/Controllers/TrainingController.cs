@@ -438,6 +438,40 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         return ExerciseResponse(replacement);
     }
 
+    [HttpPut("workout-sessions/{id:guid}/superset")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<WorkoutSessionResponse>> UpdateWorkoutSuperset(
+        Guid id,
+        UpdateWorkoutSupersetRequest request)
+    {
+        var session = await SessionQuery().SingleOrDefaultAsync(x => x.Id == id && x.UserId == UserId());
+        if (session is null) return NotFound();
+        if (session.Status != SessionStatus.InProgress) return Conflict("Trening jest już zakończony.");
+        if (request.WorkoutExerciseIds.Count is < 2 or > 5 ||
+            request.WorkoutExerciseIds.Distinct().Count() != request.WorkoutExerciseIds.Count)
+            return ValidationProblem("Superseria musi zawierać od 2 do 5 różnych ćwiczeń.");
+
+        var selected = request.WorkoutExerciseIds
+            .Select(exerciseId => session.Exercises.SingleOrDefault(x => x.Id == exerciseId))
+            .ToList();
+        if (selected.Any(x => x is null))
+            return ValidationProblem("Wybrane ćwiczenie nie należy do tej sesji.");
+
+        var previousGroups = selected
+            .Where(x => x!.SupersetGroupId is not null)
+            .Select(x => x!.SupersetGroupId!.Value)
+            .ToHashSet();
+        foreach (var exercise in session.Exercises.Where(x => x.SupersetGroupId is Guid groupId && previousGroups.Contains(groupId)))
+            exercise.DetachFromSuperset();
+
+        var supersetId = Guid.NewGuid();
+        for (var index = 0; index < selected.Count; index++)
+            selected[index]!.ConfigureSuperset(supersetId, index + 1, request.IntervalSeconds, request.RestSeconds);
+
+        await db.SaveChangesAsync();
+        return SessionResponse(session);
+    }
+
     [HttpPut("workout-sessions/{id:guid}/notes")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveWorkoutNotes(Guid id, SaveWorkoutNotesRequest request)

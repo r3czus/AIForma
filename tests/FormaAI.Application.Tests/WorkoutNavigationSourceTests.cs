@@ -46,6 +46,16 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("Dodaj zdjęcie, GIF lub film", source);
     }
 
+    [Fact]
+    public void LiveWorkoutCanCreateSupersetFromSessionExercises()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+
+        Assert.Contains("Połącz w superserię", source);
+        Assert.Contains("SaveSuperset", source);
+        Assert.Contains("superset-builder", source);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

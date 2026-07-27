@@ -315,6 +315,27 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task UserCanCreateSupersetDuringWorkout()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "live-superset@example.test");
+        var first = await CreateExercise(client, "Wyciskanie superseria", MuscleGroup.Chest, Equipment.Barbell);
+        var second = await CreateExercise(client, "Wiosłowanie superseria", MuscleGroup.Back, Equipment.Machine);
+        var session = await StartQuickWorkout(client, "Superseria na żywo", (first.Id, 3), (second.Id, 3));
+
+        var updated = await Send<UpdateWorkoutSupersetRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Put,
+            $"api/v1/workout-sessions/{session.Id}/superset",
+            new([session.Exercises[0].Id, session.Exercises[1].Id], 20, 120));
+
+        Assert.All(updated.Exercises, exercise => Assert.NotNull(exercise.SupersetGroupId));
+        Assert.Equal([1, 2], updated.Exercises.OrderBy(x => x.SupersetPosition).Select(x => x.SupersetPosition));
+        Assert.All(updated.Exercises, exercise => Assert.Equal(20, exercise.IntervalSeconds));
+        Assert.All(updated.Exercises, exercise => Assert.Equal(120, exercise.RestSeconds));
+    }
+
+    [Fact]
     public async Task ReplacementBeforeFirstSetKeepsPrescriptionAndReplacesInPlace()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

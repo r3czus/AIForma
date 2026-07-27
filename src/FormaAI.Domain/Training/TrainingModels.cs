@@ -252,6 +252,16 @@ public sealed class WorkoutExercise
         SupersetPosition = null;
         IntervalSeconds = null;
     }
+    public void ConfigureSuperset(Guid groupId, int position, int intervalSeconds, int restSeconds)
+    {
+        ValidateSuperset(groupId, position, intervalSeconds);
+        if (restSeconds is < 0 or > 3600)
+            throw new ArgumentOutOfRangeException(nameof(restSeconds));
+        SupersetGroupId = groupId;
+        SupersetPosition = position;
+        IntervalSeconds = intervalSeconds;
+        RestSeconds = restSeconds;
+    }
     public void ChangeOrder(int order)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(order, 1);

@@ -61,6 +61,10 @@ public sealed record SaveSetRequest(Guid WorkoutExerciseId, [Range(1, 50)] int S
 public sealed record CompletedSetResponse(Guid Id, int SetNumber, decimal WeightKg, int Repetitions, decimal? Rir, SetType SetType, DateTime CompletedAtUtc, string? Notes = null);
 public sealed record AddWorkoutExerciseRequest(Guid ExerciseId, [Range(1, 10)] int PlannedSets = 3, [Range(1, 100)] int MinReps = 8, [Range(1, 100)] int MaxReps = 12, [Range(0, 10)] decimal? TargetRir = 2, [Range(0, 3600)] int? RestSeconds = 90);
 public sealed record ReplaceWorkoutExerciseRequest(Guid ExerciseId);
+public sealed record UpdateWorkoutSupersetRequest(
+    [MinLength(2), MaxLength(5)] IReadOnlyList<Guid> WorkoutExerciseIds,
+    [Range(0, 3600)] int IntervalSeconds = 15,
+    [Range(0, 3600)] int RestSeconds = 90);
 public sealed record SaveWorkoutNotesRequest([MaxLength(1000)] string? Notes);
 public sealed record WorkoutSetPresetResponse(
     int SetNumber,

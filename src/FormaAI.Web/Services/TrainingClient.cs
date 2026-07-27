@@ -63,6 +63,8 @@ public sealed class TrainingClient(HttpClient http)
     public Task<CompletedSetResponse> UpdateSet(Guid sessionId, Guid setId, SaveSetRequest request) => Send<CompletedSetResponse>(HttpMethod.Put, $"api/v1/workout-sessions/{sessionId}/sets/{setId}", request);
     public Task<WorkoutExerciseResponse> AddExercise(Guid sessionId, AddWorkoutExerciseRequest request) => Send<WorkoutExerciseResponse>(HttpMethod.Post, $"api/v1/workout-sessions/{sessionId}/exercises", request);
     public Task<WorkoutExerciseResponse> ReplaceExercise(Guid sessionId, Guid workoutExerciseId, Guid exerciseId) => Send<WorkoutExerciseResponse>(HttpMethod.Put, $"api/v1/workout-sessions/{sessionId}/exercises/{workoutExerciseId}", new ReplaceWorkoutExerciseRequest(exerciseId));
+    public Task<WorkoutSessionResponse> UpdateSuperset(Guid sessionId, UpdateWorkoutSupersetRequest request) =>
+        Send<WorkoutSessionResponse>(HttpMethod.Put, $"api/v1/workout-sessions/{sessionId}/superset", request);
     public Task SaveNotes(Guid sessionId, string? notes) => SendNoContent(HttpMethod.Put, $"api/v1/workout-sessions/{sessionId}/notes", new SaveWorkoutNotesRequest(notes));
     public Task Activate(Guid planId) => SendNoContent(HttpMethod.Post, $"api/v1/training-plans/{planId}/activate");
     public Task Complete(Guid sessionId) => SendNoContent(HttpMethod.Post, $"api/v1/workout-sessions/{sessionId}/complete");
