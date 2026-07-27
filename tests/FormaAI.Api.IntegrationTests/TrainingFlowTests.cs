@@ -87,6 +87,50 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task PlanAndSessionPreserveSupersetTiming()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "training-superset@example.test");
+        var press = await CreateExercise(client, "Wyciskanie superseria", MuscleGroup.Chest, Equipment.Dumbbell);
+        var row = await CreateExercise(client, "Wiosłowanie superseria", MuscleGroup.Back, Equipment.Dumbbell);
+        var groupId = Guid.NewGuid();
+        var planRequest = new SaveTrainingPlanRequest(
+            "Plan superserii",
+            "Tempo",
+            DateOnly.FromDateTime(DateTime.UtcNow),
+            [
+                new TrainingDayRequest(
+                    "Góra",
+                    DateTime.UtcNow.DayOfWeek,
+                    [
+                        new PlannedExerciseRequest(press.Id, 3, 8, 12, 2, 105, groupId, 1, 12),
+                        new PlannedExerciseRequest(row.Id, 3, 8, 12, 2, 105, groupId, 2, 12)
+                    ])
+            ]);
+
+        var plan = await Send<SaveTrainingPlanRequest, TrainingPlanResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/training-plans",
+            planRequest);
+        var planned = plan.Days.Single().Exercises.OrderBy(x => x.SupersetPosition).ToList();
+
+        Assert.All(planned, x => Assert.Equal(groupId, x.SupersetGroupId));
+        Assert.Equal([1, 2], planned.Select(x => x.SupersetPosition).ToArray());
+        Assert.All(planned, x => Assert.Equal(12, x.IntervalSeconds));
+
+        var session = await Send<StartWorkoutRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/workout-sessions",
+            new(plan.Days.Single().Id));
+
+        Assert.All(session.Exercises, x => Assert.Equal(groupId, x.SupersetGroupId));
+        Assert.Equal([1, 2], session.Exercises.OrderBy(x => x.Order).Select(x => x.SupersetPosition).ToArray());
+        Assert.All(session.Exercises, x => Assert.Equal(12, x.IntervalSeconds));
+    }
+
+    [Fact]
     public async Task ExerciseDetailsExposeGlobalAndOwnButNotForeignExercises()
     {
         var options = new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") };
