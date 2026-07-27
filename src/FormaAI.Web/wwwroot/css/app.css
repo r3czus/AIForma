@@ -2068,7 +2068,6 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     background: var(--surface);
     border: 1px solid var(--rule);
     border-radius: 18px;
-    box-shadow: var(--shadow-soft);
 }
 .workout-builder-intro {
     align-items: flex-start;
@@ -2144,7 +2143,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     gap: 2px;
 }
 .ai-workout-exercise > header small,
-.manual-exercise-title small { color: var(--muted); font-size: .7rem; }
+.manual-exercise-title small { color: var(--muted); font-size: .75rem; }
 .ai-set-grid {
     align-items: center;
     display: grid;
@@ -2156,7 +2155,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .ai-set-grid + .ai-set-grid { border-top: 1px solid var(--rule); }
 .ai-set-grid-head {
     color: var(--muted);
-    font-size: .68rem;
+    font-size: .75rem;
     font-weight: 700;
     min-height: 34px;
     text-transform: uppercase;
@@ -2200,7 +2199,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .manual-search-results > button + button { border-top: 1px solid var(--rule); }
 .manual-search-results > button:hover { background: var(--surface-soft); }
 .manual-search-results > button > span:nth-child(2) { display: grid; gap: 2px; }
-.manual-search-results small { color: var(--muted); font-size: .7rem; }
+.manual-search-results small { color: var(--muted); font-size: .75rem; }
 .exercise-result-media {
     align-items: center;
     background: var(--surface-soft);
@@ -2212,7 +2211,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     width: 44px;
 }
 .exercise-result-media img { height: 100%; object-fit: cover; width: 100%; }
-.manual-workout-exercise.links-next { border-bottom-color: var(--action); box-shadow: inset 3px 0 var(--action); }
+.manual-workout-exercise.links-next { border-color: var(--action); }
 .manual-exercise-order {
     align-items: center;
     background: var(--ink);
@@ -2243,7 +2242,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     padding: 8px 12px;
 }
 .superset-link-control > span { display: grid; gap: 1px; }
-.superset-link-control small { color: var(--muted); font-size: .7rem; }
+.superset-link-control small { color: var(--muted); font-size: .75rem; }
 .workout-start-bar {
     align-items: center;
     background: color-mix(in srgb, var(--surface) 92%, transparent);
