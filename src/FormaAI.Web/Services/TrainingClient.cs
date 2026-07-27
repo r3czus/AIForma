@@ -1,7 +1,9 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FormaAI.Contracts.Training;
 using FormaAI.Contracts.Users;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace FormaAI.Web.Services;
 
@@ -34,6 +36,21 @@ public sealed class TrainingClient(HttpClient http)
     public async Task<IReadOnlyList<ExerciseHistoryEntry>> GetHistory(Guid id) => await http.GetFromJsonAsync<List<ExerciseHistoryEntry>>($"api/v1/exercises/{id}/history") ?? [];
     public Task<ExerciseResponse> SaveExercise(SaveExerciseRequest request) => Send<ExerciseResponse>(HttpMethod.Post, "api/v1/exercises", request);
     public Task<ExerciseResponse> UpdateExercise(Guid id, SaveExerciseRequest request) => Send<ExerciseResponse>(HttpMethod.Put, $"api/v1/exercises/{id}", request);
+    public async Task<ExerciseResponse> UploadExerciseMedia(Guid id, IBrowserFile media, string author, string license, string? sourceUrl)
+    {
+        var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        using var content = new MultipartFormDataContent();
+        var file = new StreamContent(media.OpenReadStream(15 * 1024 * 1024));
+        file.Headers.ContentType = new MediaTypeHeaderValue(media.ContentType);
+        content.Add(file, "media", media.Name);
+        content.Add(new StringContent(author), "author");
+        content.Add(new StringContent(license), "license");
+        if (!string.IsNullOrWhiteSpace(sourceUrl)) content.Add(new StringContent(sourceUrl), "sourceUrl");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/exercises/{id}/media") { Content = content };
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+        using var response = await http.SendAsync(request);
+        return await Read<ExerciseResponse>(response);
+    }
     public Task<TrainingPlanResponse> SavePlan(SaveTrainingPlanRequest request) => Send<TrainingPlanResponse>(HttpMethod.Post, "api/v1/training-plans", request);
     public Task<TrainingPlanResponse> UpdatePlan(Guid id, SaveTrainingPlanRequest request) => Send<TrainingPlanResponse>(HttpMethod.Put, $"api/v1/training-plans/{id}", request);
     public Task<WorkoutSessionResponse> Start(Guid dayId, int? minutes = null) => Send<WorkoutSessionResponse>(HttpMethod.Post, "api/v1/workout-sessions", new StartWorkoutRequest(dayId, minutes));

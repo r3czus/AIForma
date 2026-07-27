@@ -671,6 +671,17 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .plan-exercise-link > span { color: var(--muted); font-size: .72rem; text-align: right; }
 .plan-exercise-link > .mud-icon-root { color: var(--muted); font-size: 1.1rem; }
 .exercise-detail-card { display: grid; gap: 22px; padding: clamp(18px, 4vw, 28px); }
+.exercise-motion-card { background: #111a16; border-radius: 22px; color: #fff; display: grid; gap: 10px; margin-bottom: 16px; overflow: hidden; padding: 12px; }
+.exercise-motion-card > img, .exercise-motion-card > video { aspect-ratio: 16 / 10; background: #08100c; border-radius: 14px; display: block; object-fit: contain; width: 100%; }
+.exercise-motion-card > small { color: rgba(255,255,255,.7); display: flex; flex-wrap: wrap; gap: 6px; padding: 0 4px; }
+.exercise-motion-card > small a { color: #b8f5d7; }
+.exercise-motion-placeholder { align-items: center; aspect-ratio: 16 / 8; background: radial-gradient(circle at 50% 35%, rgba(77,183,135,.24), transparent 45%), #101915; border-radius: 14px; display: grid; gap: 5px; justify-items: center; padding: 24px; text-align: center; }
+.exercise-motion-placeholder .mud-icon-root { color: #80d9af; font-size: 3rem; }
+.exercise-motion-placeholder span { color: rgba(255,255,255,.65); font-size: .82rem; }
+.exercise-media-editor { background: #fff; border-radius: 14px; color: var(--text); padding: 12px; }
+.exercise-media-editor summary { cursor: pointer; font-weight: 800; }
+.exercise-media-editor[open] { display: grid; gap: 12px; }
+.exercise-media-editor[open] summary { margin-bottom: 4px; }
 .exercise-detail-card > section { border-bottom: 1px solid var(--rule); padding-bottom: 22px; }
 .exercise-detail-card > section h2 { font-size: 1.55rem; margin: 3px 0 10px; }
 .exercise-detail-card > section p { color: var(--muted); line-height: 1.6; margin: 0; }

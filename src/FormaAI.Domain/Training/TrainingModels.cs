@@ -25,6 +25,11 @@ public sealed class Exercise
     public Equipment Equipment { get; private set; }
     public bool IsUnilateral { get; private set; }
     public bool IsActive { get; private set; }
+    public string? MediaStorageName { get; private set; }
+    public string? MediaExternalUrl { get; private set; }
+    public string? MediaContentType { get; private set; }
+    public string? MediaAttribution { get; private set; }
+    public string? MediaSourceUrl { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
@@ -32,6 +37,16 @@ public sealed class Exercise
     {
         Name = name.Trim(); PrimaryMuscleGroup = muscleGroup; Equipment = equipment; IsUnilateral = unilateral;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(); UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetMedia(string storageName, string contentType, string attribution, string? sourceUrl)
+    {
+        MediaStorageName = storageName;
+        MediaExternalUrl = null;
+        MediaContentType = contentType;
+        MediaAttribution = attribution.Trim();
+        MediaSourceUrl = string.IsNullOrWhiteSpace(sourceUrl) ? null : sourceUrl.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
     }
 
     public void SetMuscleEngagements(IEnumerable<(MuscleGroup Group, int Percentage)> values)
@@ -188,6 +203,7 @@ public sealed class WorkoutExercise
         if (order < 1) throw new ArgumentOutOfRangeException(nameof(order));
         Order = order;
     }
+
     private void Snapshot(Exercise exercise)
     {
         var source = exercise.MuscleEngagements.Count > 0

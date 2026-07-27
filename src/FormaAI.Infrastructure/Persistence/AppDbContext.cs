@@ -124,11 +124,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             exercise.Property(x => x.OwnerUserId).HasMaxLength(450);
             exercise.Property(x => x.Name).HasMaxLength(150).IsRequired();
             exercise.Property(x => x.Description).HasMaxLength(1000);
+            exercise.Property(x => x.MediaStorageName).HasMaxLength(180);
+            exercise.Property(x => x.MediaExternalUrl).HasMaxLength(1000);
+            exercise.Property(x => x.MediaContentType).HasMaxLength(80);
+            exercise.Property(x => x.MediaAttribution).HasMaxLength(300);
+            exercise.Property(x => x.MediaSourceUrl).HasMaxLength(1000);
             exercise.HasMany(x => x.MuscleEngagements).WithOne().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Cascade);
             exercise.HasIndex(x => x.Name);
             var seededAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             exercise.HasData(
-                new { Id = Guid.Parse("10000000-0000-0000-0000-000000000001"), OwnerUserId = (string?)null, Name = "Przysiad ze sztangą", PrimaryMuscleGroup = MuscleGroup.Quadriceps, Equipment = Equipment.Barbell, IsUnilateral = false, IsActive = true, CreatedAtUtc = seededAt, UpdatedAtUtc = seededAt },
+                new { Id = Guid.Parse("10000000-0000-0000-0000-000000000001"), OwnerUserId = (string?)null, Name = "Przysiad ze sztangą", PrimaryMuscleGroup = MuscleGroup.Quadriceps, Equipment = Equipment.Barbell, IsUnilateral = false, IsActive = true, CreatedAtUtc = seededAt, UpdatedAtUtc = seededAt, MediaExternalUrl = "https://commons.wikimedia.org/wiki/Special:Redirect/file/Squats.gif", MediaContentType = "image/gif", MediaAttribution = "Wensceslao · CC BY-SA 4.0", MediaSourceUrl = "https://commons.wikimedia.org/wiki/File:Squats.gif", MediaStorageName = (string?)null },
                 new { Id = Guid.Parse("10000000-0000-0000-0000-000000000002"), OwnerUserId = (string?)null, Name = "Wyciskanie sztangi leżąc", PrimaryMuscleGroup = MuscleGroup.Chest, Equipment = Equipment.Barbell, IsUnilateral = false, IsActive = true, CreatedAtUtc = seededAt, UpdatedAtUtc = seededAt },
                 new { Id = Guid.Parse("10000000-0000-0000-0000-000000000003"), OwnerUserId = (string?)null, Name = "Martwy ciąg", PrimaryMuscleGroup = MuscleGroup.Back, Equipment = Equipment.Barbell, IsUnilateral = false, IsActive = true, CreatedAtUtc = seededAt, UpdatedAtUtc = seededAt },
                 new { Id = Guid.Parse("10000000-0000-0000-0000-000000000004"), OwnerUserId = (string?)null, Name = "Wiosłowanie sztangą", PrimaryMuscleGroup = MuscleGroup.Back, Equipment = Equipment.Barbell, IsUnilateral = false, IsActive = true, CreatedAtUtc = seededAt, UpdatedAtUtc = seededAt },

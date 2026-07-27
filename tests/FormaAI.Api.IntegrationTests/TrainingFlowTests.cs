@@ -125,6 +125,36 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task OwnerCanUploadExerciseAnimationAndOtherUserCannotReadIt()
+    {
+        var options = new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") };
+        var owner = _factory.CreateClient(options);
+        var other = _factory.CreateClient(options);
+        await Register(owner, "exercise-media-owner@example.test");
+        await Register(other, "exercise-media-other@example.test");
+        var exercise = await CreateExercise(owner, "Animowane ćwiczenie", MuscleGroup.FullBody, Equipment.Bodyweight);
+
+        using var content = new MultipartFormDataContent();
+        var bytes = new ByteArrayContent("GIF89a"u8.ToArray());
+        bytes.Headers.ContentType = new("image/gif");
+        content.Add(bytes, "media", "ruch.gif");
+        content.Add(new StringContent("Autor testowy"), "author");
+        content.Add(new StringContent("CC BY-SA 4.0"), "license");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/exercises/{exercise.Id}/media") { Content = content };
+        var csrf = await owner.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+
+        var upload = await owner.SendAsync(request);
+        upload.EnsureSuccessStatusCode();
+        var saved = (await upload.Content.ReadFromJsonAsync<ExerciseResponse>())!;
+        Assert.Equal("image/gif", saved.MediaContentType);
+        Assert.Equal("Autor testowy · CC BY-SA 4.0", saved.MediaAttribution);
+        Assert.NotNull(saved.MediaUrl);
+        Assert.Equal("image/gif", (await owner.GetAsync(saved.MediaUrl)).Content.Headers.ContentType!.MediaType);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync(saved.MediaUrl)).StatusCode);
+    }
+
+    [Fact]
     public async Task ReplacementBeforeFirstSetKeepsPrescriptionAndReplacesInPlace()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

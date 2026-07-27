@@ -2,6 +2,7 @@
 @inject AccountClient Account
 @inject TrainingClient TrainingApi
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>@(_exercise?.Name ?? "Ćwiczenie") · FormaAI</PageTitle>
 
@@ -31,6 +32,56 @@
     }
     else
     {
+        <section class="exercise-motion-card" aria-label="Podgląd ruchu ćwiczenia">
+            @if (!string.IsNullOrWhiteSpace(_exercise.MediaUrl))
+            {
+                @if (_exercise.MediaContentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    <video src="@_exercise.MediaUrl" autoplay muted loop playsinline controls preload="metadata"></video>
+                }
+                else
+                {
+                    <img src="@_exercise.MediaUrl" alt="Animowany podgląd wykonania: @_exercise.Name" />
+                }
+                @if (!string.IsNullOrWhiteSpace(_exercise.MediaAttribution))
+                {
+                    <small>
+                        Materiał: @_exercise.MediaAttribution
+                        @if (!string.IsNullOrWhiteSpace(_exercise.MediaSourceUrl)) { <a href="@_exercise.MediaSourceUrl" target="_blank" rel="noopener noreferrer">źródło</a> }
+                    </small>
+                }
+            }
+            else
+            {
+                <div class="exercise-motion-placeholder">
+                    <MudIcon Icon="@Icons.Material.Outlined.SportsGymnastics" />
+                    <strong>Podgląd ruchu w przygotowaniu</strong>
+                    <span>Opis i parametry ćwiczenia znajdziesz poniżej.</span>
+                </div>
+            }
+
+            @if (_exercise.CanEditMedia)
+            {
+                <details class="exercise-media-editor">
+                    <summary>@(_exercise.MediaUrl is null ? "Dodaj GIF lub film" : "Zmień GIF lub film")</summary>
+                    <label class="multi-photo-picker">
+                        <MudIcon Icon="@Icons.Material.Outlined.Movie" />
+                        <strong>@(_mediaFile?.Name ?? "Wybierz GIF, MP4 lub WebM")</strong>
+                        <span>Maksymalnie 15 MB.</span>
+                        <InputFile OnChange="SelectMedia" accept="image/gif,video/mp4,video/webm" disabled="@_mediaSaving" />
+                    </label>
+                    <div class="field-grid">
+                        <MudTextField @bind-Value="_mediaAuthor" Label="Autor materiału" MaxLength="150" />
+                        <MudTextField @bind-Value="_mediaLicense" Label="Licencja / zgoda" MaxLength="100" />
+                    </div>
+                    <MudTextField @bind-Value="_mediaSourceUrl" Label="Link do źródła (opcjonalnie)" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_mediaFile is null || _mediaSaving || string.IsNullOrWhiteSpace(_mediaAuthor) || string.IsNullOrWhiteSpace(_mediaLicense))" OnClick="SaveMedia">
+                        @(_mediaSaving ? "Wysyłam…" : "Zapisz podgląd ruchu")
+                    </MudButton>
+                </details>
+            }
+        </section>
+
         <MudPaper Class="exercise-detail-card" Elevation="0">
             <section>
                 <span class="card-kicker">Wykonanie</span>
@@ -86,6 +137,11 @@
     private TrainingDayResponse? _day;
     private PlannedExerciseResponse? _planned;
     private bool _loading = true;
+    private IBrowserFile? _mediaFile;
+    private string _mediaAuthor = string.Empty;
+    private string _mediaLicense = string.Empty;
+    private string? _mediaSourceUrl;
+    private bool _mediaSaving;
     private IReadOnlyList<ExerciseMuscleEngagementResponse> Engagements =>
         _exercise?.MuscleEngagements is { Count: > 0 } values
             ? values.OrderByDescending(x => x.Percentage).ToList()
@@ -117,6 +173,30 @@
             Navigation.NavigateTo($"/training?editPlan={planId}&editDay={dayId}");
     }
     private void EditExercise() => Navigation.NavigateTo($"/training?editExercise={ExerciseId}");
+    private void SelectMedia(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file.Size is 0 or > 15 * 1024 * 1024 || file.ContentType is not ("image/gif" or "video/mp4" or "video/webm"))
+        {
+            Snackbar.Add("Wybierz GIF, MP4 albo WebM do 15 MB.", Severity.Warning);
+            _mediaFile = null;
+            return;
+        }
+        _mediaFile = file;
+    }
+    private async Task SaveMedia()
+    {
+        if (_mediaFile is null || _exercise is null) return;
+        _mediaSaving = true;
+        try
+        {
+            _exercise = await TrainingApi.UploadExerciseMedia(ExerciseId, _mediaFile, _mediaAuthor, _mediaLicense, _mediaSourceUrl);
+            _mediaFile = null;
+            Snackbar.Add("Podgląd ruchu został zapisany.", Severity.Success);
+        }
+        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _mediaSaving = false; }
+    }
     private static string FormatRest(int? seconds) => seconds is null ? "—" : seconds >= 60 ? $"{seconds / 60}:{seconds % 60:00} min" : $"{seconds} s";
     private static string EquipmentName(Equipment equipment) => equipment switch { Equipment.Barbell => "Sztanga", Equipment.Dumbbell => "Hantle", Equipment.Machine => "Maszyna", Equipment.Cable => "Wyciąg", Equipment.Bodyweight => "Masa ciała", Equipment.Kettlebell => "Kettlebell", _ => "Inny sprzęt" };
     private static string MuscleGroupName(MuscleGroup group) => group switch { MuscleGroup.Chest => "Klatka piersiowa", MuscleGroup.Back => "Plecy", MuscleGroup.Shoulders => "Barki", MuscleGroup.Biceps => "Biceps", MuscleGroup.Triceps => "Triceps", MuscleGroup.Quadriceps => "Czworogłowe uda", MuscleGroup.Hamstrings => "Dwugłowe uda", MuscleGroup.Glutes => "Pośladki", MuscleGroup.Calves => "Łydki", MuscleGroup.Core => "Core", MuscleGroup.Forearms => "Przedramiona", _ => "Całe ciało" };

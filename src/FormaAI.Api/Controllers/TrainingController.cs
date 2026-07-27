@@ -13,7 +13,7 @@ namespace FormaAI.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/v1")]
-public sealed class TrainingController(AppDbContext db) : ControllerBase
+public sealed class TrainingController(AppDbContext db, IWebHostEnvironment environment, IConfiguration configuration) : ControllerBase
 {
     [HttpGet("exercises")]
     public async Task<IReadOnlyList<ExerciseResponse>> Exercises([FromQuery] string? query)
@@ -66,6 +66,54 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
         exercise.SetMuscleEngagements(Engagements(request));
         await db.SaveChangesAsync();
         return ExerciseResponse(exercise);
+    }
+
+    [HttpPost("exercises/{id:guid}/media")]
+    [ValidateAntiForgeryToken]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(15 * 1024 * 1024)]
+    public async Task<ActionResult<ExerciseResponse>> UploadExerciseMedia(
+        Guid id,
+        [FromForm] IFormFile media,
+        [FromForm] string author,
+        [FromForm] string license,
+        [FromForm] string? sourceUrl,
+        CancellationToken cancellationToken)
+    {
+        var exercise = await db.Exercises.Include(x => x.MuscleEngagements).SingleOrDefaultAsync(x => x.Id == id && x.IsActive, cancellationToken);
+        if (exercise is null || !CanEditMedia(exercise)) return NotFound();
+        var contentType = media.ContentType.ToLowerInvariant();
+        if (media.Length is 0 or > 15 * 1024 * 1024 || contentType is not ("image/gif" or "video/mp4" or "video/webm"))
+            return BadRequest("Wybierz GIF, MP4 albo WebM do 15 MB.");
+        if (string.IsNullOrWhiteSpace(author) || author.Length > 150 || string.IsNullOrWhiteSpace(license) || license.Length > 100)
+            return BadRequest("Podaj autora i licencję materiału.");
+        if (!string.IsNullOrWhiteSpace(sourceUrl) &&
+            (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var source) || source.Scheme is not ("http" or "https")))
+            return BadRequest("Link do źródła musi być poprawnym adresem HTTP lub HTTPS.");
+
+        var storage = Path.Combine(environment.ContentRootPath, "App_Data", "exercise-media");
+        Directory.CreateDirectory(storage);
+        var extension = contentType switch { "image/gif" => ".gif", "video/mp4" => ".mp4", _ => ".webm" };
+        var storageName = $"{Guid.NewGuid():N}{extension}";
+        await using (var stream = System.IO.File.Create(Path.Combine(storage, storageName)))
+            await media.CopyToAsync(stream, cancellationToken);
+
+        var previousStorageName = exercise.MediaStorageName;
+        exercise.SetMedia(storageName, contentType, $"{author.Trim()} · {license.Trim()}", sourceUrl);
+        await db.SaveChangesAsync(cancellationToken);
+        DeleteStoredMedia(storage, previousStorageName);
+        return ExerciseResponse(exercise);
+    }
+
+    [HttpGet("exercises/{id:guid}/media/content")]
+    public async Task<IActionResult> ExerciseMedia(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = UserId();
+        var exercise = await db.Exercises.SingleOrDefaultAsync(x => x.Id == id && x.IsActive &&
+            (x.OwnerUserId == null || x.OwnerUserId == userId), cancellationToken);
+        if (exercise?.MediaStorageName is null || exercise.MediaContentType is null) return NotFound();
+        var path = Path.Combine(environment.ContentRootPath, "App_Data", "exercise-media", exercise.MediaStorageName);
+        return System.IO.File.Exists(path) ? PhysicalFile(path, exercise.MediaContentType, enableRangeProcessing: true) : NotFound();
     }
 
     [HttpGet("training-plans")]
@@ -494,8 +542,18 @@ public sealed class TrainingController(AppDbContext db) : ControllerBase
     }
     private static IEnumerable<(MuscleGroup Group, int Percentage)> Engagements(SaveExerciseRequest request) =>
         request.MuscleEngagements is { Count: > 0 } ? request.MuscleEngagements.Select(x => (x.MuscleGroup, x.Percentage)) : [(request.MuscleGroup, 100)];
-    private static ExerciseResponse ExerciseResponse(Exercise x) => new(x.Id, x.Name, x.PrimaryMuscleGroup, x.Equipment, x.IsUnilateral, x.OwnerUserId != null, x.Description,
-        x.MuscleEngagements.Count > 0 ? x.MuscleEngagements.OrderByDescending(e => e.Percentage).Select(e => new ExerciseMuscleEngagementResponse(e.MuscleGroup, e.Percentage)).ToList() : [new(x.PrimaryMuscleGroup, 100)]);
+    private ExerciseResponse ExerciseResponse(Exercise x) => new(x.Id, x.Name, x.PrimaryMuscleGroup, x.Equipment, x.IsUnilateral, x.OwnerUserId != null, x.Description,
+        x.MuscleEngagements.Count > 0 ? x.MuscleEngagements.OrderByDescending(e => e.Percentage).Select(e => new ExerciseMuscleEngagementResponse(e.MuscleGroup, e.Percentage)).ToList() : [new(x.PrimaryMuscleGroup, 100)],
+        x.MediaStorageName is not null ? $"api/v1/exercises/{x.Id}/media/content" : x.MediaExternalUrl,
+        x.MediaContentType, x.MediaAttribution, x.MediaSourceUrl, CanEditMedia(x));
+    private bool CanEditMedia(Exercise exercise) => exercise.OwnerUserId == UserId() ||
+        exercise.OwnerUserId is null && string.Equals(User.Identity?.Name, configuration["Admin:Email"], StringComparison.OrdinalIgnoreCase);
+    private static void DeleteStoredMedia(string storage, string? storageName)
+    {
+        if (string.IsNullOrWhiteSpace(storageName)) return;
+        var path = Path.Combine(storage, storageName);
+        if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+    }
     private static CompletedSetResponse SetResponse(CompletedSet x) => new(x.Id, x.SetNumber, x.WeightKg, x.Repetitions, x.Rir, x.Type, x.CompletedAtUtc, x.Notes);
     private static WorkoutExerciseResponse ExerciseResponse(WorkoutExercise e) => new(e.Id, e.ExerciseId, e.ExerciseNameSnapshot, e.Order, e.PlannedSets, e.MinReps, e.MaxReps, e.TargetRir, e.RestSeconds, e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList());
     private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(x.Id, x.NameSnapshot, x.StartedAtUtc, x.FinishedAtUtc, x.Status,
