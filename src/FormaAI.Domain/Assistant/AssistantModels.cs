@@ -1,7 +1,7 @@
 namespace FormaAI.Domain.Assistant;
 
 public enum ConversationRole { User, Assistant }
-public enum AssistantActionType { Meal, TrainingPlan }
+public enum AssistantActionType { Meal, TrainingPlan, CompletedWorkout }
 public enum AssistantDraftStatus { Pending, Confirmed, Rejected, Expired }
 public enum ToolExecutionStatus { Succeeded, Failed }
 public enum AiProvider { Gemini, OpenAiCompatible }
