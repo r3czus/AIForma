@@ -21,45 +21,44 @@
     @if (_loading) { <PageSkeleton Message="Wczytuję plan" Compact="true" /> }
     else
     {
-        @if (_activeSession is not null)
-        {
-            <MudAlert Severity="Severity.Info" Class="mt-3">
-                Masz rozpoczęty trening „@_activeSession.Name”. Zapisane serie czekają na Ciebie.
-                <MudButton Href="@($"/workout/{_activeSession.Id}")" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Class="ml-2">Wznów trening</MudButton>
-            </MudAlert>
-        }
-
-        @if (_today is not null)
-        {
-            <MudPaper Class="workout-today" Elevation="1">
-                <div class="card-heading">
-                    <div><span class="card-kicker">Dzisiaj · @_today.PlanName</span><MudText Typo="Typo.h5">@_today.DayName</MudText></div>
-                    <span class="data-chip">@_today.Exercises.Count ćwiczeń</span>
-                </div>
-                @if (!_today.AlreadyCompleted)
-                {
-                    <div class="workout-length-picker" role="group" aria-label="Długość treningu">
-                        <button class="@(_workoutMinutes is null ? "selected" : null)" @onclick="() => _workoutMinutes = null"><strong>Pełny</strong><span>cały plan</span></button>
-                        <button class="@(_workoutMinutes == 30 ? "selected" : null)" @onclick="() => _workoutMinutes = 30"><strong>30 min</strong><span>4 ćwiczenia</span></button>
-                        <button class="@(_workoutMinutes == 15 ? "selected" : null)" @onclick="() => _workoutMinutes = 15"><strong>15 min</strong><span>minimum dnia</span></button>
-                    </div>
-                }
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_today.AlreadyCompleted" OnClick="Start" Class="mt-3">
-                    @(_today.AlreadyCompleted ? "Trening wykonany" : "Rozpocznij trening")
-                </MudButton>
-                @if (!_today.AlreadyCompleted)
-                {
-                    <details class="schedule-options"><summary>Nie możesz dzisiaj?</summary><div><MudDatePicker @bind-Date="_moveDate" Label="Przenieś na dzień" MinDate="DateTime.Today.AddDays(1)" /><MudButton Variant="Variant.Outlined" OnClick="MoveWorkout">Przenieś trening</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="SkipWorkout">Pomiń świadomie</MudButton></div></details>
-                }
-            </MudPaper>
-        }
-        else
-        {
-            <div class="module-empty training-empty"><MudIcon Icon="@Icons.Material.Outlined.SelfImprovement" /><div><strong>Dziś nie ma przypisanej sesji</strong><span>To może być dzień regeneracji albo moment na aktywowanie planu.</span></div></div>
-        }
-
         <MudTabs @bind-ActivePanelIndex="_activeTab" Class="module-tabs mt-4" PanelClass="food-panel">
+            <MudTabPanel Text="Trening">
+                <section class="training-entry-panel">
+                    <div class="tab-section-heading">
+                        <div><span class="card-kicker">Sesja treningowa</span><h2>Co robisz dzisiaj?</h2></div>
+                        <div class="training-entry-actions">
+                            <MudButton Href="/workout/new" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.EditNote">Wpisz trening</MudButton>
+                            <MudButton Href="/workout/new?mode=ai" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome">Dodaj z AI</MudButton>
+                        </div>
+                    </div>
+                    @if (_activeSession is not null)
+                    {
+                        <MudButton Href="@($"/workout/{_activeSession.Id}")" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Wznów rozpoczęty trening</MudButton>
+                    }
+                    else if (_today is not null && !_today.AlreadyCompleted)
+                    {
+                        <div class="workout-today training-tab-today">
+                            <div class="card-heading">
+                                <div><span class="card-kicker">Dzisiaj · @_today.PlanName</span><MudText Typo="Typo.h5">@_today.DayName</MudText></div>
+                                <span class="data-chip">@_today.Exercises.Count ćwiczeń</span>
+                            </div>
+                            <div class="workout-length-picker" role="group" aria-label="Długość treningu">
+                                <button class="@(_workoutMinutes is null ? "selected" : null)" @onclick="() => _workoutMinutes = null"><strong>Pełny</strong><span>cały plan</span></button>
+                                <button class="@(_workoutMinutes == 30 ? "selected" : null)" @onclick="() => _workoutMinutes = 30"><strong>30 min</strong><span>4 ćwiczenia</span></button>
+                                <button class="@(_workoutMinutes == 15 ? "selected" : null)" @onclick="() => _workoutMinutes = 15"><strong>15 min</strong><span>minimum dnia</span></button>
+                            </div>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="Start">Rozpocznij trening</MudButton>
+                            <details class="schedule-options"><summary>Nie możesz dzisiaj?</summary><div><MudDatePicker @bind-Date="_moveDate" Label="Przenieś na dzień" MinDate="DateTime.Today.AddDays(1)" /><MudButton Variant="Variant.Outlined" OnClick="MoveWorkout">Przenieś trening</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="SkipWorkout">Pomiń świadomie</MudButton></div></details>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="training-entry-note">Możesz wpisać wykonany trening ręcznie albo opisać go własnymi słowami i sprawdzić szkic przygotowany przez AI.</p>
+                    }
+                </section>
+            </MudTabPanel>
             <MudTabPanel Text="Plany">
+                <div hidden="@_planEditorOpen">
                 <div class="tab-section-heading"><div><span class="card-kicker">Twoje plany</span><h2>Plany treningowe</h2></div><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="StartNewPlan">Dodaj nowy plan</MudButton></div>
                 @if (_plans.Count == 0)
                 {
@@ -145,9 +144,8 @@
                         </MudPaper>
                     }
                 </div>
-            </MudTabPanel>
-
-            <MudTabPanel Text="Nowy plan">
+                </div>
+                <div hidden="@(!_planEditorOpen)">
                 <section class="module-form training-form">
                     <div class="module-form-heading"><span class="card-kicker">Kreator planu</span><h2>@(_editingPlanId is null ? "Ułóż tydzień krok po kroku" : "Edytuj plan krok po kroku")</h2><p>Najpierw ustal cel, potem zbuduj każdy dzień i sprawdź całość przed zapisaniem.</p></div>
                     @if (_editingPlanId is null)
@@ -253,9 +251,11 @@
                         }
                     </div>
                 </section>
+                </div>
             </MudTabPanel>
 
             <MudTabPanel Text="Ćwiczenia">
+                <div hidden="@_exerciseEditorOpen">
                 <div class="tab-section-heading"><div><span class="card-kicker">Biblioteka</span><h2>Ćwiczenia</h2></div><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="StartNewExercise">Dodaj ćwiczenie</MudButton></div>
                 <div class="exercise-index">
                     @foreach (var exercise in _exercises)
@@ -263,9 +263,8 @@
                         <article class="exercise-card"><div><strong>@exercise.Name</strong>@if (exercise.IsOwn) { <div class="exercise-card-actions"><small>Własne</small><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditLibraryExercise(exercise)" aria-label="Edytuj własne ćwiczenie" /></div> }</div><span>@EngagementLabel(exercise) · @EquipmentName(exercise.Equipment)</span>@if (!string.IsNullOrWhiteSpace(exercise.Description)) { <p>@exercise.Description</p> }</article>
                     }
                 </div>
-            </MudTabPanel>
-
-            <MudTabPanel Text="Nowe ćwiczenie">
+                </div>
+                <div hidden="@(!_exerciseEditorOpen)">
                 <section class="module-form training-form">
                     <div class="module-form-heading"><span class="card-kicker">Kreator ćwiczenia</span><h2>@(_editingLibraryExerciseId is null ? "Dodaj ćwiczenie krok po kroku" : "Edytuj ćwiczenie krok po kroku")</h2><p>Najpierw nazwij ruch, potem wybierz sprzęt i na końcu rozpisz pracę partii mięśniowych.</p></div>
                     <div class="plan-stepper exercise-stepper" aria-label="Etapy tworzenia ćwiczenia">
@@ -305,6 +304,7 @@
                         }
                     </div>
                 </section>
+                </div>
             </MudTabPanel>
         </MudTabs>
     }
@@ -331,6 +331,8 @@
     private int _activeTab;
     private int _planStep = 1;
     private int _exerciseStep = 1;
+    private bool _planEditorOpen;
+    private bool _exerciseEditorOpen;
     private Guid? _editingPlanId;
     private int? _editingDayIndex;
     private int? _editingExerciseIndex;
@@ -438,13 +440,14 @@
     {
         _editingPlanId = null; _editingDayIndex = null; _editingExerciseIndex = null;
         _plan.Name = "Mój plan"; _plan.Goal = string.Empty; _plan.StartsOn = DateOnly.FromDateTime(DateTime.Today); _plan.Days.Clear();
-        _day.Name = string.Empty; _day.DayOfWeek = null; _day.Exercises.Clear(); _planStep = 1; _activeTab = 1;
+        _day.Name = string.Empty; _day.DayOfWeek = null; _day.Exercises.Clear(); _planStep = 1; _planEditorOpen = true; _activeTab = 1;
     }
 
     private void StartNewExercise()
     {
         ResetExerciseDraft();
-        _activeTab = 3;
+        _exerciseEditorOpen = true;
+        _activeTab = 2;
     }
 
     private void EditPlan(TrainingPlanResponse plan)
@@ -452,7 +455,7 @@
         _editingPlanId = plan.Id; _plan.Name = plan.Name; _plan.Goal = plan.Goal; _plan.StartsOn = plan.StartsOn; _plan.Days.Clear();
         foreach (var day in plan.Days.OrderBy(x => x.SequenceNumber))
             _plan.Days.Add(new DayDraftItem(day.Name, day.DayOfWeek, day.Exercises.Select(x => new PlannedDraftItem(x.ExerciseId, x.ExerciseName, x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds, x.SupersetGroupId, x.SupersetPosition, x.IntervalSeconds)).ToList()));
-        _editingDayIndex = null; _editingExerciseIndex = null; _planStep = 4; _activeTab = 1;
+        _editingDayIndex = null; _editingExerciseIndex = null; _planStep = 4; _planEditorOpen = true; _activeTab = 1;
     }
 
     private void EditPlanDay(TrainingPlanResponse plan, int dayIndex)
@@ -545,7 +548,7 @@
         var request = new SaveTrainingPlanRequest(_plan.Name, _plan.Goal, _plan.StartsOn, _plan.Days.Select(d => new TrainingDayRequest(d.Name, d.DayOfWeek, d.Exercises.Select(x => new PlannedExerciseRequest(x.ExerciseId, x.Sets, x.MinReps, x.MaxReps, x.Rir, x.RestSeconds, x.SupersetGroupId, x.SupersetPosition, x.IntervalSeconds)).ToList())).ToList());
         var saved = _editingPlanId is Guid id ? await TrainingApi.UpdatePlan(id, request) : await TrainingApi.SavePlan(request);
         await TrainingApi.Activate(saved.Id);
-        _editingPlanId = null; _plan.Name = "Mój plan"; _plan.Goal = string.Empty; _plan.StartsOn = DateOnly.FromDateTime(DateTime.Now); _plan.Days.Clear(); _planStep = 1; _activeTab = 0;
+        _editingPlanId = null; _plan.Name = "Mój plan"; _plan.Goal = string.Empty; _plan.StartsOn = DateOnly.FromDateTime(DateTime.Now); _plan.Days.Clear(); _planStep = 1; _planEditorOpen = false; _activeTab = 1;
         await Reload(); Snackbar.Add("Plan zapisany i aktywowany.", Severity.Success);
     });
     private async Task SaveExercise() => await Run(async () =>
@@ -562,11 +565,12 @@
         _editingLibraryExerciseId = exercise.Id; _custom.Name = exercise.Name; _custom.Description = exercise.Description;
         _custom.Equipment = exercise.Equipment; _custom.IsUnilateral = exercise.IsUnilateral; _custom.Engagements.Clear();
         _custom.Engagements.AddRange((exercise.MuscleEngagements ?? [new(exercise.MuscleGroup, 100)]).Select(x => new EngagementDraft(x.MuscleGroup, x.Percentage)));
-        _exerciseStep = 1; _activeTab = 3;
+        _exerciseStep = 1; _exerciseEditorOpen = true; _activeTab = 2;
     }
     private void CancelExerciseEdit()
     {
         ResetExerciseDraft();
+        _exerciseEditorOpen = false;
         _activeTab = 2;
     }
     private void ResetExerciseDraft()

@@ -56,6 +56,27 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("superset-builder", source);
     }
 
+    [Fact]
+    public void TrainingModuleUsesThreeStableTabs()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Training.razor"));
+
+        Assert.Contains("<MudTabPanel Text=\"Trening\">", source);
+        Assert.Contains("<MudTabPanel Text=\"Plany\">", source);
+        Assert.Contains("<MudTabPanel Text=\"Ćwiczenia\">", source);
+        Assert.DoesNotContain("<MudTabPanel Text=\"Nowy plan\">", source);
+        Assert.DoesNotContain("<MudTabPanel Text=\"Nowe ćwiczenie\">", source);
+    }
+
+    [Fact]
+    public void SavedMealClickableCopyIsLeftAligned()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
+
+        Assert.Contains(".meal-row-link", source);
+        Assert.Contains("text-align: left", source);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

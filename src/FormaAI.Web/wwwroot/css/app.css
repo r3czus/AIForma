@@ -480,6 +480,20 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     justify-content: space-between;
     padding: 15px 4px;
 }
+.meal-row-link {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    flex: 1 1 auto;
+    font: inherit;
+    gap: 3px;
+    justify-items: start;
+    min-width: 0;
+    padding: 0;
+    text-align: left;
+}
 
 .meal-actions { align-items: center; display: flex; gap: 4px; }
 .plan-actions, .row-actions, .exercise-card-actions { align-items: center; display: flex; flex-direction: row; gap: 4px; }
@@ -1841,6 +1855,17 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .plan-exercise-copy strong { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.05rem; }
 .plan-exercise-copy small { color: var(--muted); font-size: .74rem; }
 .plan-exercise-copy .superset-label { color: var(--action); font-weight: 700; }
+.training-entry-panel { display: grid; gap: 16px; }
+.training-entry-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.training-entry-note { color: var(--muted); margin: 0; max-width: 62ch; }
+.training-tab-today {
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    box-shadow: none;
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+}
 .superset-builder {
     background: var(--surface-soft);
     border: 1px solid var(--rule);
