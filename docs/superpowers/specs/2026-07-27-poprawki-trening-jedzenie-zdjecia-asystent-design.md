@@ -38,6 +38,19 @@ Strona pokaże:
 
 Brak opisu lub dodatkowych udziałów mięśniowych będzie pokazany jako krótki stan informacyjny, a nie jako pusta sekcja. API udostępni pobranie pojedynczego ćwiczenia z kontrolą dostępu do ćwiczeń globalnych i własnych.
 
+### Wymiana ćwiczenia podczas sesji
+
+Aktywna sesja pokaże widoczną akcję `Zamień ćwiczenie` przy bieżącym ćwiczeniu, bez konieczności szukania jej w zwiniętych opcjach sesji. Wybór zamiennika będzie wyszukiwalny i nie pokaże ćwiczenia już używanego w tej samej sesji.
+
+Wymiana zachowa prawdziwą historię treningu:
+
+- przed zapisaniem pierwszej serii nowe ćwiczenie zastąpi bieżące i przejmie jego planowaną liczbę serii, zakres powtórzeń, RIR oraz przerwę;
+- po zapisaniu co najmniej jednej serii dotychczasowe ćwiczenie i wykonane serie pozostaną bez zmian, a zamiennik zostanie dodany bezpośrednio po nim jako nowe ćwiczenie na pozostałą liczbę serii;
+- jeżeli wszystkie planowane serie są już wykonane, interfejs zaproponuje dodanie zamiennika z domyślną jedną serią zamiast udawać, że zastąpił zakończone ćwiczenie;
+- zamiana nie zmieni źródłowego planu treningowego i dotyczy wyłącznie bieżącej sesji.
+
+Po operacji ekran przejdzie do nowego ćwiczenia, pobierze jego ostatni wynik i pokaże potwierdzenie. API odrzuci nieaktywne, cudze lub już obecne w sesji ćwiczenie.
+
 ## 2. Dopasowanie kaloryczności posiłku
 
 ### Wspólna reguła przeliczania
@@ -143,6 +156,9 @@ Testy automatyczne obejmą:
 - zapis partii zdjęć progresu z częściowym błędem;
 - obecność pozostałego makro i przekroczeń w podsumowaniu asystenta;
 - zachowanie potwierdzenia przed zapisaniem szkicu.
+- zamianę ćwiczenia przed pierwszą serią bez zmiany planu źródłowego;
+- zachowanie wykonanych serii i dodanie zamiennika na pozostałe serie;
+- odrzucenie niedostępnego lub zduplikowanego zamiennika.
 
 Weryfikacja ręczna na szerokości telefonu i komputera potwierdzi:
 
@@ -159,3 +175,5 @@ Na końcu zostaną wykonane wymagane polecenia:
 dotnet build FormaAI.sln
 dotnet test FormaAI.sln --no-build
 ```
+
+Po zielonej weryfikacji branch zostanie scalony do `main`. Nowa wersja zostanie uruchomiona lokalnie na porcie `5082` i udostępniona przez Cloudflare Quick Tunnel zgodnie z `docs/JAK-WYSTAWIC-WERSJE-NA-TELEFON.md`. Weryfikacja obejmie lokalny i publiczny `/health/live` oraz reprezentatywne zalogowane działanie konta demonstracyjnego. Klucze i konfiguracja administratora pozostaną wyłącznie w zmiennych środowiskowych procesu.
