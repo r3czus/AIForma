@@ -177,3 +177,26 @@ dotnet test FormaAI.sln --no-build
 ```
 
 Po zielonej weryfikacji branch zostanie scalony do `main`. Nowa wersja zostanie uruchomiona lokalnie na porcie `5082` i udostępniona przez Cloudflare Quick Tunnel zgodnie z `docs/JAK-WYSTAWIC-WERSJE-NA-TELEFON.md`. Weryfikacja obejmie lokalny i publiczny `/health/live` oraz reprezentatywne zalogowane działanie konta demonstracyjnego. Klucze i konfiguracja administratora pozostaną wyłącznie w zmiennych środowiskowych procesu.
+
+## 7. Zapętlony podgląd ruchu ćwiczenia
+
+Na górze strony szczegółów ćwiczenia pojawi się karta z podglądem ruchu. GIF jest
+wyświetlany jako obraz, a MP4/WebM jako automatycznie odtwarzany, wyciszony,
+zapętlony film z `playsinline`. Gdy ćwiczenie nie ma materiału, karta pokaże
+lekki podgląd zastępczy i komunikat, zamiast pustego białego pola.
+
+Właściciel własnego ćwiczenia oraz administrator dla ćwiczenia globalnego mogą
+wgrać GIF, MP4 albo WebM do 15 MB. Plik jest przechowywany pod losową nazwą w
+`App_Data/exercise-media` i wydawany wyłącznie przez autoryzowany endpoint.
+Ponowne wgranie podmienia poprzedni plik. Metadane obejmują typ pliku, autora,
+licencję i opcjonalny link do źródła, aby legalnie używać materiałów zewnętrznych.
+
+Do ćwiczeń bazowych zostaną przypisane tylko materiały, których licencja i
+dopasowanie ruchu zostały sprawdzone. Pierwszym takim materiałem jest animacja
+przysiadu z Wikimedia Commons na licencji CC BY-SA 4.0. Nie będą używane zbiory,
+które ograniczają zastosowanie do projektów niekomercyjnych.
+
+Testy obejmą dostęp do materiału, uprawnienia właściciela i administratora,
+odrzucenie nieobsługiwanego typu i zbyt dużego pliku oraz metadane atrybucji.
+Weryfikacja ręczna sprawdzi telefon, autoplay bez dźwięku, GIF oraz stan
+zastępczy.

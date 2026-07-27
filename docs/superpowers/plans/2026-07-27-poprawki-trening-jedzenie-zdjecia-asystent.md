@@ -536,7 +536,28 @@ git add src/FormaAI.Api/Controllers/AssistantController.cs tests/FormaAI.Api.Int
 git commit -m "Dopasować propozycje dań do brakującego makro"
 ```
 
-### Task 7: Pełna weryfikacja, scalenie i wersja testowa
+### Task 7: Podgląd ruchu i zarządzanie materiałem ćwiczenia
+
+**Files:**
+- Modify: `src/FormaAI.Domain/Training/TrainingModels.cs`
+- Modify: `src/FormaAI.Contracts/Training/TrainingContracts.cs`
+- Modify: `src/FormaAI.Infrastructure/Persistence/AppDbContext.cs`
+- Modify: `src/FormaAI.Api/Controllers/TrainingController.cs`
+- Modify: `src/FormaAI.Web/Services/TrainingClient.cs`
+- Modify: `src/FormaAI.Web/Pages/ExerciseDetails.razor`
+- Modify: `src/FormaAI.Web/wwwroot/css/app.css`
+- Create: EF Core migration for exercise media
+- Test: `tests/FormaAI.Api.IntegrationTests/TrainingFlowTests.cs`
+
+- [ ] Add failing integration tests for media visibility, upload authorization,
+  supported GIF/MP4/WebM types, the 15 MB limit and attribution metadata.
+- [ ] Add optional storage and attribution fields to `Exercise` and migrate the schema.
+- [ ] Add authenticated upload/content endpoints and safe replacement of old files.
+- [ ] Extend the web client and place the looping media card at the top of exercise details.
+- [ ] Seed the verified Wikimedia Commons squat animation with its CC BY-SA 4.0 attribution.
+- [ ] Run targeted tests and commit the completed module in Polish.
+
+### Task 8: Pełna weryfikacja, scalenie i wersja testowa
 
 **Files:**
 - Verify: all changed files and commit history.
