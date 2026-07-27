@@ -26,6 +26,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<PlannedExercise> PlannedExercises => Set<PlannedExercise>();
     public DbSet<WorkoutSession> WorkoutSessions => Set<WorkoutSession>();
     public DbSet<WorkoutExercise> WorkoutExercises => Set<WorkoutExercise>();
+    public DbSet<WorkoutSetPreset> WorkoutSetPresets => Set<WorkoutSetPreset>();
     public DbSet<WorkoutExerciseMuscleEngagement> WorkoutExerciseMuscleEngagements => Set<WorkoutExerciseMuscleEngagement>();
     public DbSet<CompletedSet> CompletedSets => Set<CompletedSet>();
     public DbSet<BodyMeasurement> BodyMeasurements => Set<BodyMeasurement>();
@@ -194,8 +195,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             workout.Property(x => x.ExerciseNameSnapshot).HasMaxLength(150).IsRequired();
             workout.Property(x => x.TargetRir).HasPrecision(3, 1);
             workout.HasMany(x => x.Sets).WithOne().HasForeignKey(x => x.WorkoutExerciseId).OnDelete(DeleteBehavior.Cascade);
+            workout.HasMany(x => x.Presets).WithOne().HasForeignKey(x => x.WorkoutExerciseId).OnDelete(DeleteBehavior.Cascade);
             workout.HasMany(x => x.MuscleEngagements).WithOne().HasForeignKey(x => x.WorkoutExerciseId).OnDelete(DeleteBehavior.Cascade);
             workout.HasOne<Exercise>().WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<WorkoutSetPreset>(preset =>
+        {
+            preset.HasKey(x => x.Id);
+            preset.Property(x => x.WeightKg).HasPrecision(7, 2);
+            preset.Property(x => x.Rir).HasPrecision(3, 1);
+            preset.HasIndex(x => new { x.WorkoutExerciseId, x.SetNumber }).IsUnique();
         });
 
         builder.Entity<WorkoutExerciseMuscleEngagement>(engagement =>
