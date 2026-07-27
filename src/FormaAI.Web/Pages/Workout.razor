@@ -92,7 +92,7 @@
                     {
                         var navIndex = index;
                         var item = OrderedExercises[index];
-                        <button type="button" class="@(index == _activeExerciseIndex ? "active" : null) @(item.Sets.Count >= item.PlannedSets ? "done" : null)" @onclick="() => SelectExercise(navIndex)" aria-label="@item.ExerciseName" title="@item.ExerciseName"><span></span></button>
+                        <button type="button" class="@(index == _activeExerciseIndex ? "active" : null) @(item.Sets.Count >= item.PlannedSets ? "done" : null)" @onclick="() => SelectExercise(navIndex)" aria-label="@item.ExerciseName" aria-current="@(index == _activeExerciseIndex ? "step" : null)" title="@item.ExerciseName"><span></span></button>
                     }
                 </div>
                 <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_activeExerciseIndex >= OrderedExercises.Count - 1)" OnClick="NextExercise" aria-label="Następne ćwiczenie" />
@@ -110,7 +110,7 @@
 
             <article class="workout-exercise workout-exercise-focus">
                 <section class="workout-motion-hero" aria-label="Podgląd ruchu ćwiczenia">
-                    @if (ActiveExerciseMedia is { MediaUrl: not null } media)
+                    @if (ActiveExerciseMedia is { MediaUrl: not null } media && _motionPreferenceLoaded && _allowMotionMedia)
                     {
                         @if (media.MediaContentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true)
                         {
@@ -120,6 +120,14 @@
                         {
                             <img src="@media.MediaUrl" alt="Podgląd wykonania: @exercise.ExerciseName" />
                         }
+                    }
+                    else if (ActiveExerciseMedia is { MediaUrl: not null })
+                    {
+                        <div class="workout-motion-placeholder">
+                            <MudIcon Icon="@Icons.Material.Outlined.MotionPhotosPaused" />
+                            <span>Animacja jest wstrzymana zgodnie z ustawieniem ograniczenia ruchu</span>
+                            <MudButton Variant="Variant.Text" OnClick="EnableMotionMedia">Pokaż animację</MudButton>
+                        </div>
                     }
                     else
                     {
@@ -131,7 +139,15 @@
                 </section>
                 <div class="exercise-live-heading">
                     <span class="exercise-order">@(_activeExerciseIndex + 1)</span>
-                    <div><span class="card-kicker">Ćwiczenie @(_activeExerciseIndex + 1) z @OrderedExercises.Count</span><MudText Typo="Typo.h4">@exercise.ExerciseName</MudText><MudText Typo="Typo.caption">@exercise.PlannedSets × @exercise.MinReps-@exercise.MaxReps @if (exercise.TargetRir is not null) { <span>· RIR @exercise.TargetRir</span> }</MudText></div>
+                    <div>
+                        <span class="card-kicker">Ćwiczenie @(_activeExerciseIndex + 1) z @OrderedExercises.Count</span>
+                        <MudText Typo="Typo.h4">@exercise.ExerciseName</MudText>
+                        <MudText Typo="Typo.caption">@exercise.PlannedSets × @exercise.MinReps-@exercise.MaxReps @if (exercise.TargetRir is not null) { <span>· RIR @exercise.TargetRir</span> }</MudText>
+                        @if (exercise.Presets is { Count: > 0 })
+                        {
+                            <span class="ai-preset-badge"><MudIcon Icon="@Icons.Material.Filled.AutoAwesome" /> Serie przygotowane przez AI</span>
+                        }
+                    </div>
                     <strong class="exercise-set-count">@exercise.Sets.Count/@exercise.PlannedSets</strong>
                 </div>
 
@@ -148,7 +164,7 @@
                         <div class="swap-exercise-results">
                             @foreach (var option in SwapOptions)
                             {
-                                <button type="button" class="@(_selectedExerciseId == option.Id ? "selected" : null)" @onclick="() => _selectedExerciseId = option.Id">
+                                <button type="button" class="@(_selectedExerciseId == option.Id ? "selected" : null)" aria-pressed="@(_selectedExerciseId == option.Id)" @onclick="() => _selectedExerciseId = option.Id">
                                     <span><strong>@option.Name</strong><small>@MuscleGroupName(option.MuscleGroup) · @EquipmentName(option.Equipment)</small></span>
                                     <MudIcon Icon="@(_selectedExerciseId == option.Id ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" />
                                 </button>
@@ -180,7 +196,7 @@
                             @foreach (var member in SupersetMembers)
                             {
                                 var memberIndex = OrderedExercises.ToList().FindIndex(x => x.Id == member.Id);
-                                <button type="button" class="@(member.Id == exercise.Id ? "active" : null)" @onclick="() => SelectExercise(memberIndex)">
+                                <button type="button" class="@(member.Id == exercise.Id ? "active" : null)" aria-current="@(member.Id == exercise.Id ? "step" : null)" @onclick="() => SelectExercise(memberIndex)">
                                     <span>A@(member.SupersetPosition)</span>
                                     <strong>@member.ExerciseName</strong>
                                     <small>@member.Sets.Count/@member.PlannedSets serii</small>
@@ -271,6 +287,8 @@
     private int _timerSeconds;
     private int _timerStartSeconds;
     private bool _timerRunning;
+    private bool _motionPreferenceLoaded;
+    private bool _allowMotionMedia;
     private TimeSpan _elapsed;
     private decimal _trainingCalories;
 
@@ -322,10 +340,11 @@
         foreach (var exercise in _session.Exercises)
         {
             _forms.TryAdd(exercise.Id, new SetForm());
+            var presetApplied = exercise.Sets.Count == 0 && ApplyNextPreset(exercise, _forms[exercise.Id]);
             if (exercise.ExerciseId is Guid exerciseId && !_history.ContainsKey(exerciseId))
             {
                 _history[exerciseId] = (await TrainingApi.GetHistory(exerciseId)).FirstOrDefault();
-                if (_history[exerciseId] is { } last && exercise.Sets.Count == 0)
+                if (_history[exerciseId] is { } last && exercise.Sets.Count == 0 && !presetApplied)
                 {
                     _forms[exercise.Id].WeightKg = last.WeightKg;
                     _forms[exercise.Id].Repetitions = last.Repetitions;
@@ -340,6 +359,29 @@
             _clockCancellation = new CancellationTokenSource();
             _ = RunClock(_clockCancellation.Token);
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            _allowMotionMedia = await JS.InvokeAsync<bool>("formaMotion.allowsMotion");
+        }
+        catch (JSException)
+        {
+            _allowMotionMedia = true;
+        }
+
+        _motionPreferenceLoaded = true;
+        StateHasChanged();
+    }
+
+    private void EnableMotionMedia()
+    {
+        _allowMotionMedia = true;
+        _motionPreferenceLoaded = true;
     }
 
     private async Task SaveSet(WorkoutExerciseResponse exercise, SetForm form)
@@ -359,6 +401,8 @@
             form.SetNumber = null;
             form.Notes = null;
             form.IsWarmup = false;
+            var refreshedExercise = OrderedExercises.First(x => x.Id == exercise.Id);
+            ApplyNextPreset(refreshedExercise, form);
             if (request.SetType != SetType.Warmup)
             {
                 var step = WorkoutSequence.Next(
@@ -402,6 +446,17 @@
         form.Rir = set.Rir;
         form.IsWarmup = set.SetType == SetType.Warmup;
         form.Notes = set.Notes;
+    }
+
+    private static bool ApplyNextPreset(WorkoutExerciseResponse exercise, SetForm form)
+    {
+        var nextNumber = exercise.Sets.Count(x => x.SetType == SetType.Working) + 1;
+        var preset = exercise.Presets?.FirstOrDefault(x => x.SetNumber == nextNumber);
+        if (preset is null) return false;
+        form.WeightKg = preset.WeightKg;
+        form.Repetitions = preset.Repetitions;
+        form.Rir = preset.Rir;
+        return true;
     }
 
     private void SelectExercise(int index) => _activeExerciseIndex = Math.Clamp(index, 0, Math.Max(0, OrderedExercises.Count - 1));

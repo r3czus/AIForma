@@ -87,6 +87,65 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task QuickWorkoutPreservesConfigurationAndSetPresets()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "quick-workout-configuration@example.test");
+        var press = await CreateExercise(client, "Wyciskanie konfigurowane", MuscleGroup.Chest, Equipment.Barbell);
+        var row = await CreateExercise(client, "Wiosłowanie konfigurowane", MuscleGroup.Back, Equipment.Dumbbell);
+        var groupId = Guid.NewGuid();
+
+        var session = await Send<StartQuickWorkoutRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/workout-sessions/quick",
+            new("Trening przygotowany", 50,
+            [
+                new(
+                    press.Id,
+                    2,
+                    6,
+                    8,
+                    1,
+                    120,
+                    groupId,
+                    1,
+                    20,
+                    [
+                        new(1, 80, 8, 2),
+                        new(2, 82.5m, 6, 1)
+                    ]),
+                new(row.Id, 2, 10, 12, 2, 90, groupId, 2, 75)
+            ]));
+
+        Assert.Equal(2, session.Exercises.Count);
+        var first = session.Exercises[0];
+        Assert.Equal(6, first.MinReps);
+        Assert.Equal(8, first.MaxReps);
+        Assert.Equal(1, first.TargetRir);
+        Assert.Equal(120, first.RestSeconds);
+        Assert.Equal(groupId, first.SupersetGroupId);
+        Assert.Equal(1, first.SupersetPosition);
+        Assert.Equal(20, first.IntervalSeconds);
+        Assert.Collection(
+            first.Presets!,
+            preset =>
+            {
+                Assert.Equal(1, preset.SetNumber);
+                Assert.Equal(80, preset.WeightKg);
+                Assert.Equal(8, preset.Repetitions);
+                Assert.Equal(2, preset.Rir);
+            },
+            preset =>
+            {
+                Assert.Equal(2, preset.SetNumber);
+                Assert.Equal(82.5m, preset.WeightKg);
+                Assert.Equal(6, preset.Repetitions);
+                Assert.Equal(1, preset.Rir);
+            });
+    }
+
+    [Fact]
     public async Task ReplacingExerciseAfterASetShortensTheOriginalPlan()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

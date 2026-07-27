@@ -28,6 +28,9 @@ public sealed class AssistantClient(HttpClient http)
     public Task<WorkoutSessionResponse> ConfirmCompletedWorkout(Guid draftId) =>
         Send<WorkoutSessionResponse>(HttpMethod.Post, $"api/v1/assistant/actions/{draftId}/confirm", new { });
 
+    public Task<WorkoutSessionResponse> StartWorkout(Guid draftId) =>
+        Send<WorkoutSessionResponse>(HttpMethod.Post, $"api/v1/assistant/actions/{draftId}/start-workout", new { });
+
     public async Task Reject(Guid draftId)
     {
         using var response = await Send(HttpMethod.Post, $"api/v1/assistant/actions/{draftId}/reject", new { });

@@ -187,6 +187,79 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
         return NoContent();
     }
 
+    [HttpPost("actions/{id:guid}/start-workout")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<WorkoutSessionResponse>> StartWorkout(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var userId = UserId();
+        var draft = await db.AssistantActionDrafts
+            .SingleOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken);
+        if (draft is null) return NotFound();
+        if (draft.ActionType != AssistantActionType.CompletedWorkout)
+            return ValidationProblem("Ten szkic nie opisuje treningu.");
+        if (draft.ConfirmedResourceId is Guid sessionId)
+            return WorkoutSessionResponse(await WorkoutSession(userId, sessionId, cancellationToken));
+        if (draft.IsExpired(DateTime.UtcNow))
+        {
+            draft.Expire();
+            await db.SaveChangesAsync(cancellationToken);
+            return Conflict("Szkic wygasł. Poproś asystenta o nowy.");
+        }
+        if (draft.Status != AssistantDraftStatus.Pending)
+            return Conflict("Ten szkic nie oczekuje już na zatwierdzenie.");
+
+        var active = await db.WorkoutSessions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.UserId == userId && x.Status == SessionStatus.InProgress,
+                cancellationToken);
+        if (active is not null)
+            return Conflict("Najpierw dokończ albo porzuć aktywny trening.");
+
+        var payload = CompletedWorkoutPayload(draft);
+        await ValidateCompletedWorkout(userId, payload, cancellationToken);
+        var exerciseIds = payload.Exercises.Select(x => x.ExerciseId).Distinct().ToList();
+        var exercises = await db.Exercises
+            .Include(x => x.MuscleEngagements)
+            .Where(x => exerciseIds.Contains(x.Id) &&
+                        x.IsActive &&
+                        (x.OwnerUserId == null || x.OwnerUserId == userId))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var duration = Math.Clamp(payload.Exercises.Count * 12, 30, 120);
+        var session = new WorkoutSession(userId, payload.Name, duration);
+
+        for (var index = 0; index < payload.Exercises.Count; index++)
+        {
+            var source = payload.Exercises[index];
+            var workoutExercise = new WorkoutExercise(
+                exercises[source.ExerciseId],
+                index + 1,
+                source.Sets.Count,
+                source.Sets.Min(x => x.Repetitions),
+                source.Sets.Max(x => x.Repetitions),
+                source.Sets.Select(x => x.Rir).Where(x => x is not null).DefaultIfEmpty(2).Average(),
+                90);
+            for (var setIndex = 0; setIndex < source.Sets.Count; setIndex++)
+            {
+                var set = source.Sets[setIndex];
+                workoutExercise.Presets.Add(new WorkoutSetPreset(
+                    workoutExercise.Id,
+                    setIndex + 1,
+                    set.WeightKg,
+                    set.Repetitions,
+                    set.Rir));
+            }
+            session.Exercises.Add(workoutExercise);
+        }
+
+        db.WorkoutSessions.Add(session);
+        draft.Confirm(session.Id);
+        await db.SaveChangesAsync(cancellationToken);
+        return Created($"api/v1/workout-sessions/{session.Id}", WorkoutSessionResponse(session));
+    }
+
     private async Task<ToolResult> ExecuteTool(string userId, Guid conversationId, DateOnly localDate, AssistantToolCall call, CancellationToken cancellationToken)
     {
         var timer = Stopwatch.StartNew();
@@ -467,7 +540,7 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
     {
         if (draft.ConfirmedResourceId is Guid sessionId)
         {
-            var saved = await CompletedWorkoutSession(userId, sessionId, cancellationToken);
+            var saved = await WorkoutSession(userId, sessionId, cancellationToken);
             return WorkoutSessionResponse(saved);
         }
         if (draft.IsExpired(DateTime.UtcNow))
@@ -542,13 +615,15 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
             throw new ArgumentException("exercise_not_found");
     }
 
-    private async Task<WorkoutSession> CompletedWorkoutSession(
+    private async Task<WorkoutSession> WorkoutSession(
         string userId,
         Guid sessionId,
         CancellationToken cancellationToken) =>
         await db.WorkoutSessions
             .Include(x => x.Exercises)
             .ThenInclude(x => x.Sets)
+            .Include(x => x.Exercises)
+            .ThenInclude(x => x.Presets)
             .SingleAsync(x => x.Id == sessionId && x.UserId == userId, cancellationToken);
 
     private async Task ValidateTrainingPlan(string userId, SaveTrainingPlanRequest request, CancellationToken cancellationToken)
@@ -707,7 +782,15 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
                         .ToList(),
                     x.SupersetGroupId,
                     x.SupersetPosition,
-                    x.IntervalSeconds))
+                    x.IntervalSeconds,
+                    x.Presets
+                        .OrderBy(preset => preset.SetNumber)
+                        .Select(preset => new WorkoutSetPresetResponse(
+                            preset.SetNumber,
+                            preset.WeightKg,
+                            preset.Repetitions,
+                            preset.Rir))
+                        .ToList()))
                 .ToList(),
             session.IsShortened,
             session.TimeLimitMinutes);

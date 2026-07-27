@@ -242,6 +242,7 @@ public sealed class WorkoutExercise
     public int? SupersetPosition { get; private set; }
     public int? IntervalSeconds { get; private set; }
     public List<CompletedSet> Sets { get; private set; } = [];
+    public List<WorkoutSetPreset> Presets { get; private set; } = [];
     public List<WorkoutExerciseMuscleEngagement> MuscleEngagements { get; private set; } = [];
     public void ReplaceExercise(Exercise exercise) { ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Snapshot(exercise); }
     public void Shorten(int sets) => PlannedSets = Math.Min(PlannedSets, sets);
@@ -281,6 +282,36 @@ public sealed class WorkoutExercise
         for (var index = sharedCount; index < desired.Count; index++)
             MuscleEngagements.Add(new WorkoutExerciseMuscleEngagement(Id, desired[index].MuscleGroup, desired[index].Percentage));
     }
+}
+
+public sealed class WorkoutSetPreset
+{
+    private WorkoutSetPreset() { }
+    public WorkoutSetPreset(
+        Guid workoutExerciseId,
+        int setNumber,
+        decimal weightKg,
+        int repetitions,
+        decimal? rir)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(setNumber, 1);
+        ArgumentOutOfRangeException.ThrowIfNegative(weightKg);
+        ArgumentOutOfRangeException.ThrowIfLessThan(repetitions, 1);
+        if (rir is < 0 or > 10) throw new ArgumentOutOfRangeException(nameof(rir));
+        Id = Guid.NewGuid();
+        WorkoutExerciseId = workoutExerciseId;
+        SetNumber = setNumber;
+        WeightKg = weightKg;
+        Repetitions = repetitions;
+        Rir = rir;
+    }
+
+    public Guid Id { get; private set; }
+    public Guid WorkoutExerciseId { get; private set; }
+    public int SetNumber { get; private set; }
+    public decimal WeightKg { get; private set; }
+    public int Repetitions { get; private set; }
+    public decimal? Rir { get; private set; }
 }
 
 public sealed class WorkoutExerciseMuscleEngagement

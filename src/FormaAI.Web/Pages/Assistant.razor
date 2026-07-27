@@ -288,54 +288,6 @@
     }
 
     private sealed record ChatLine(bool FromUser, string Text);
-    private sealed class CompletedWorkoutDraftForm
-    {
-        public Guid Id { get; init; }
-        public DateOnly LocalDate { get; init; }
-        public string Name { get; set; } = string.Empty;
-        public List<CompletedWorkoutExerciseForm> Exercises { get; init; } = [];
-
-        public static CompletedWorkoutDraftForm From(AssistantCompletedWorkoutDraftResponse response) =>
-            new()
-            {
-                Id = response.Id,
-                LocalDate = response.LocalDate,
-                Name = response.Name,
-                Exercises = response.Exercises.Select(x => new CompletedWorkoutExerciseForm
-                {
-                    ExerciseId = x.ExerciseId,
-                    ExerciseName = x.ExerciseName,
-                    Sets = x.Sets.Select(set => new CompletedWorkoutSetForm
-                    {
-                        WeightKg = set.WeightKg,
-                        Repetitions = set.Repetitions,
-                        Rir = set.Rir
-                    }).ToList()
-                }).ToList()
-            };
-
-        public UpdateAssistantCompletedWorkoutDraftRequest ToRequest() =>
-            new(
-                Name,
-                LocalDate,
-                Exercises.Select(x => new AssistantWorkoutExerciseDraft(
-                    x.ExerciseId,
-                    x.ExerciseName,
-                    x.Sets.Select(set => new AssistantWorkoutSetDraft(set.WeightKg, set.Repetitions, set.Rir)).ToList())).ToList());
-    }
-    private sealed class CompletedWorkoutExerciseForm
-    {
-        public Guid ExerciseId { get; init; }
-        public string ExerciseName { get; init; } = string.Empty;
-        public List<CompletedWorkoutSetForm> Sets { get; init; } = [];
-    }
-    private sealed class CompletedWorkoutSetForm
-    {
-        public decimal WeightKg { get; set; }
-        public int Repetitions { get; set; }
-        public decimal? Rir { get; set; }
-    }
-
     private string ExerciseName(Guid id) => _exerciseNames.TryGetValue(id, out var name) ? name : "Ćwiczenie z katalogu";
     private static string DayName(DayOfWeek day) => day switch
     {

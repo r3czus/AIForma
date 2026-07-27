@@ -1,0 +1,505 @@
+@page "/workout/new"
+@using FormaAI.Contracts.Assistant
+@inject TrainingClient TrainingApi
+@inject AssistantClient AssistantApi
+@inject AccountClient Account
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Nowy trening · FormaAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap workout-builder-page">
+    @if (_checking)
+    {
+        <PageSkeleton Message="Przygotowuję kreator treningu" Compact="true" />
+    }
+    else
+    {
+        <header class="workout-builder-heading">
+            <MudIconButton Href="/" Icon="@Icons.Material.Outlined.ArrowBack" aria-label="Wróć do pulpitu" />
+            <div>
+                <span class="page-kicker">Przygotuj sesję</span>
+                <h1>Nowy trening</h1>
+                <p>Najpierw sprawdź plan. Sesja rozpocznie się dopiero po Twoim zatwierdzeniu.</p>
+            </div>
+        </header>
+
+        <section class="workout-entry-modes" aria-label="Sposób dodawania treningu">
+            <button type="button" class="@ModeClass(WorkoutBuilderMode.Ai)" aria-pressed="@(_mode == WorkoutBuilderMode.Ai)" @onclick="() => SelectMode(WorkoutBuilderMode.Ai)">
+                <span class="workout-mode-icon ai"><MudIcon Icon="@Icons.Material.Filled.AutoAwesome" /></span>
+                <span><strong>Dodaj z AI</strong><small>Opisz ćwiczenia, serie i ciężary.</small></span>
+                <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+            </button>
+            <button type="button" class="@ModeClass(WorkoutBuilderMode.Manual)" aria-pressed="@(_mode == WorkoutBuilderMode.Manual)" @onclick="() => SelectMode(WorkoutBuilderMode.Manual)">
+                <span class="workout-mode-icon"><MudIcon Icon="@Icons.Material.Outlined.EditNote" /></span>
+                <span><strong>Dodaj ręcznie</strong><small>Wybierz ćwiczenia i ustaw parametry.</small></span>
+                <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+            </button>
+        </section>
+
+        @if (_mode == WorkoutBuilderMode.None)
+        {
+            <section class="workout-builder-intro">
+                <span class="workout-builder-step">1</span>
+                <div>
+                    <span class="card-kicker">Krok pierwszy</span>
+                    <h2>Jak chcesz przygotować trening?</h2>
+                    <p>AI rozpozna ćwiczenia i rozpisze serie. W trybie ręcznym ustawisz każdy parametr samodzielnie.</p>
+                </div>
+            </section>
+        }
+        else if (_mode == WorkoutBuilderMode.Ai)
+        {
+            <section class="workout-builder-stage ai-workout-stage">
+                <div class="workout-builder-stage-heading">
+                    <span class="workout-builder-step">1</span>
+                    <div><span class="card-kicker">Dodaj z AI</span><h2>Opisz trening po swojemu</h2><p>Możesz podać ćwiczenia, liczbę serii, ciężary, powtórzenia i RIR.</p></div>
+                </div>
+
+                @if (_aiDraft is null)
+                {
+                    <MudTextField @bind-Value="_aiDescription"
+                                  Label="Opis treningu"
+                                  Placeholder="Np. wyciskanie sztangi: 4 serie po 8 z 80 kg, potem wiosłowanie 4 × 10 z 50 kg"
+                                  Lines="5"
+                                  MaxLength="2000"
+                                  Immediate="true"
+                                  Disabled="_saving" />
+                    <div class="workout-ai-examples" aria-label="Przykładowe opisy">
+                        <button type="button" @onclick='() => UseAiExample("Wyciskanie sztangi 4 × 8 z 80 kg, RIR 2. Wiosłowanie hantlem 4 × 10 z 32 kg, RIR 2.")'>Góra ciała</button>
+                        <button type="button" @onclick='() => UseAiExample("Przysiad 4 × 6 z 90 kg, martwy ciąg rumuński 3 × 10 z 60 kg i wykroki 3 × 12.")'>Nogi</button>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_aiReply))
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">@_aiReply</MudAlert>
+                    }
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Large"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.AutoAwesome"
+                               Disabled="@(_saving || string.IsNullOrWhiteSpace(_aiDescription))"
+                               OnClick="PrepareWithAi">
+                        @(_saving ? "AI układa trening…" : "Przygotuj trening")
+                    </MudButton>
+                }
+                else
+                {
+                    <div class="workout-draft-review-heading">
+                        <span class="workout-builder-step">2</span>
+                        <div><span class="card-kicker">Szkic do sprawdzenia</span><h2>Popraw dane przed rozpoczęciem</h2></div>
+                        <MudButton Variant="Variant.Text" Disabled="_saving" OnClick="ResetAiDraft">Zmień opis</MudButton>
+                    </div>
+                    <MudTextField @bind-Value="_aiDraft.Name" Label="Nazwa treningu" MaxLength="150" />
+
+                    <div class="ai-workout-exercises">
+                        @for (var exerciseIndex = 0; exerciseIndex < _aiDraft.Exercises.Count; exerciseIndex++)
+                        {
+                            var currentExerciseIndex = exerciseIndex;
+                            var exercise = _aiDraft.Exercises[currentExerciseIndex];
+                            <article class="ai-workout-exercise">
+                                <header>
+                                    <span><small>Ćwiczenie @(currentExerciseIndex + 1)</small><strong>@exercise.ExerciseName</strong></span>
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Delete"
+                                                   Color="Color.Error"
+                                                   Disabled="@(_aiDraft.Exercises.Count == 1 || _saving)"
+                                                   OnClick="() => RemoveAiExercise(currentExerciseIndex)"
+                                                   aria-label="@($"Usuń {exercise.ExerciseName}")" />
+                                </header>
+                                <div class="ai-set-grid ai-set-grid-head" aria-hidden="true"><span>Seria</span><span>kg</span><span>Powt.</span><span>RIR</span><span></span></div>
+                                @for (var setIndex = 0; setIndex < exercise.Sets.Count; setIndex++)
+                                {
+                                    var currentSetIndex = setIndex;
+                                    var set = exercise.Sets[currentSetIndex];
+                                    <div class="ai-set-grid">
+                                        <strong>@(currentSetIndex + 1)</strong>
+                                        <MudNumericField @bind-Value="set.WeightKg" Min="0m" Max="1000m" HideSpinButtons="true" aria-label="@($"Ciężar serii {currentSetIndex + 1}")" />
+                                        <MudNumericField @bind-Value="set.Repetitions" Min="1" Max="1000" HideSpinButtons="true" aria-label="@($"Powtórzenia serii {currentSetIndex + 1}")" />
+                                        <MudNumericField @bind-Value="set.Rir" Min="0m" Max="10m" HideSpinButtons="true" aria-label="@($"RIR serii {currentSetIndex + 1}")" />
+                                        <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                                                       Disabled="@(exercise.Sets.Count == 1 || _saving)"
+                                                       OnClick="() => RemoveAiSet(exercise, currentSetIndex)"
+                                                       aria-label="@($"Usuń serię {currentSetIndex + 1}")" />
+                                    </div>
+                                }
+                                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" Disabled="_saving" OnClick="() => AddAiSet(exercise)">Dodaj serię</MudButton>
+                            </article>
+                        }
+                    </div>
+
+                    @if (AiValidationErrors.Count > 0)
+                    {
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                            @foreach (var error in AiValidationErrors) { <div>@error</div> }
+                        </MudAlert>
+                    }
+                    <div class="workout-start-bar">
+                        <span><strong>@_aiDraft.Exercises.Count ćwiczeń</strong><small>@_aiDraft.Exercises.Sum(x => x.Sets.Count) zaplanowanych serii</small></span>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   Disabled="@(_saving || AiValidationErrors.Count > 0)"
+                                   OnClick="StartAiWorkout">
+                            @(_saving ? "Rozpoczynam…" : "Rozpocznij ten trening")
+                        </MudButton>
+                    </div>
+                }
+            </section>
+        }
+        else
+        {
+            <section class="workout-builder-stage manual-workout-stage">
+                <div class="workout-builder-stage-heading">
+                    <span class="workout-builder-step">1</span>
+                    <div><span class="card-kicker">Dodaj ręcznie</span><h2>Zbuduj kolejność ćwiczeń</h2><p>Ustaw serie, zakres powtórzeń, przerwę i superserie przed rozpoczęciem.</p></div>
+                </div>
+                <div class="manual-workout-basics">
+                    <MudTextField @bind-Value="_manualDraft.Name" Label="Nazwa treningu" MaxLength="120" />
+                    <MudSelect T="int" @bind-Value="_manualDraft.Minutes" Label="Planowany czas">
+                        <MudSelectItem Value="30">30 min</MudSelectItem>
+                        <MudSelectItem Value="45">45 min</MudSelectItem>
+                        <MudSelectItem Value="60">60 min</MudSelectItem>
+                        <MudSelectItem Value="75">75 min</MudSelectItem>
+                        <MudSelectItem Value="90">90 min</MudSelectItem>
+                    </MudSelect>
+                </div>
+
+                <div class="manual-exercise-search">
+                    <MudTextField T="string"
+                                  Value="_search"
+                                  ValueChanged="SearchExercises"
+                                  Label="Znajdź ćwiczenie"
+                                  Placeholder="Np. wyciskanie albo przysiad"
+                                  Immediate="true"
+                                  DebounceInterval="250"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Outlined.Search" />
+                    @if (_searching)
+                    {
+                        <div class="workout-builder-loading"><MudProgressCircular Indeterminate="true" Size="Size.Small" /><span>Szukam ćwiczeń…</span></div>
+                    }
+                    else
+                    {
+                        <div class="manual-search-results">
+                            @foreach (var exercise in AvailableExercises.Take(8))
+                            {
+                                <button type="button" @onclick="() => AddExercise(exercise)">
+                                    <span class="exercise-result-media">
+                                        @if (exercise.MediaUrl is not null)
+                                        {
+                                            <img src="@exercise.MediaUrl" alt="" loading="lazy" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" />
+                                        }
+                                    </span>
+                                    <span><strong>@exercise.Name</strong><small>@ExerciseMeta(exercise)</small></span>
+                                    <MudIcon Icon="@Icons.Material.Outlined.Add" />
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (_manualDraft.Exercises.Count > 0)
+                {
+                    <div class="manual-workout-list">
+                        @for (var index = 0; index < _manualDraft.Exercises.Count; index++)
+                        {
+                            var currentIndex = index;
+                            var item = _manualDraft.Exercises[currentIndex];
+                            <article class="manual-workout-exercise @(item.LinkWithNext ? "links-next" : null)">
+                                <header>
+                                    <span class="manual-exercise-order">@(currentIndex + 1)</span>
+                                    <span class="manual-exercise-title"><strong>@item.Exercise.Name</strong><small>@ExerciseMeta(item.Exercise)</small></span>
+                                    <span class="manual-reorder-actions">
+                                        <MudIconButton Icon="@Icons.Material.Outlined.KeyboardArrowUp" Disabled="@(currentIndex == 0)" OnClick="() => MoveExercise(currentIndex, -1)" aria-label="Przesuń ćwiczenie w górę" />
+                                        <MudIconButton Icon="@Icons.Material.Outlined.KeyboardArrowDown" Disabled="@(currentIndex == _manualDraft.Exercises.Count - 1)" OnClick="() => MoveExercise(currentIndex, 1)" aria-label="Przesuń ćwiczenie w dół" />
+                                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" Color="Color.Error" OnClick="() => RemoveExercise(currentIndex)" aria-label="@($"Usuń {item.Exercise.Name}")" />
+                                    </span>
+                                </header>
+                                <div class="manual-exercise-fields">
+                                    <MudNumericField @bind-Value="item.Sets" Label="Serie" Min="1" Max="10" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="item.MinReps" Label="Powt. od" Min="1" Max="100" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="item.MaxReps" Label="Powt. do" Min="1" Max="100" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="item.TargetRir" Label="RIR" Min="0m" Max="10m" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="item.RestSeconds" Label="Przerwa (s)" Min="0" Max="3600" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="item.IntervalSeconds" Label="Interwał (s)" Min="0" Max="3600" HideSpinButtons="true" Disabled="@(!item.LinkWithNext && (currentIndex == 0 || !_manualDraft.Exercises[currentIndex - 1].LinkWithNext))" />
+                                </div>
+                                @if (currentIndex < _manualDraft.Exercises.Count - 1)
+                                {
+                                    <label class="superset-link-control">
+                                        <MudSwitch @bind-Value="item.LinkWithNext" Color="Color.Primary" />
+                                        <span><strong>Połącz z następnym</strong><small>Ćwiczenia wykonasz po sobie jako superserię.</small></span>
+                                    </label>
+                                }
+                            </article>
+                        }
+                    </div>
+                }
+
+                @if (ManualValidationErrors.Count > 0 && _showManualErrors)
+                {
+                    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                        @foreach (var error in ManualValidationErrors) { <div>@error</div> }
+                    </MudAlert>
+                }
+                <div class="workout-start-bar">
+                    <span><strong>@_manualDraft.Exercises.Count ćwiczeń</strong><small>@_manualDraft.Exercises.Sum(x => x.Sets) zaplanowanych serii · @_manualDraft.Minutes min</small></span>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                               Disabled="_saving"
+                               OnClick="StartManualWorkout">
+                        @(_saving ? "Rozpoczynam…" : "Rozpocznij trening")
+                    </MudButton>
+                </div>
+            </section>
+        }
+    }
+</MudContainer>
+
+@code {
+    private WorkoutBuilderMode _mode;
+    private readonly QuickWorkoutDraft _manualDraft = new();
+    private IReadOnlyList<ExerciseResponse> _catalog = [];
+    private IReadOnlyList<ExerciseResponse> _results = [];
+    private CompletedWorkoutDraftForm? _aiDraft;
+    private string _search = string.Empty;
+    private string _aiDescription = string.Empty;
+    private string? _aiReply;
+    private bool _checking = true;
+    private bool _searching;
+    private bool _saving;
+    private bool _showManualErrors;
+    private int _searchVersion;
+
+    private IReadOnlyList<ExerciseResponse> AvailableExercises =>
+        _results.Where(x => _manualDraft.Exercises.All(item => item.Exercise.Id != x.Id)).ToList();
+    private IReadOnlyList<string> ManualValidationErrors => _manualDraft.Validate();
+    private IReadOnlyList<string> AiValidationErrors => _aiDraft?.Validate() ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Account.GetCurrentUser() is null)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        var active = await TrainingApi.GetActiveSession();
+        if (active is not null)
+        {
+            Navigation.NavigateTo($"/workout/{active.Id}", replace: true);
+            return;
+        }
+        _catalog = await TrainingApi.GetExercises();
+        _results = _catalog;
+        _checking = false;
+    }
+
+    private void SelectMode(WorkoutBuilderMode mode)
+    {
+        _mode = mode;
+        _showManualErrors = false;
+    }
+
+    private string ModeClass(WorkoutBuilderMode mode) => _mode == mode ? "active" : string.Empty;
+    private void UseAiExample(string value) => _aiDescription = value;
+
+    private async Task PrepareWithAi()
+    {
+        var description = _aiDescription.Trim();
+        if (description.Length == 0 || _saving) return;
+        _saving = true;
+        try
+        {
+            var instruction =
+                "Przygotuj edytowalny szkic treningu do rozpoczęcia teraz. " +
+                "Użyj create_completed_workout_draft wyłącznie jako formatu szkicu i niczego jeszcze nie zapisuj. " +
+                $"Opis użytkownika: {description}";
+            var response = await AssistantApi.Send(new SendAssistantMessageRequest(
+                null,
+                instruction,
+                DateOnly.FromDateTime(DateTime.Now)));
+            _aiReply = response.Reply;
+            _aiDraft = response.CompletedWorkoutDraft is null
+                ? null
+                : CompletedWorkoutDraftForm.From(response.CompletedWorkoutDraft);
+            if (_aiDraft is null)
+                Snackbar.Add("AI potrzebuje dokładniejszego opisu ćwiczeń i serii.", Severity.Info);
+        }
+        catch (HttpRequestException ex)
+        {
+            _aiReply = ex.Message;
+            Snackbar.Add("Nie udało się przygotować szkicu. Twój opis pozostał w formularzu.", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void ResetAiDraft()
+    {
+        _aiDraft = null;
+        _aiReply = null;
+    }
+
+    private void RemoveAiExercise(int index) => _aiDraft?.Exercises.RemoveAt(index);
+
+    private static void AddAiSet(CompletedWorkoutExerciseForm exercise)
+    {
+        var previous = exercise.Sets.LastOrDefault();
+        exercise.Sets.Add(new CompletedWorkoutSetForm
+        {
+            WeightKg = previous?.WeightKg ?? 0,
+            Repetitions = previous?.Repetitions ?? 8,
+            Rir = previous?.Rir ?? 2
+        });
+    }
+
+    private static void RemoveAiSet(CompletedWorkoutExerciseForm exercise, int index) =>
+        exercise.Sets.RemoveAt(index);
+
+    private async Task StartAiWorkout()
+    {
+        if (_aiDraft is null || AiValidationErrors.Count > 0 || _saving) return;
+        _saving = true;
+        try
+        {
+            await AssistantApi.UpdateCompletedWorkout(_aiDraft.Id, _aiDraft.ToRequest());
+            var session = await AssistantApi.StartWorkout(_aiDraft.Id);
+            Navigation.NavigateTo($"/workout/{session.Id}");
+        }
+        catch (HttpRequestException ex)
+        {
+            await HandleStartError(ex);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SearchExercises(string value)
+    {
+        _search = value;
+        var version = ++_searchVersion;
+        _searching = true;
+        try
+        {
+            var results = string.IsNullOrWhiteSpace(value)
+                ? _catalog
+                : await TrainingApi.GetExercises(value);
+            if (version == _searchVersion)
+                _results = results;
+        }
+        catch (HttpRequestException)
+        {
+            if (version == _searchVersion)
+                Snackbar.Add("Nie udało się pobrać ćwiczeń.", Severity.Error);
+        }
+        finally
+        {
+            if (version == _searchVersion)
+                _searching = false;
+        }
+    }
+
+    private void AddExercise(ExerciseResponse exercise)
+    {
+        if (_manualDraft.Exercises.All(x => x.Exercise.Id != exercise.Id))
+            _manualDraft.Exercises.Add(new QuickWorkoutExerciseDraft(exercise));
+        _showManualErrors = false;
+    }
+
+    private void RemoveExercise(int index)
+    {
+        _manualDraft.Exercises.RemoveAt(index);
+        if (_manualDraft.Exercises.Count > 0)
+            _manualDraft.Exercises[^1].LinkWithNext = false;
+    }
+
+    private void MoveExercise(int index, int direction)
+    {
+        var target = index + direction;
+        if (target < 0 || target >= _manualDraft.Exercises.Count) return;
+        var item = _manualDraft.Exercises[index];
+        _manualDraft.Exercises.RemoveAt(index);
+        _manualDraft.Exercises.Insert(target, item);
+        _manualDraft.Exercises[^1].LinkWithNext = false;
+    }
+
+    private async Task StartManualWorkout()
+    {
+        _showManualErrors = true;
+        if (ManualValidationErrors.Count > 0 || _saving) return;
+        _saving = true;
+        try
+        {
+            var session = await TrainingApi.StartQuick(_manualDraft.ToRequest());
+            Navigation.NavigateTo($"/workout/{session.Id}");
+        }
+        catch (HttpRequestException ex)
+        {
+            await HandleStartError(ex);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task HandleStartError(HttpRequestException exception)
+    {
+        var active = await TrainingApi.GetActiveSession();
+        if (active is not null)
+        {
+            Snackbar.Add("Masz już aktywny trening. Wracam do rozpoczętej sesji.", Severity.Info);
+            Navigation.NavigateTo($"/workout/{active.Id}", replace: true);
+            return;
+        }
+
+        Snackbar.Add(exception.Message, Severity.Error);
+    }
+
+    private static string ExerciseMeta(ExerciseResponse exercise) =>
+        $"{MuscleGroupName(exercise.MuscleGroup)} · {EquipmentName(exercise.Equipment)}";
+
+    private static string MuscleGroupName(MuscleGroup group) => group switch
+    {
+        MuscleGroup.Chest => "Klatka piersiowa",
+        MuscleGroup.Back => "Plecy",
+        MuscleGroup.Shoulders => "Barki",
+        MuscleGroup.Biceps => "Biceps",
+        MuscleGroup.Triceps => "Triceps",
+        MuscleGroup.Quadriceps => "Czworogłowe uda",
+        MuscleGroup.Hamstrings => "Dwugłowe uda",
+        MuscleGroup.Glutes => "Pośladki",
+        MuscleGroup.Calves => "Łydki",
+        MuscleGroup.Core => "Brzuch",
+        MuscleGroup.Forearms => "Przedramiona",
+        _ => "Całe ciało"
+    };
+
+    private static string EquipmentName(Equipment equipment) => equipment switch
+    {
+        Equipment.Barbell => "Sztanga",
+        Equipment.Dumbbell => "Hantle",
+        Equipment.Machine => "Maszyna",
+        Equipment.Cable => "Wyciąg",
+        Equipment.Bodyweight => "Masa ciała",
+        Equipment.Kettlebell => "Kettlebell",
+        _ => "Inne"
+    };
+
+    private enum WorkoutBuilderMode
+    {
+        None,
+        Ai,
+        Manual
+    }
+}

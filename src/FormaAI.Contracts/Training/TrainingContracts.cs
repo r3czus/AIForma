@@ -37,7 +37,22 @@ public sealed record TrainingDayResponse(Guid Id, string Name, DayOfWeek? DayOfW
 public sealed record TrainingPlanResponse(Guid Id, string Name, string Goal, bool IsActive, DateOnly StartsOn, IReadOnlyList<TrainingDayResponse> Days);
 public sealed record TodayWorkoutResponse(Guid PlanId, Guid TrainingDayId, string PlanName, string DayName, bool AlreadyCompleted, IReadOnlyList<PlannedExerciseResponse> Exercises);
 public sealed record StartWorkoutRequest(Guid TrainingDayId, int? TimeLimitMinutes = null);
-public sealed record QuickWorkoutExerciseRequest(Guid ExerciseId, [Range(1, 10)] int Sets);
+public sealed record QuickWorkoutSetPresetRequest(
+    [Range(1, 50)] int SetNumber,
+    [Range(0, 1000)] decimal WeightKg,
+    [Range(1, 1000)] int Repetitions,
+    [Range(0, 10)] decimal? Rir);
+public sealed record QuickWorkoutExerciseRequest(
+    Guid ExerciseId,
+    [Range(1, 10)] int Sets,
+    [Range(1, 100)] int MinReps = 8,
+    [Range(1, 100)] int MaxReps = 12,
+    [Range(0, 10)] decimal? TargetRir = 2,
+    [Range(0, 3600)] int? RestSeconds = 90,
+    Guid? SupersetGroupId = null,
+    [Range(1, 20)] int? SupersetPosition = null,
+    [Range(0, 3600)] int? IntervalSeconds = null,
+    IReadOnlyList<QuickWorkoutSetPresetRequest>? Presets = null);
 public sealed record StartQuickWorkoutRequest(
     [Required, MaxLength(120)] string Name,
     [Range(5, 300)] int TimeLimitMinutes,
@@ -47,6 +62,11 @@ public sealed record CompletedSetResponse(Guid Id, int SetNumber, decimal Weight
 public sealed record AddWorkoutExerciseRequest(Guid ExerciseId, [Range(1, 10)] int PlannedSets = 3, [Range(1, 100)] int MinReps = 8, [Range(1, 100)] int MaxReps = 12, [Range(0, 10)] decimal? TargetRir = 2, [Range(0, 3600)] int? RestSeconds = 90);
 public sealed record ReplaceWorkoutExerciseRequest(Guid ExerciseId);
 public sealed record SaveWorkoutNotesRequest([MaxLength(1000)] string? Notes);
+public sealed record WorkoutSetPresetResponse(
+    int SetNumber,
+    decimal WeightKg,
+    int Repetitions,
+    decimal? Rir);
 public sealed record WorkoutExerciseResponse(
     Guid Id,
     Guid? ExerciseId,
@@ -60,7 +80,8 @@ public sealed record WorkoutExerciseResponse(
     IReadOnlyList<CompletedSetResponse> Sets,
     Guid? SupersetGroupId = null,
     int? SupersetPosition = null,
-    int? IntervalSeconds = null);
+    int? IntervalSeconds = null,
+    IReadOnlyList<WorkoutSetPresetResponse>? Presets = null);
 public sealed record WorkoutSessionResponse(Guid Id, string Name, DateTime StartedAtUtc, DateTime? FinishedAtUtc, SessionStatus Status, IReadOnlyList<WorkoutExerciseResponse> Exercises, bool IsShortened = false, int? TimeLimitMinutes = null);
 public sealed record ExerciseHistoryEntry(DateTime CompletedAtUtc, decimal WeightKg, int Repetitions, decimal? Rir, decimal Volume);
 public sealed record ExerciseProgressionResponse(Guid Id, Guid ExerciseId, string ExerciseName, decimal SuggestedWeightKg, int MinReps, int MaxReps, string Reason, ProgressionDecision Decision, decimal? AcceptedWeightKg);

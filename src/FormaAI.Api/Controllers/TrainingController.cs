@@ -280,6 +280,8 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         var requestedIds = request.Exercises.Select(x => x.ExerciseId).ToList();
         if (requestedIds.Distinct().Count() != requestedIds.Count)
             return ValidationProblem("Każde ćwiczenie można dodać do szybkiego treningu tylko raz.");
+        if (!ValidQuickWorkout(request.Exercises))
+            return ValidationProblem("Sprawdź zakres powtórzeń, presety serii i konfigurację superserii.");
 
         var catalog = await db.Exercises.Include(x => x.MuscleEngagements)
             .Where(x => requestedIds.Contains(x.Id) && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId))
@@ -291,14 +293,27 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         for (var index = 0; index < request.Exercises.Count; index++)
         {
             var selected = request.Exercises[index];
-            session.Exercises.Add(new WorkoutExercise(
+            var workoutExercise = new WorkoutExercise(
                 catalog[selected.ExerciseId],
                 index + 1,
                 selected.Sets,
-                8,
-                12,
-                2,
-                90));
+                selected.MinReps,
+                selected.MaxReps,
+                selected.TargetRir,
+                selected.RestSeconds,
+                selected.SupersetGroupId,
+                selected.SupersetPosition,
+                selected.IntervalSeconds);
+            foreach (var preset in selected.Presets ?? [])
+            {
+                workoutExercise.Presets.Add(new WorkoutSetPreset(
+                    workoutExercise.Id,
+                    preset.SetNumber,
+                    preset.WeightKg,
+                    preset.Repetitions,
+                    preset.Rir));
+            }
+            session.Exercises.Add(workoutExercise);
         }
 
         db.WorkoutSessions.Add(session);
@@ -571,7 +586,10 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
             x.IntervalSeconds)).ToList();
     }
 
-    private IQueryable<WorkoutSession> SessionQuery() => db.WorkoutSessions.Include(x => x.Exercises).ThenInclude(x => x.Sets).Include(x => x.Exercises).ThenInclude(x => x.MuscleEngagements);
+    private IQueryable<WorkoutSession> SessionQuery() => db.WorkoutSessions
+        .Include(x => x.Exercises).ThenInclude(x => x.Sets)
+        .Include(x => x.Exercises).ThenInclude(x => x.Presets)
+        .Include(x => x.Exercises).ThenInclude(x => x.MuscleEngagements);
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static bool ValidEngagements(SaveExerciseRequest request)
     {
@@ -583,6 +601,30 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         request.MuscleEngagements is { Count: > 0 } ? request.MuscleEngagements.Select(x => (x.MuscleGroup, x.Percentage)) : [(request.MuscleGroup, 100)];
     private static bool ValidSupersets(IReadOnlyList<PlannedExerciseRequest> exercises)
     {
+        if (exercises.Any(x => x.SupersetGroupId is null && (x.SupersetPosition is not null || x.IntervalSeconds is not null)))
+            return false;
+
+        return exercises
+            .Where(x => x.SupersetGroupId is not null)
+            .GroupBy(x => x.SupersetGroupId)
+            .All(group =>
+            {
+                var positions = group.Select(x => x.SupersetPosition).ToList();
+                return group.Count() >= 2 &&
+                       positions.All(x => x is > 0) &&
+                       positions.Distinct().Count() == positions.Count &&
+                       positions.OrderBy(x => x).SequenceEqual(Enumerable.Range(1, positions.Count).Select(x => (int?)x));
+            });
+    }
+    private static bool ValidQuickWorkout(IReadOnlyList<QuickWorkoutExerciseRequest> exercises)
+    {
+        if (exercises.Any(x =>
+                x.MinReps > x.MaxReps ||
+                x.Presets is { Count: > 0 } &&
+                (x.Presets.Count > x.Sets ||
+                 x.Presets.Select(p => p.SetNumber).Distinct().Count() != x.Presets.Count ||
+                 x.Presets.Any(p => p.SetNumber > x.Sets))))
+            return false;
         if (exercises.Any(x => x.SupersetGroupId is null && (x.SupersetPosition is not null || x.IntervalSeconds is not null)))
             return false;
 
@@ -624,7 +666,10 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList(),
         e.SupersetGroupId,
         e.SupersetPosition,
-        e.IntervalSeconds);
+        e.IntervalSeconds,
+        e.Presets.OrderBy(p => p.SetNumber)
+            .Select(p => new WorkoutSetPresetResponse(p.SetNumber, p.WeightKg, p.Repetitions, p.Rir))
+            .ToList());
     private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(x.Id, x.NameSnapshot, x.StartedAtUtc, x.FinishedAtUtc, x.Status,
         x.Exercises.OrderBy(e => e.Order).Select(ExerciseResponse).ToList(), x.IsShortened, x.TimeLimitMinutes);
 }
