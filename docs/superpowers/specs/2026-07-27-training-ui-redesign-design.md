@@ -185,6 +185,15 @@ Widok zawiera:
 
 Media respektują ustawienie ograniczenia ruchu. Na telefonie tabela nie może wymagać poziomego przewijania.
 
+System mediów ćwiczenia przyjmuje zdjęcia JPG, PNG i WebP oraz animacje GIF i filmy MP4/WebM. Użytkownik może dodać lub wymienić materiał z poziomu szczegółów ćwiczenia; własny materiał ma pierwszeństwo przed obrazem startowym.
+
+Do aktywnego planu dostarczamy dwa realistyczne obrazy startowe:
+
+- `Wyciskanie sztangi leżąc`;
+- `Wiosłowanie na maszynie z podparciem`.
+
+Pozostałe ćwiczenia zachowują czytelny placeholder do czasu samodzielnego uzupełnienia.
+
 ## Jedzenie
 
 Zmiana jest celowo mała. Wiersz zapisanego posiłku zachowuje obecne funkcje i akcje, ale:

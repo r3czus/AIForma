@@ -289,6 +289,32 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task OwnerCanUploadExercisePhoto()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "exercise-photo-owner@example.test");
+        var exercise = await CreateExercise(client, "Ćwiczenie ze zdjęciem", MuscleGroup.FullBody, Equipment.Bodyweight);
+
+        using var content = new MultipartFormDataContent();
+        var bytes = new ByteArrayContent([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        bytes.Headers.ContentType = new("image/png");
+        content.Add(bytes, "media", "ruch.png");
+        content.Add(new StringContent("Użytkownik"), "author");
+        content.Add(new StringContent("Materiał własny"), "license");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/exercises/{exercise.Id}/media") { Content = content };
+        var csrf = await client.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+
+        var upload = await client.SendAsync(request);
+        upload.EnsureSuccessStatusCode();
+        var saved = (await upload.Content.ReadFromJsonAsync<ExerciseResponse>())!;
+
+        Assert.Equal("image/png", saved.MediaContentType);
+        Assert.NotNull(saved.MediaUrl);
+        Assert.Equal("image/png", (await client.GetAsync(saved.MediaUrl)).Content.Headers.ContentType!.MediaType);
+    }
+
+    [Fact]
     public async Task ReplacementBeforeFirstSetKeepsPrescriptionAndReplacesInPlace()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

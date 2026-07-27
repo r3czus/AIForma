@@ -412,22 +412,28 @@ git commit -m "Dodać edycję superserii podczas sesji"
 - Create: `docs/design-references/training/training-overview.png`
 - Create: `docs/design-references/training/training-plan.png`
 - Create: `docs/design-references/training/workout-live.png`
-- Create: `docs/design-references/training/workout-swap-superset.png`
+- Create: `docs/design-references/training/workout-ai-review.png`
+- Create: `src/FormaAI.Web/wwwroot/images/exercises/wyciskanie-sztangi-lezac.png`
+- Create: `src/FormaAI.Web/wwwroot/images/exercises/wioslowanie-maszyna-podparcie.png`
+- Modify: `src/FormaAI.Api/Controllers/TrainingController.cs`
+- Modify: `src/FormaAI.Web/Pages/ExerciseDetails.razor`
+- Modify: `src/FormaAI.Web/Services/TrainingClient.cs`
 - Modify: `src/FormaAI.Web/wwwroot/css/app.css`
 
 **Interfaces:**
 - Produces: cztery samodzielne, czytelne referencje oraz zestaw klas `training-shell-*`, `training-plan-*`, `workout-live-*`.
 
-- [ ] **Step 1: Generate four standalone references**
+- [ ] **Step 1: Generate three standalone UI references and two exercise images**
 
 Use `imagegen` separately for:
 
 1. mobile training overview with three internal tabs and today variants;
 2. desktop/mobile plan day with a vertical exercise list;
 3. mobile live workout with media, set grid and superset rail;
-4. mobile swap/superset selection flow.
+4. realistic wide photo of barbell bench press;
+5. realistic wide photo of chest-supported machine row.
 
-Every prompt must specify: existing FormaAI white/ink/cobalt palette, Barlow-like condensed headings, 390 px mobile viewport or 1200 px desktop viewport, no global navigation changes, no nested-card clutter, Polish labels, 44 px controls.
+UI prompts must specify: existing FormaAI white/ink/cobalt palette, Barlow-like condensed headings, 390 px mobile viewport or 1200 px desktop viewport, no global navigation changes, no nested-card clutter, Polish labels, 44 px controls. Exercise prompts must specify photorealistic, technically correct form, wide framing, no text, logos or watermark.
 
 - [ ] **Step 2: Inspect every generated image**
 
@@ -471,12 +477,24 @@ Use existing global colors and add only scoped aliases:
 }
 ```
 
-- [ ] **Step 4: Run CSS/source guard and commit**
+- [ ] **Step 4: Extend exercise media upload**
+
+Accept `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `video/mp4`, and `video/webm`, map each content type to its correct extension, and update the file picker:
+
+```razor
+<InputFile OnChange="SelectMedia"
+           accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+           disabled="@_mediaSaving" />
+```
+
+The two bundled images are returned as defaults for exact exercise names only when `MediaStorageName` and `MediaExternalUrl` are both empty. A later user upload always wins.
+
+- [ ] **Step 5: Run media/source guard and commit**
 
 ```powershell
 dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --filter WorkoutNavigationSourceTests --nologo
-git add docs/design-references/training src/FormaAI.Web/wwwroot/css/app.css
-git commit -m "Ustalić kierunek wizualny treningu"
+git add docs/design-references/training src/FormaAI.Api/Controllers/TrainingController.cs src/FormaAI.Web
+git commit -m "Dodać media startowe i obsługę zdjęć ćwiczeń"
 ```
 
 Expected: PASS.

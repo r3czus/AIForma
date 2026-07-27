@@ -37,6 +37,15 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("StartAiWorkout", source);
     }
 
+    [Fact]
+    public void ExerciseMediaPickerAcceptsPhotosAnimationsAndVideos()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "ExerciseDetails.razor"));
+
+        Assert.Contains("image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm", source);
+        Assert.Contains("Dodaj zdjęcie, GIF lub film", source);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
