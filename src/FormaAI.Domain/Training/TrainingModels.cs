@@ -200,7 +200,7 @@ public sealed class WorkoutExercise
     public void Shorten(int sets) => PlannedSets = Math.Min(PlannedSets, sets);
     public void ChangeOrder(int order)
     {
-        if (order < 1) throw new ArgumentOutOfRangeException(nameof(order));
+        ArgumentOutOfRangeException.ThrowIfLessThan(order, 1);
         Order = order;
     }
 
