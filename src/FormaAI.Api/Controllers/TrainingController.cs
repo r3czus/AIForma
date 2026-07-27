@@ -71,7 +71,7 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
     [HttpPost("exercises/{id:guid}/media")]
     [ValidateAntiForgeryToken]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(15 * 1024 * 1024)]
+    [RequestSizeLimit(16 * 1024 * 1024)]
     public async Task<ActionResult<ExerciseResponse>> UploadExerciseMedia(
         Guid id,
         [FromForm] IFormFile media,
