@@ -124,12 +124,39 @@ Widok `/workout/{id}` zostanie przebudowany wokół jednego aktualnego ćwiczeni
 - nazwa ćwiczenia i akcja przejścia do szczegółów;
 - przerwa oraz interwał;
 - przycisk `Zamień ćwiczenie`;
+- przycisk `Połącz w superserię`;
 - tabela serii: numer, kg, powtórzenia, RIR i stan ukończenia;
 - czytelny aktywny wiersz;
 - pasek superserii z kolejnością i postępem;
 - przyklejona główna akcja zależna od etapu sesji.
 
 Zachowane zostają istniejące funkcje: timery, podpowiedzi z historii, presety AI, superserie, dodawanie ćwiczenia, notatki, zakończenie i porzucenie sesji.
+
+## Tworzenie superserii podczas sesji
+
+Przy aktualnym ćwiczeniu, w tym samym obszarze działań co zamiana, dostępna jest akcja `Połącz w superserię`.
+
+Po jej wybraniu użytkownik:
+
+1. wskazuje co najmniej jedno inne ćwiczenie z bieżącej sesji lub katalogu;
+2. ustala kolejność ćwiczeń;
+3. wybiera liczbę rund;
+4. ustawia czas odpoczynku po pełnej rundzie;
+5. zatwierdza nową superserię.
+
+Ćwiczenie należące już do innej superserii wymaga jawnego potwierdzenia przeniesienia. Nie można utworzyć superserii z jednym ćwiczeniem ani dodać tego samego ćwiczenia dwa razy.
+
+Podczas wykonywania superserii:
+
+- ekran prowadzi kolejno przez wszystkie ćwiczenia danej rundy;
+- dla każdego podejścia użytkownik wpisuje własny ciężar, liczbę powtórzeń i opcjonalny RIR;
+- zapis serii przechodzi do kolejnego ćwiczenia bez uruchamiania pełnej przerwy;
+- po zapisaniu ostatniego ćwiczenia rundy uruchamia się ustawiony czas odpoczynku;
+- po odpoczynku ekran wraca do pierwszego ćwiczenia następnej rundy;
+- pasek superserii stale pokazuje bieżące ćwiczenie, numer rundy i stan zapisanych serii;
+- po ukończeniu ostatniej rundy sesja przechodzi do kolejnego ćwiczenia spoza superserii.
+
+Wprowadzone ciężary i powtórzenia są zapisywane niezależnie dla każdego ćwiczenia oraz każdej rundy. Cofnięcie do wcześniejszego elementu nie usuwa już zapisanych wartości.
 
 ## Zamiana ćwiczenia
 
@@ -206,6 +233,10 @@ Testy aplikacyjne i integracyjne obejmą:
 - rozpoczęcie szkicu jako aktywnej sesji;
 - obsługę cardio i serii siłowych;
 - zachowanie skracania treningu;
+- tworzenie i edycję superserii w aktywnej sesji;
+- prowadzenie po kolejnych ćwiczeniach superserii;
+- uruchamianie przerwy dopiero po ostatnim ćwiczeniu rundy;
+- niezależny zapis ciężaru, powtórzeń i RIR dla każdego elementu rundy;
 - routing między listą planów, ćwiczeniem, sesją i zamianą.
 
 Kryteria wizualne:
@@ -214,6 +245,7 @@ Kryteria wizualne:
 - wewnętrzny moduł ma trzy podstawowe zakładki;
 - plany są czytelną listą pod wyborem dnia;
 - aktywna sesja odpowiada hierarchii z referencji;
+- użytkownik może zbudować superserię w trakcie sesji i jest prowadzony przez jej rundy;
 - AI zawsze pokazuje podgląd przed zapisem;
 - opis posiłku jest wyrównany do lewej;
 - widoki działają przy szerokości telefonu i desktopu;
