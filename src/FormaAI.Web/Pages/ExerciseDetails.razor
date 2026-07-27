@@ -82,49 +82,94 @@
             }
         </section>
 
-        <MudPaper Class="exercise-detail-card" Elevation="0">
-            <section>
-                <span class="card-kicker">Wykonanie</span>
-                <h2>Opis i wskazówki</h2>
-                <p>@(string.IsNullOrWhiteSpace(_exercise.Description) ? "Do tego ćwiczenia nie dodano jeszcze wskazówek wykonania." : _exercise.Description)</p>
-            </section>
+        <nav class="exercise-detail-tabs" aria-label="Szczegóły ćwiczenia">
+            <button type="button" class="@(_detailTab == 0 ? "active" : null)" @onclick="() => _detailTab = 0">Historia</button>
+            <button type="button" class="@(_detailTab == 1 ? "active" : null)" @onclick="() => _detailTab = 1">Wykres</button>
+            <button type="button" class="@(_detailTab == 2 ? "active" : null)" @onclick="() => _detailTab = 2">Technika</button>
+        </nav>
 
-            <section>
-                <span class="card-kicker">Zaangażowanie</span>
-                <h2>Pracujące mięśnie</h2>
-                <div class="muscle-engagement-list">
-                    @foreach (var engagement in Engagements)
-                    {
-                        <div>
-                            <span><strong>@MuscleGroupName(engagement.MuscleGroup)</strong><small>@engagement.Percentage%</small></span>
-                            <i style="@($"--engagement:{engagement.Percentage}%")"></i>
+        @if (_detailTab == 0)
+        {
+            <section class="exercise-history">
+                @if (_history.Count == 0)
+                {
+                    <div class="module-empty"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Brak zapisanych serii</strong><span>Historia pojawi się po pierwszym ukończonym treningu.</span></div></div>
+                }
+                @foreach (var group in _history.GroupBy(x => x.CompletedAtUtc.ToLocalTime().Date).OrderByDescending(x => x.Key))
+                {
+                    <article>
+                        <h2>@group.Key.ToString("dd.MM.yyyy")</h2>
+                        <div class="exercise-history-table">
+                            <div><span>Seria</span><span>Ciężar × powt.</span><span>1RM</span></div>
+                            @{ var setNumber = 0; }
+                            @foreach (var set in group.OrderBy(x => x.CompletedAtUtc))
+                            {
+                                setNumber++;
+                                <div><span>@setNumber</span><strong>@set.WeightKg.ToString("0.#") kg × @set.Repetitions</strong><strong>@EstimatedOneRepMax(set).ToString("0.#") kg</strong></div>
+                            }
                         </div>
+                    </article>
+                }
+            </section>
+        }
+        else if (_detailTab == 1)
+        {
+            <section class="exercise-chart-panel">
+                <div><span class="card-kicker">Ostatnie wyniki</span><h2>Szacowane 1RM</h2><p>Zmiana najlepszego wyniku w kolejnych sesjach.</p></div>
+                <div class="exercise-strength-chart" aria-label="Wykres szacowanego maksymalnego ciężaru">
+                    @foreach (var point in HistoryChart)
+                    {
+                        <div style="@($"--value:{point.Percent}%")"><i></i><strong>@point.Value.ToString("0.#")</strong><span>@point.Date.ToString("dd.MM")</span></div>
                     }
                 </div>
             </section>
-
-            @if (_planned is not null)
-            {
+        }
+        else
+        {
+            <MudPaper Class="exercise-detail-card" Elevation="0">
                 <section>
-                    <span class="card-kicker">Parametry planu</span>
-                    <h2>@_day?.Name</h2>
-                    <div class="exercise-prescription-grid">
-                        <div><strong>@_planned.Sets</strong><span>serie</span></div>
-                        <div><strong>@_planned.MinReps–@_planned.MaxReps</strong><span>powtórzenia</span></div>
-                        <div><strong>@(_planned.TargetRir?.ToString("0.#") ?? "—")</strong><span>RIR</span></div>
-                        <div><strong>@FormatRest(_planned.RestSeconds)</strong><span>przerwa</span></div>
-                    </div>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Edit"
-                               OnClick="EditPlanDay">Edytuj parametry w planie</MudButton>
+                    <span class="card-kicker">Wykonanie</span>
+                    <h2>Opis i wskazówki</h2>
+                    <p>@(string.IsNullOrWhiteSpace(_exercise.Description) ? "Do tego ćwiczenia nie dodano jeszcze wskazówek wykonania." : _exercise.Description)</p>
                 </section>
-            }
 
-            @if (_exercise.IsOwn)
-            {
-                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.EditNote"
-                           OnClick="EditExercise">Edytuj opis ćwiczenia</MudButton>
-            }
-        </MudPaper>
+                <section>
+                    <span class="card-kicker">Zaangażowanie</span>
+                    <h2>Pracujące mięśnie</h2>
+                    <div class="muscle-engagement-list">
+                        @foreach (var engagement in Engagements)
+                        {
+                            <div>
+                                <span><strong>@MuscleGroupName(engagement.MuscleGroup)</strong><small>@engagement.Percentage%</small></span>
+                                <i style="@($"--engagement:{engagement.Percentage}%")"></i>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                @if (_planned is not null)
+                {
+                    <section>
+                        <span class="card-kicker">Parametry planu</span>
+                        <h2>@_day?.Name</h2>
+                        <div class="exercise-prescription-grid">
+                            <div><strong>@_planned.Sets</strong><span>serie</span></div>
+                            <div><strong>@_planned.MinReps–@_planned.MaxReps</strong><span>powtórzenia</span></div>
+                            <div><strong>@(_planned.TargetRir?.ToString("0.#") ?? "—")</strong><span>RIR</span></div>
+                            <div><strong>@FormatRest(_planned.RestSeconds)</strong><span>przerwa</span></div>
+                        </div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Edit"
+                                   OnClick="EditPlanDay">Edytuj parametry w planie</MudButton>
+                    </section>
+                }
+
+                @if (_exercise.IsOwn)
+                {
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.EditNote"
+                               OnClick="EditExercise">Edytuj opis ćwiczenia</MudButton>
+                }
+            </MudPaper>
+        }
     }
 </MudContainer>
 
@@ -134,6 +179,8 @@
     [SupplyParameterFromQuery(Name = "day")] public Guid? DayId { get; set; }
 
     private ExerciseResponse? _exercise;
+    private IReadOnlyList<ExerciseHistoryEntry> _history = [];
+    private int _detailTab;
     private TrainingDayResponse? _day;
     private PlannedExerciseResponse? _planned;
     private bool _loading = true;
@@ -146,6 +193,20 @@
         _exercise?.MuscleEngagements is { Count: > 0 } values
             ? values.OrderByDescending(x => x.Percentage).ToList()
             : _exercise is null ? [] : [new(_exercise.MuscleGroup, 100)];
+    private IReadOnlyList<HistoryChartPoint> HistoryChart
+    {
+        get
+        {
+            var values = _history
+                .GroupBy(x => x.CompletedAtUtc.ToLocalTime().Date)
+                .OrderBy(x => x.Key)
+                .TakeLast(8)
+                .Select(x => new HistoryChartPoint(x.Key, x.Max(EstimatedOneRepMax), 0))
+                .ToList();
+            var max = values.Count == 0 ? 0 : values.Max(x => x.Value);
+            return values.Select(x => x with { Percent = max == 0 ? 0 : Math.Max(8, (int)Math.Round(x.Value * 100 / max)) }).ToList();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,6 +217,7 @@
         }
 
         _exercise = await TrainingApi.GetExercise(ExerciseId);
+        _history = await TrainingApi.GetHistory(ExerciseId);
         if (_exercise is not null && PlanId is Guid planId && DayId is Guid dayId)
         {
             var plans = await TrainingApi.GetPlans();
@@ -198,6 +260,9 @@
         finally { _mediaSaving = false; }
     }
     private static string FormatRest(int? seconds) => seconds is null ? "—" : seconds >= 60 ? $"{seconds / 60}:{seconds % 60:00} min" : $"{seconds} s";
+    private static decimal EstimatedOneRepMax(ExerciseHistoryEntry set) =>
+        set.Repetitions <= 1 ? set.WeightKg : set.WeightKg * (1 + set.Repetitions / 30m);
+    private sealed record HistoryChartPoint(DateTime Date, decimal Value, int Percent);
     private static string EquipmentName(Equipment equipment) => equipment switch { Equipment.Barbell => "Sztanga", Equipment.Dumbbell => "Hantle", Equipment.Machine => "Maszyna", Equipment.Cable => "Wyciąg", Equipment.Bodyweight => "Masa ciała", Equipment.Kettlebell => "Kettlebell", _ => "Inny sprzęt" };
     private static string MuscleGroupName(MuscleGroup group) => group switch { MuscleGroup.Chest => "Klatka piersiowa", MuscleGroup.Back => "Plecy", MuscleGroup.Shoulders => "Barki", MuscleGroup.Biceps => "Biceps", MuscleGroup.Triceps => "Triceps", MuscleGroup.Quadriceps => "Czworogłowe uda", MuscleGroup.Hamstrings => "Dwugłowe uda", MuscleGroup.Glutes => "Pośladki", MuscleGroup.Calves => "Łydki", MuscleGroup.Core => "Core", MuscleGroup.Forearms => "Przedramiona", _ => "Całe ciało" };
 }

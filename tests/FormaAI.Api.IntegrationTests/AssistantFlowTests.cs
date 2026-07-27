@@ -126,6 +126,21 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
         Assert.Equal(2, response.CompletedWorkoutDraft.Exercises.Single().Sets.Count);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("api/v1/workout-sessions/active")).StatusCode);
 
+        var correctedExercise = response.CompletedWorkoutDraft.Exercises.Single() with
+        {
+            Sets =
+            [
+                response.CompletedWorkoutDraft.Exercises.Single().Sets[0] with { WeightKg = 52.5m },
+                response.CompletedWorkoutDraft.Exercises.Single().Sets[1]
+            ]
+        };
+        var corrected = await Send<UpdateAssistantCompletedWorkoutDraftRequest, AssistantCompletedWorkoutDraftResponse>(
+            client,
+            HttpMethod.Put,
+            $"api/v1/assistant/actions/{response.CompletedWorkoutDraft.Id}/completed-workout",
+            new("Trening klatki — poprawiony", localDate, [correctedExercise]));
+        Assert.Equal(52.5m, corrected.Exercises.Single().Sets[0].WeightKg);
+
         var first = await Send<object, WorkoutSessionResponse>(
             client,
             HttpMethod.Post,
@@ -139,6 +154,8 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
 
         Assert.Equal(first.Id, second.Id);
         Assert.Equal(FormaAI.Domain.Training.SessionStatus.Completed, first.Status);
+        Assert.Equal("Trening klatki — poprawiony", first.Name);
+        Assert.Equal(52.5m, first.Exercises.Single().Sets[0].WeightKg);
         Assert.Equal(2, first.Exercises.Single().Sets.Count);
     }
 

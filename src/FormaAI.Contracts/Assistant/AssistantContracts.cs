@@ -36,3 +36,7 @@ public sealed record AssistantCompletedWorkoutDraftResponse(
     string Name,
     IReadOnlyList<AssistantWorkoutExerciseDraft> Exercises,
     DateTime ExpiresAtUtc);
+public sealed record UpdateAssistantCompletedWorkoutDraftRequest(
+    [Required, MaxLength(150)] string Name,
+    DateOnly LocalDate,
+    [MinLength(1)] IReadOnlyList<AssistantWorkoutExerciseDraft> Exercises);

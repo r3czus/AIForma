@@ -102,6 +102,12 @@ public sealed class AssistantActionDraft
     public Guid? ConfirmedResourceId { get; private set; }
 
     public bool IsExpired(DateTime nowUtc) => Status == AssistantDraftStatus.Pending && ExpiresAtUtc <= nowUtc;
+    public void UpdatePayload(string payloadJson)
+    {
+        if (Status != AssistantDraftStatus.Pending)
+            throw new InvalidOperationException("Można edytować tylko oczekujący szkic.");
+        PayloadJson = payloadJson;
+    }
     public void Expire() { if (Status == AssistantDraftStatus.Pending) Status = AssistantDraftStatus.Expired; }
     public void Confirm(Guid resourceId) { Status = AssistantDraftStatus.Confirmed; ConfirmedResourceId = resourceId; }
     public void Reject() { if (Status == AssistantDraftStatus.Pending) Status = AssistantDraftStatus.Rejected; }

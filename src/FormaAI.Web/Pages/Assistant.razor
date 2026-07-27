@@ -39,6 +39,7 @@
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Kitchen" OnClick='@(() => _message = "Co mogę zjeść z produktów, które mam w spiżarni?")'>Posiłek ze spiżarni</MudButton>
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.DonutLarge" OnClick='@(() => _message = "Sprawdź moje dzisiejsze makro i podpowiedz kolejny posiłek.")'>Sprawdź dzisiejsze makro</MudButton>
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.FitnessCenter" OnClick='@(() => _message = "Ułóż szkic planu treningowego dopasowany do mojego celu.")'>Ułóż plan treningowy</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.EditNote" OnClick='@(() => _message = "Opiszę wykonany trening. Rozpisz ćwiczenia i serie jako edytowalny szkic do mojego zatwierdzenia.")'>Wpisz wykonany trening</MudButton>
                     </div>
                 </section>
             }
@@ -95,6 +96,38 @@
                     </div>
                 </MudPaper>
             }
+            @if (_completedWorkoutDraft is not null)
+            {
+                <MudPaper Class="assistant-draft completed-workout-draft" Elevation="0">
+                    <span class="card-kicker">Wykonany trening do sprawdzenia</span>
+                    <MudTextField @bind-Value="_completedWorkoutDraft.Name" Label="Nazwa treningu" MaxLength="150" />
+                    @foreach (var exercise in _completedWorkoutDraft.Exercises)
+                    {
+                        <section class="completed-workout-exercise">
+                            <header><strong>@exercise.ExerciseName</strong><span>@exercise.Sets.Count serii</span></header>
+                            <div class="completed-workout-sets">
+                                <div><span>Seria</span><span>kg</span><span>Powt.</span><span>RIR</span></div>
+                                @for (var index = 0; index < exercise.Sets.Count; index++)
+                                {
+                                    var setIndex = index;
+                                    var set = exercise.Sets[setIndex];
+                                    <div>
+                                        <strong>@(setIndex + 1)</strong>
+                                        <MudNumericField @bind-Value="set.WeightKg" Min="0m" Max="1000m" HideSpinButtons="true" />
+                                        <MudNumericField @bind-Value="set.Repetitions" Min="1" Max="1000" HideSpinButtons="true" />
+                                        <MudNumericField @bind-Value="set.Rir" Min="0m" Max="10m" HideSpinButtons="true" />
+                                    </div>
+                                }
+                            </div>
+                        </section>
+                    }
+                    <p class="assistant-trust"><MudIcon Icon="@Icons.Material.Outlined.Visibility" /> Sprawdź dane. Trening zostanie zapisany dopiero po zatwierdzeniu.</p>
+                    <div class="assistant-actions">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_sending" OnClick="ConfirmCompletedWorkout">Zatwierdź i zapisz trening</MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="_sending" OnClick="RejectCompletedWorkout">Odrzuć</MudButton>
+                    </div>
+                </MudPaper>
+            }
             @if (_savedTrainingPlan is not null)
             {
                 <MudPaper Class="assistant-saved-plan" Elevation="0">
@@ -121,6 +154,7 @@
     private Guid? _conversationId;
     private AssistantDraftResponse? _draft;
     private AssistantTrainingDraftResponse? _trainingDraft;
+    private CompletedWorkoutDraftForm? _completedWorkoutDraft;
     private TrainingPlanResponse? _savedTrainingPlan;
     private IReadOnlyDictionary<Guid, string> _exerciseNames = new Dictionary<Guid, string>();
     private string _message = string.Empty;
@@ -167,6 +201,7 @@
             _messages.Add(new ChatLine(false, response.Reply));
             _draft = response.Draft;
             _trainingDraft = response.TrainingPlanDraft;
+            _completedWorkoutDraft = response.CompletedWorkoutDraft is null ? null : CompletedWorkoutDraftForm.From(response.CompletedWorkoutDraft);
             if (_trainingDraft is not null && _exerciseNames.Count == 0)
                 _exerciseNames = (await TrainingApi.GetExercises()).ToDictionary(x => x.Id, x => x.Name);
         }
@@ -226,7 +261,80 @@
         finally { _sending = false; }
     }
 
+    private async Task ConfirmCompletedWorkout()
+    {
+        if (_completedWorkoutDraft is null) return;
+        _sending = true;
+        try
+        {
+            var request = _completedWorkoutDraft.ToRequest();
+            await AssistantApi.UpdateCompletedWorkout(_completedWorkoutDraft.Id, request);
+            var saved = await AssistantApi.ConfirmCompletedWorkout(_completedWorkoutDraft.Id);
+            _messages.Add(new ChatLine(false, $"Trening „{saved.Name}” został zapisany w historii."));
+            _completedWorkoutDraft = null;
+            Snackbar.Add("Trening zapisany.", Severity.Success);
+        }
+        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _sending = false; }
+    }
+
+    private async Task RejectCompletedWorkout()
+    {
+        if (_completedWorkoutDraft is null) return;
+        _sending = true;
+        try { await AssistantApi.Reject(_completedWorkoutDraft.Id); _completedWorkoutDraft = null; }
+        catch (HttpRequestException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _sending = false; }
+    }
+
     private sealed record ChatLine(bool FromUser, string Text);
+    private sealed class CompletedWorkoutDraftForm
+    {
+        public Guid Id { get; init; }
+        public DateOnly LocalDate { get; init; }
+        public string Name { get; set; } = string.Empty;
+        public List<CompletedWorkoutExerciseForm> Exercises { get; init; } = [];
+
+        public static CompletedWorkoutDraftForm From(AssistantCompletedWorkoutDraftResponse response) =>
+            new()
+            {
+                Id = response.Id,
+                LocalDate = response.LocalDate,
+                Name = response.Name,
+                Exercises = response.Exercises.Select(x => new CompletedWorkoutExerciseForm
+                {
+                    ExerciseId = x.ExerciseId,
+                    ExerciseName = x.ExerciseName,
+                    Sets = x.Sets.Select(set => new CompletedWorkoutSetForm
+                    {
+                        WeightKg = set.WeightKg,
+                        Repetitions = set.Repetitions,
+                        Rir = set.Rir
+                    }).ToList()
+                }).ToList()
+            };
+
+        public UpdateAssistantCompletedWorkoutDraftRequest ToRequest() =>
+            new(
+                Name,
+                LocalDate,
+                Exercises.Select(x => new AssistantWorkoutExerciseDraft(
+                    x.ExerciseId,
+                    x.ExerciseName,
+                    x.Sets.Select(set => new AssistantWorkoutSetDraft(set.WeightKg, set.Repetitions, set.Rir)).ToList())).ToList());
+    }
+    private sealed class CompletedWorkoutExerciseForm
+    {
+        public Guid ExerciseId { get; init; }
+        public string ExerciseName { get; init; } = string.Empty;
+        public List<CompletedWorkoutSetForm> Sets { get; init; } = [];
+    }
+    private sealed class CompletedWorkoutSetForm
+    {
+        public decimal WeightKg { get; set; }
+        public int Repetitions { get; set; }
+        public decimal? Rir { get; set; }
+    }
 
     private string ExerciseName(Guid id) => _exerciseNames.TryGetValue(id, out var name) ? name : "Ćwiczenie z katalogu";
     private static string DayName(DayOfWeek day) => day switch

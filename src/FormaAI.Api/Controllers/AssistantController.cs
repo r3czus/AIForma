@@ -375,6 +375,34 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
         return JsonSerializer.Serialize(new { draftId = draft.Id, plan = request, requiresExplicitConfirmation = true }, JsonOptions);
     }
 
+    [HttpPut("actions/{id:guid}/completed-workout")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<AssistantCompletedWorkoutDraftResponse>> UpdateCompletedWorkout(
+        Guid id,
+        UpdateAssistantCompletedWorkoutDraftRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = UserId();
+        var draft = await db.AssistantActionDrafts.SingleOrDefaultAsync(
+            x => x.Id == id && x.UserId == userId && x.ActionType == AssistantActionType.CompletedWorkout,
+            cancellationToken);
+        if (draft is null)
+            return NotFound();
+        if (draft.IsExpired(DateTime.UtcNow))
+        {
+            draft.Expire();
+            await db.SaveChangesAsync(cancellationToken);
+            return Conflict("Szkic wygasł. Poproś asystenta o nowy.");
+        }
+        if (draft.Status != AssistantDraftStatus.Pending)
+            return Conflict("Ten szkic nie oczekuje już na zatwierdzenie.");
+        var payload = new AssistantCompletedWorkoutDraftPayload(request.LocalDate, request.Name, request.Exercises);
+        await ValidateCompletedWorkout(userId, payload, cancellationToken);
+        draft.UpdatePayload(JsonSerializer.Serialize(payload, JsonOptions));
+        await db.SaveChangesAsync(cancellationToken);
+        return CompletedWorkoutDraftResponse(draft);
+    }
+
     private async Task<string> CreateCompletedWorkoutDraft(
         string userId,
         Guid conversationId,
