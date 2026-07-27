@@ -1,5 +1,6 @@
 @page "/workout/{Id:guid}"
 @implements IAsyncDisposable
+@using FormaAI.Application.Training
 @inject TrainingClient TrainingApi
 @inject NutritionClient NutritionApi
 @inject NavigationManager Navigation
@@ -108,6 +109,26 @@
             }
 
             <article class="workout-exercise workout-exercise-focus">
+                <section class="workout-motion-hero" aria-label="Podgląd ruchu ćwiczenia">
+                    @if (ActiveExerciseMedia is { MediaUrl: not null } media)
+                    {
+                        @if (media.MediaContentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            <video src="@media.MediaUrl" autoplay muted loop playsinline controls preload="metadata"></video>
+                        }
+                        else
+                        {
+                            <img src="@media.MediaUrl" alt="Podgląd wykonania: @exercise.ExerciseName" />
+                        }
+                    }
+                    else
+                    {
+                        <div class="workout-motion-placeholder">
+                            <MudIcon Icon="@Icons.Material.Outlined.SportsGymnastics" />
+                            <span>Podgląd ruchu nie został jeszcze dodany</span>
+                        </div>
+                    }
+                </section>
                 <div class="exercise-live-heading">
                     <span class="exercise-order">@(_activeExerciseIndex + 1)</span>
                     <div><span class="card-kicker">Ćwiczenie @(_activeExerciseIndex + 1) z @OrderedExercises.Count</span><MudText Typo="Typo.h4">@exercise.ExerciseName</MudText><MudText Typo="Typo.caption">@exercise.PlannedSets × @exercise.MinReps-@exercise.MaxReps @if (exercise.TargetRir is not null) { <span>· RIR @exercise.TargetRir</span> }</MudText></div>
@@ -150,6 +171,24 @@
                     <button type="button" @onclick="() => StartRestTimer(exercise.RestSeconds ?? 90)"><MudIcon Icon="@Icons.Material.Outlined.Timer" /><span>Przerwa</span><strong>@FormatTime(exercise.RestSeconds ?? 90)</strong></button>
                     <button type="button" @onclick="StartInterval"><MudIcon Icon="@Icons.Material.Outlined.Timelapse" /><span>Interwał</span><strong>stoper</strong></button>
                 </div>
+
+                @if (SupersetMembers.Count > 1)
+                {
+                    <section class="workout-superset-strip" aria-label="Kolejność superserii">
+                        <header><span>Superseria</span><strong>@SupersetRound z @SupersetRounds rund</strong></header>
+                        <div>
+                            @foreach (var member in SupersetMembers)
+                            {
+                                var memberIndex = OrderedExercises.ToList().FindIndex(x => x.Id == member.Id);
+                                <button type="button" class="@(member.Id == exercise.Id ? "active" : null)" @onclick="() => SelectExercise(memberIndex)">
+                                    <span>A@(member.SupersetPosition)</span>
+                                    <strong>@member.ExerciseName</strong>
+                                    <small>@member.Sets.Count/@member.PlannedSets serii</small>
+                                </button>
+                            }
+                        </div>
+                    </section>
+                }
 
                 @if (exercise.ExerciseId is Guid exerciseId && _history.TryGetValue(exerciseId, out var last) && last is not null)
                 {
@@ -249,6 +288,16 @@
         }
     }
     private WorkoutExerciseResponse? ActiveExercise => OrderedExercises.ElementAtOrDefault(_activeExerciseIndex);
+    private ExerciseResponse? ActiveExerciseMedia =>
+        ActiveExercise?.ExerciseId is Guid exerciseId ? _catalog.FirstOrDefault(x => x.Id == exerciseId) : null;
+    private IReadOnlyList<WorkoutExerciseResponse> SupersetMembers =>
+        ActiveExercise?.SupersetGroupId is Guid groupId
+            ? OrderedExercises.Where(x => x.SupersetGroupId == groupId).OrderBy(x => x.SupersetPosition).ToList()
+            : [];
+    private int SupersetRounds => SupersetMembers.Count == 0 ? 0 : SupersetMembers.Max(x => x.PlannedSets);
+    private int SupersetRound => SupersetMembers.Count == 0
+        ? 0
+        : Math.Min(SupersetRounds, SupersetMembers.Min(x => x.Sets.Count) + 1);
     private int CompletedSets => _session?.Exercises.Sum(x => x.Sets.Count) ?? 0;
     private int PlannedSets => _session?.Exercises.Sum(x => x.PlannedSets) ?? 0;
     private int WorkingSets => _session?.Exercises.SelectMany(x => x.Sets).Count(x => x.SetType == SetType.Working) ?? 0;
@@ -310,7 +359,32 @@
             form.SetNumber = null;
             form.Notes = null;
             form.IsWarmup = false;
-            StartRestTimer(exercise.RestSeconds ?? 90);
+            if (request.SetType != SetType.Warmup)
+            {
+                var step = WorkoutSequence.Next(
+                    OrderedExercises.Select(x => new WorkoutExerciseState(
+                        x.Id,
+                        x.Order,
+                        x.PlannedSets,
+                        x.Sets.Count,
+                        x.SupersetGroupId,
+                        x.SupersetPosition,
+                        x.IntervalSeconds,
+                        x.RestSeconds)).ToList(),
+                    exercise.Id);
+                if (step.NextExerciseId is Guid nextId)
+                {
+                    var nextIndex = OrderedExercises.ToList().FindIndex(x => x.Id == nextId);
+                    if (nextIndex >= 0)
+                        SelectExercise(nextIndex);
+                }
+                if (step.Timer == WorkoutTimerKind.Interval)
+                    StartIntervalCountdown(step.Seconds);
+                else if (step.Timer == WorkoutTimerKind.Rest)
+                    StartRestTimer(step.Seconds);
+                else
+                    CloseTimer();
+            }
         }
         catch (HttpRequestException)
         {
@@ -404,9 +478,16 @@
         _timerSeconds = 0;
         _timerRunning = true;
     }
+    private void StartIntervalCountdown(int seconds)
+    {
+        _timerMode = TimerMode.Interval;
+        _timerStartSeconds = Math.Max(0, seconds);
+        _timerSeconds = _timerStartSeconds;
+        _timerRunning = _timerSeconds > 0;
+    }
 
     private void ToggleTimer() => _timerRunning = !_timerRunning;
-    private void ResetTimer() { _timerSeconds = _timerMode == TimerMode.Rest ? _timerStartSeconds : 0; _timerRunning = true; }
+    private void ResetTimer() { _timerSeconds = _timerStartSeconds; _timerRunning = true; }
     private void CloseTimer() { _timerMode = TimerMode.None; _timerRunning = false; _timerSeconds = 0; }
 
     private async Task RunClock(CancellationToken cancellationToken)
@@ -418,6 +499,14 @@
             {
                 _elapsed = DateTime.UtcNow - _session!.StartedAtUtc;
                 if (_timerRunning && _timerMode == TimerMode.Rest && _timerSeconds > 0)
+                {
+                    if (--_timerSeconds == 0)
+                    {
+                        _timerRunning = false;
+                        await JS.InvokeVoidAsync("formaTimer.done");
+                    }
+                }
+                else if (_timerRunning && _timerMode == TimerMode.Interval && _timerStartSeconds > 0 && _timerSeconds > 0)
                 {
                     if (--_timerSeconds == 0)
                     {

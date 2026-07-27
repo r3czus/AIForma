@@ -87,6 +87,81 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task ReplacingExerciseAfterASetShortensTheOriginalPlan()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "training-partial-swap@example.test");
+        var original = await CreateExercise(client, "Ćwiczenie przed zamianą", MuscleGroup.Chest, Equipment.Barbell);
+        var replacement = await CreateExercise(client, "Ćwiczenie po zamianie", MuscleGroup.Chest, Equipment.Dumbbell);
+        var session = await Send<StartQuickWorkoutRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/workout-sessions/quick",
+            new("Zamiana", 45, [new(original.Id, 3)]));
+        var originalSessionExercise = session.Exercises.Single();
+        await Send<SaveSetRequest, CompletedSetResponse>(
+            client,
+            HttpMethod.Post,
+            $"api/v1/workout-sessions/{session.Id}/sets",
+            new(originalSessionExercise.Id, 1, 50, 8, 2, SetType.Working));
+
+        await Send<ReplaceWorkoutExerciseRequest, WorkoutExerciseResponse>(
+            client,
+            HttpMethod.Put,
+            $"api/v1/workout-sessions/{session.Id}/exercises/{originalSessionExercise.Id}",
+            new(replacement.Id));
+        var saved = await client.GetFromJsonAsync<WorkoutSessionResponse>($"api/v1/workout-sessions/{session.Id}");
+
+        Assert.Equal(1, saved!.Exercises.Single(x => x.Id == originalSessionExercise.Id).PlannedSets);
+        Assert.Equal(2, saved.Exercises.Single(x => x.ExerciseId == replacement.Id).PlannedSets);
+        Assert.Equal(3, saved.Exercises.Sum(x => x.PlannedSets));
+    }
+
+    [Fact]
+    public async Task PlanAndSessionPreserveSupersetTiming()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "training-superset@example.test");
+        var press = await CreateExercise(client, "Wyciskanie superseria", MuscleGroup.Chest, Equipment.Dumbbell);
+        var row = await CreateExercise(client, "Wiosłowanie superseria", MuscleGroup.Back, Equipment.Dumbbell);
+        var groupId = Guid.NewGuid();
+        var planRequest = new SaveTrainingPlanRequest(
+            "Plan superserii",
+            "Tempo",
+            DateOnly.FromDateTime(DateTime.UtcNow),
+            [
+                new TrainingDayRequest(
+                    "Góra",
+                    DateTime.UtcNow.DayOfWeek,
+                    [
+                        new PlannedExerciseRequest(press.Id, 3, 8, 12, 2, 105, groupId, 1, 12),
+                        new PlannedExerciseRequest(row.Id, 3, 8, 12, 2, 105, groupId, 2, 12)
+                    ])
+            ]);
+
+        var plan = await Send<SaveTrainingPlanRequest, TrainingPlanResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/training-plans",
+            planRequest);
+        var planned = plan.Days.Single().Exercises.OrderBy(x => x.SupersetPosition).ToList();
+
+        Assert.All(planned, x => Assert.Equal(groupId, x.SupersetGroupId));
+        Assert.Equal([1, 2], planned.Select(x => x.SupersetPosition).ToArray());
+        Assert.All(planned, x => Assert.Equal(12, x.IntervalSeconds));
+
+        var session = await Send<StartWorkoutRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/workout-sessions",
+            new(plan.Days.Single().Id));
+
+        Assert.All(session.Exercises, x => Assert.Equal(groupId, x.SupersetGroupId));
+        Assert.Equal([1, 2], session.Exercises.OrderBy(x => x.Order).Select(x => x.SupersetPosition).ToArray());
+        Assert.All(session.Exercises, x => Assert.Equal(12, x.IntervalSeconds));
+    }
+
+    [Fact]
     public async Task ExerciseDetailsExposeGlobalAndOwnButNotForeignExercises()
     {
         var options = new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") };

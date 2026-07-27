@@ -79,6 +79,87 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
     }
 
     [Fact]
+    public async Task CompletedWorkoutDraftIsSavedOnlyAfterExplicitConfirmation()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "assistant-completed-workout@example.test");
+        var exercise = await Send<SaveExerciseRequest, ExerciseResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/exercises",
+            new("Wyciskanie sztangi testowe", FormaAI.Domain.Training.MuscleGroup.Chest, FormaAI.Domain.Training.Equipment.Barbell, false));
+        var localDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        _factory.Model.Enqueue(new AssistantModelTurn(null, new AssistantToolCall(
+            "create_completed_workout_draft",
+            JsonSerializer.SerializeToElement(new
+            {
+                name = "Trening klatki",
+                localDate,
+                exercises = new[]
+                {
+                    new
+                    {
+                        exerciseId = exercise.Id,
+                        exerciseName = exercise.Name,
+                        sets = new[]
+                        {
+                            new { weightKg = 50m, repetitions = 10, rir = (decimal?)2 },
+                            new { weightKg = 55m, repetitions = 8, rir = (decimal?)1 }
+                        }
+                    }
+                }
+            })), 20, 8));
+        _factory.Model.Enqueue(new AssistantModelTurn(
+            "Rozpisałem wykonany trening. Sprawdź serie i zatwierdź zapis.",
+            null,
+            30,
+            12));
+
+        var response = await Send<SendAssistantMessageRequest, AssistantMessageResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/assistant/messages",
+            new(null, "Dziś zrobiłem wyciskanie: 50 na 10 i 55 na 8", localDate));
+
+        Assert.NotNull(response.CompletedWorkoutDraft);
+        Assert.Equal(2, response.CompletedWorkoutDraft.Exercises.Single().Sets.Count);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("api/v1/workout-sessions/active")).StatusCode);
+
+        var correctedExercise = response.CompletedWorkoutDraft.Exercises.Single() with
+        {
+            Sets =
+            [
+                response.CompletedWorkoutDraft.Exercises.Single().Sets[0] with { WeightKg = 52.5m },
+                response.CompletedWorkoutDraft.Exercises.Single().Sets[1]
+            ]
+        };
+        var corrected = await Send<UpdateAssistantCompletedWorkoutDraftRequest, AssistantCompletedWorkoutDraftResponse>(
+            client,
+            HttpMethod.Put,
+            $"api/v1/assistant/actions/{response.CompletedWorkoutDraft.Id}/completed-workout",
+            new("Trening klatki — poprawiony", localDate, [correctedExercise]));
+        Assert.Equal(52.5m, corrected.Exercises.Single().Sets[0].WeightKg);
+
+        var first = await Send<object, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            $"api/v1/assistant/actions/{response.CompletedWorkoutDraft.Id}/confirm",
+            new { });
+        var second = await Send<object, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            $"api/v1/assistant/actions/{response.CompletedWorkoutDraft.Id}/confirm",
+            new { });
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal(FormaAI.Domain.Training.SessionStatus.Completed, first.Status);
+        Assert.Equal("Trening klatki — poprawiony", first.Name);
+        Assert.Equal(52.5m, first.Exercises.Single().Sets[0].WeightKg);
+        Assert.Equal(2, first.Exercises.Single().Sets.Count);
+    }
+
+    [Fact]
     public async Task ConversationAcceptsASecondUserMessage()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

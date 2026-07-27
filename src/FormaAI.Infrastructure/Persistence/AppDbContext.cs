@@ -104,6 +104,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             meal.Property(x => x.Notes).HasMaxLength(1000);
             meal.HasMany(x => x.Items).WithOne().HasForeignKey(x => x.MealId).OnDelete(DeleteBehavior.Cascade);
             meal.HasIndex(x => new { x.UserId, x.LocalDate });
+            meal.HasIndex(x => new { x.UserId, x.CopyOperationId })
+                .IsUnique()
+                .HasFilter("[CopyOperationId] IS NOT NULL");
         });
 
         builder.Entity<MealItem>(item =>

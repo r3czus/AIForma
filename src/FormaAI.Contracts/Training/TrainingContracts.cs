@@ -9,10 +9,30 @@ public sealed record ExerciseMuscleEngagementRequest(MuscleGroup MuscleGroup, [R
 public sealed record ExerciseResponse(Guid Id, string Name, MuscleGroup MuscleGroup, Equipment Equipment, bool IsUnilateral, bool IsOwn, string? Description = null, IReadOnlyList<ExerciseMuscleEngagementResponse>? MuscleEngagements = null,
     string? MediaUrl = null, string? MediaContentType = null, string? MediaAttribution = null, string? MediaSourceUrl = null, bool CanEditMedia = false);
 public sealed record SaveExerciseRequest([Required, MaxLength(150)] string Name, MuscleGroup MuscleGroup, Equipment Equipment, bool IsUnilateral, [MaxLength(1000)] string? Description = null, IReadOnlyList<ExerciseMuscleEngagementRequest>? MuscleEngagements = null);
-public sealed record PlannedExerciseRequest(Guid ExerciseId, [Range(1, 10)] int Sets, [Range(1, 100)] int MinReps, [Range(1, 100)] int MaxReps, [Range(0, 10)] decimal? TargetRir, [Range(0, 3600)] int? RestSeconds);
+public sealed record PlannedExerciseRequest(
+    Guid ExerciseId,
+    [Range(1, 10)] int Sets,
+    [Range(1, 100)] int MinReps,
+    [Range(1, 100)] int MaxReps,
+    [Range(0, 10)] decimal? TargetRir,
+    [Range(0, 3600)] int? RestSeconds,
+    Guid? SupersetGroupId = null,
+    [Range(1, 20)] int? SupersetPosition = null,
+    [Range(0, 3600)] int? IntervalSeconds = null);
 public sealed record TrainingDayRequest([Required, MaxLength(100)] string Name, DayOfWeek? DayOfWeek, [MinLength(1)] IReadOnlyList<PlannedExerciseRequest> Exercises);
 public sealed record SaveTrainingPlanRequest([Required, MaxLength(150)] string Name, [MaxLength(500)] string Goal, DateOnly StartsOn, [MinLength(1)] IReadOnlyList<TrainingDayRequest> Days);
-public sealed record PlannedExerciseResponse(Guid Id, Guid ExerciseId, string ExerciseName, int Sets, int MinReps, int MaxReps, decimal? TargetRir, int? RestSeconds);
+public sealed record PlannedExerciseResponse(
+    Guid Id,
+    Guid ExerciseId,
+    string ExerciseName,
+    int Sets,
+    int MinReps,
+    int MaxReps,
+    decimal? TargetRir,
+    int? RestSeconds,
+    Guid? SupersetGroupId = null,
+    int? SupersetPosition = null,
+    int? IntervalSeconds = null);
 public sealed record TrainingDayResponse(Guid Id, string Name, DayOfWeek? DayOfWeek, int SequenceNumber, IReadOnlyList<PlannedExerciseResponse> Exercises);
 public sealed record TrainingPlanResponse(Guid Id, string Name, string Goal, bool IsActive, DateOnly StartsOn, IReadOnlyList<TrainingDayResponse> Days);
 public sealed record TodayWorkoutResponse(Guid PlanId, Guid TrainingDayId, string PlanName, string DayName, bool AlreadyCompleted, IReadOnlyList<PlannedExerciseResponse> Exercises);
@@ -27,7 +47,20 @@ public sealed record CompletedSetResponse(Guid Id, int SetNumber, decimal Weight
 public sealed record AddWorkoutExerciseRequest(Guid ExerciseId, [Range(1, 10)] int PlannedSets = 3, [Range(1, 100)] int MinReps = 8, [Range(1, 100)] int MaxReps = 12, [Range(0, 10)] decimal? TargetRir = 2, [Range(0, 3600)] int? RestSeconds = 90);
 public sealed record ReplaceWorkoutExerciseRequest(Guid ExerciseId);
 public sealed record SaveWorkoutNotesRequest([MaxLength(1000)] string? Notes);
-public sealed record WorkoutExerciseResponse(Guid Id, Guid? ExerciseId, string ExerciseName, int Order, int PlannedSets, int MinReps, int MaxReps, decimal? TargetRir, int? RestSeconds, IReadOnlyList<CompletedSetResponse> Sets);
+public sealed record WorkoutExerciseResponse(
+    Guid Id,
+    Guid? ExerciseId,
+    string ExerciseName,
+    int Order,
+    int PlannedSets,
+    int MinReps,
+    int MaxReps,
+    decimal? TargetRir,
+    int? RestSeconds,
+    IReadOnlyList<CompletedSetResponse> Sets,
+    Guid? SupersetGroupId = null,
+    int? SupersetPosition = null,
+    int? IntervalSeconds = null);
 public sealed record WorkoutSessionResponse(Guid Id, string Name, DateTime StartedAtUtc, DateTime? FinishedAtUtc, SessionStatus Status, IReadOnlyList<WorkoutExerciseResponse> Exercises, bool IsShortened = false, int? TimeLimitMinutes = null);
 public sealed record ExerciseHistoryEntry(DateTime CompletedAtUtc, decimal WeightKg, int Repetitions, decimal? Rir, decimal Volume);
 public sealed record ExerciseProgressionResponse(Guid Id, Guid ExerciseId, string ExerciseName, decimal SuggestedWeightKg, int MinReps, int MaxReps, string Reason, ProgressionDecision Decision, decimal? AcceptedWeightKg);

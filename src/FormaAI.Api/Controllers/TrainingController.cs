@@ -391,7 +391,22 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         foreach (var later in session.Exercises.Where(x => x.Order > item.Order))
             later.ChangeOrder(later.Order + 1);
         var remainingSets = Math.Max(1, item.PlannedSets - item.Sets.Count);
-        var replacement = new WorkoutExercise(exercise, item.Order + 1, remainingSets, item.MinReps, item.MaxReps, item.TargetRir, item.RestSeconds);
+        var supersetGroupId = item.SupersetGroupId;
+        var supersetPosition = item.SupersetPosition;
+        var intervalSeconds = item.IntervalSeconds;
+        item.Shorten(item.Sets.Count);
+        item.DetachFromSuperset();
+        var replacement = new WorkoutExercise(
+            exercise,
+            item.Order + 1,
+            remainingSets,
+            item.MinReps,
+            item.MaxReps,
+            item.TargetRir,
+            item.RestSeconds,
+            supersetGroupId,
+            supersetPosition,
+            intervalSeconds);
         session.Exercises.Add(replacement);
         db.WorkoutExercises.Add(replacement);
         await db.SaveChangesAsync();
@@ -499,7 +514,10 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
     {
         var ids = request.Days.SelectMany(x => x.Exercises).Select(x => x.ExerciseId).Distinct().ToList();
         var count = await db.Exercises.CountAsync(x => ids.Contains(x.Id) && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId));
-        if (count != ids.Count || request.Days.SelectMany(x => x.Exercises).Any(x => x.MinReps > x.MaxReps)) return null;
+        if (count != ids.Count ||
+            request.Days.SelectMany(x => x.Exercises).Any(x => x.MinReps > x.MaxReps) ||
+            request.Days.Any(x => !ValidSupersets(x.Exercises)))
+            return null;
         var plan = new TrainingPlan(userId, request.Name, request.Goal, request.StartsOn);
         for (var i = 0; i < request.Days.Count; i++)
         {
@@ -508,7 +526,17 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
             for (var j = 0; j < source.Exercises.Count; j++)
             {
                 var x = source.Exercises[j];
-                day.Exercises.Add(new PlannedExercise(x.ExerciseId, j + 1, x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds));
+                day.Exercises.Add(new PlannedExercise(
+                    x.ExerciseId,
+                    j + 1,
+                    x.Sets,
+                    x.MinReps,
+                    x.MaxReps,
+                    x.TargetRir,
+                    x.RestSeconds,
+                    x.SupersetGroupId,
+                    x.SupersetPosition,
+                    x.IntervalSeconds));
             }
             plan.Days.Add(day);
         }
@@ -529,7 +557,18 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         var planned = source.ToList();
         var ids = planned.Select(x => x.ExerciseId).Distinct().ToList();
         var names = await db.Exercises.Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name);
-        return planned.OrderBy(x => x.Order).Select(x => new PlannedExerciseResponse(x.Id, x.ExerciseId, names[x.ExerciseId], x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds)).ToList();
+        return planned.OrderBy(x => x.Order).Select(x => new PlannedExerciseResponse(
+            x.Id,
+            x.ExerciseId,
+            names[x.ExerciseId],
+            x.Sets,
+            x.MinReps,
+            x.MaxReps,
+            x.TargetRir,
+            x.RestSeconds,
+            x.SupersetGroupId,
+            x.SupersetPosition,
+            x.IntervalSeconds)).ToList();
     }
 
     private IQueryable<WorkoutSession> SessionQuery() => db.WorkoutSessions.Include(x => x.Exercises).ThenInclude(x => x.Sets).Include(x => x.Exercises).ThenInclude(x => x.MuscleEngagements);
@@ -542,6 +581,23 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
     }
     private static IEnumerable<(MuscleGroup Group, int Percentage)> Engagements(SaveExerciseRequest request) =>
         request.MuscleEngagements is { Count: > 0 } ? request.MuscleEngagements.Select(x => (x.MuscleGroup, x.Percentage)) : [(request.MuscleGroup, 100)];
+    private static bool ValidSupersets(IReadOnlyList<PlannedExerciseRequest> exercises)
+    {
+        if (exercises.Any(x => x.SupersetGroupId is null && (x.SupersetPosition is not null || x.IntervalSeconds is not null)))
+            return false;
+
+        return exercises
+            .Where(x => x.SupersetGroupId is not null)
+            .GroupBy(x => x.SupersetGroupId)
+            .All(group =>
+            {
+                var positions = group.Select(x => x.SupersetPosition).ToList();
+                return group.Count() >= 2 &&
+                       positions.All(x => x is > 0) &&
+                       positions.Distinct().Count() == positions.Count &&
+                       positions.OrderBy(x => x).SequenceEqual(Enumerable.Range(1, positions.Count).Select(x => (int?)x));
+            });
+    }
     private ExerciseResponse ExerciseResponse(Exercise x) => new(x.Id, x.Name, x.PrimaryMuscleGroup, x.Equipment, x.IsUnilateral, x.OwnerUserId != null, x.Description,
         x.MuscleEngagements.Count > 0 ? x.MuscleEngagements.OrderByDescending(e => e.Percentage).Select(e => new ExerciseMuscleEngagementResponse(e.MuscleGroup, e.Percentage)).ToList() : [new(x.PrimaryMuscleGroup, 100)],
         x.MediaStorageName is not null ? $"api/v1/exercises/{x.Id}/media/content" : x.MediaExternalUrl,
@@ -555,7 +611,20 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
     }
     private static CompletedSetResponse SetResponse(CompletedSet x) => new(x.Id, x.SetNumber, x.WeightKg, x.Repetitions, x.Rir, x.Type, x.CompletedAtUtc, x.Notes);
-    private static WorkoutExerciseResponse ExerciseResponse(WorkoutExercise e) => new(e.Id, e.ExerciseId, e.ExerciseNameSnapshot, e.Order, e.PlannedSets, e.MinReps, e.MaxReps, e.TargetRir, e.RestSeconds, e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList());
+    private static WorkoutExerciseResponse ExerciseResponse(WorkoutExercise e) => new(
+        e.Id,
+        e.ExerciseId,
+        e.ExerciseNameSnapshot,
+        e.Order,
+        e.PlannedSets,
+        e.MinReps,
+        e.MaxReps,
+        e.TargetRir,
+        e.RestSeconds,
+        e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList(),
+        e.SupersetGroupId,
+        e.SupersetPosition,
+        e.IntervalSeconds);
     private static WorkoutSessionResponse SessionResponse(WorkoutSession x) => new(x.Id, x.NameSnapshot, x.StartedAtUtc, x.FinishedAtUtc, x.Status,
-        x.Exercises.OrderBy(e => e.Order).Select(e => new WorkoutExerciseResponse(e.Id, e.ExerciseId, e.ExerciseNameSnapshot, e.Order, e.PlannedSets, e.MinReps, e.MaxReps, e.TargetRir, e.RestSeconds, e.Sets.OrderBy(s => s.SetNumber).Select(SetResponse).ToList())).ToList(), x.IsShortened, x.TimeLimitMinutes);
+        x.Exercises.OrderBy(e => e.Order).Select(ExerciseResponse).ToList(), x.IsShortened, x.TimeLimitMinutes);
 }

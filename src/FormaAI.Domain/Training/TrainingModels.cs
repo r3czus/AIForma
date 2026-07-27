@@ -120,10 +120,24 @@ public sealed class TrainingDay
 public sealed class PlannedExercise
 {
     private PlannedExercise() { }
-    public PlannedExercise(Guid exerciseId, int order, int sets, int minReps, int maxReps, decimal? targetRir, int? restSeconds)
+    public PlannedExercise(
+        Guid exerciseId,
+        int order,
+        int sets,
+        int minReps,
+        int maxReps,
+        decimal? targetRir,
+        int? restSeconds,
+        Guid? supersetGroupId = null,
+        int? supersetPosition = null,
+        int? intervalSeconds = null)
     {
+        ValidateSuperset(supersetGroupId, supersetPosition, intervalSeconds);
         Id = Guid.NewGuid(); ExerciseId = exerciseId; Order = order; Sets = sets; MinReps = minReps;
         MaxReps = maxReps; TargetRir = targetRir; RestSeconds = restSeconds;
+        SupersetGroupId = supersetGroupId;
+        SupersetPosition = supersetPosition;
+        IntervalSeconds = intervalSeconds;
     }
     public Guid Id { get; private set; }
     public Guid TrainingDayId { get; private set; }
@@ -134,7 +148,20 @@ public sealed class PlannedExercise
     public int MaxReps { get; private set; }
     public decimal? TargetRir { get; private set; }
     public int? RestSeconds { get; private set; }
+    public Guid? SupersetGroupId { get; private set; }
+    public int? SupersetPosition { get; private set; }
+    public int? IntervalSeconds { get; private set; }
     public string? Notes { get; private set; }
+
+    private static void ValidateSuperset(Guid? groupId, int? position, int? intervalSeconds)
+    {
+        if (intervalSeconds is < 0 or > 3600)
+            throw new ArgumentOutOfRangeException(nameof(intervalSeconds));
+        if (groupId is null && (position is not null || intervalSeconds is not null))
+            throw new ArgumentException("Pozycja i interwał wymagają grupy superserii.");
+        if (groupId is not null && position is null or < 1)
+            throw new ArgumentOutOfRangeException(nameof(position));
+    }
 }
 
 public sealed class WorkoutSession
@@ -176,12 +203,29 @@ public sealed class WorkoutExercise
         Id = Guid.NewGuid(); ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Order = planned.Order;
         PlannedSets = planned.Sets; MinReps = planned.MinReps; MaxReps = planned.MaxReps;
         TargetRir = planned.TargetRir; RestSeconds = planned.RestSeconds;
+        SupersetGroupId = planned.SupersetGroupId;
+        SupersetPosition = planned.SupersetPosition;
+        IntervalSeconds = planned.IntervalSeconds;
         Snapshot(exercise);
     }
-    public WorkoutExercise(Exercise exercise, int order, int sets, int minReps, int maxReps, decimal? targetRir, int? restSeconds)
+    public WorkoutExercise(
+        Exercise exercise,
+        int order,
+        int sets,
+        int minReps,
+        int maxReps,
+        decimal? targetRir,
+        int? restSeconds,
+        Guid? supersetGroupId = null,
+        int? supersetPosition = null,
+        int? intervalSeconds = null)
     {
+        ValidateSuperset(supersetGroupId, supersetPosition, intervalSeconds);
         Id = Guid.NewGuid(); ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Order = order;
         PlannedSets = sets; MinReps = minReps; MaxReps = maxReps; TargetRir = targetRir; RestSeconds = restSeconds;
+        SupersetGroupId = supersetGroupId;
+        SupersetPosition = supersetPosition;
+        IntervalSeconds = intervalSeconds;
         Snapshot(exercise);
     }
     public Guid Id { get; private set; }
@@ -194,14 +238,33 @@ public sealed class WorkoutExercise
     public int MaxReps { get; private set; }
     public decimal? TargetRir { get; private set; }
     public int? RestSeconds { get; private set; }
+    public Guid? SupersetGroupId { get; private set; }
+    public int? SupersetPosition { get; private set; }
+    public int? IntervalSeconds { get; private set; }
     public List<CompletedSet> Sets { get; private set; } = [];
     public List<WorkoutExerciseMuscleEngagement> MuscleEngagements { get; private set; } = [];
     public void ReplaceExercise(Exercise exercise) { ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Snapshot(exercise); }
     public void Shorten(int sets) => PlannedSets = Math.Min(PlannedSets, sets);
+    public void DetachFromSuperset()
+    {
+        SupersetGroupId = null;
+        SupersetPosition = null;
+        IntervalSeconds = null;
+    }
     public void ChangeOrder(int order)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(order, 1);
         Order = order;
+    }
+
+    private static void ValidateSuperset(Guid? groupId, int? position, int? intervalSeconds)
+    {
+        if (intervalSeconds is < 0 or > 3600)
+            throw new ArgumentOutOfRangeException(nameof(intervalSeconds));
+        if (groupId is null && (position is not null || intervalSeconds is not null))
+            throw new ArgumentException("Pozycja i interwał wymagają grupy superserii.");
+        if (groupId is not null && position is null or < 1)
+            throw new ArgumentOutOfRangeException(nameof(position));
     }
 
     private void Snapshot(Exercise exercise)

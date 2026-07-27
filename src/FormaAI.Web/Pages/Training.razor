@@ -83,30 +83,65 @@
                                     <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small" OnClick="() => DuplicatePlan(plan)" aria-label="@($"Duplikuj plan {plan.Name}")" />
                                 </div>
                             </header>
-                            <div class="plan-day-grid">
-                                @foreach (var day in plan.Days.OrderBy(x => x.SequenceNumber))
+                            @{
+                                var orderedDays = plan.Days.OrderBy(x => x.SequenceNumber).ToList();
+                                var selectedDay = SelectedDay(plan);
+                                var selectedDayIndex = orderedDays.FindIndex(x => x.Id == selectedDay.Id);
+                            }
+                            <nav class="plan-day-tabs" aria-label="Dni planu @plan.Name">
+                                @foreach (var day in orderedDays)
                                 {
-                                    var dayIndex = plan.Days.OrderBy(x => x.SequenceNumber).ToList().IndexOf(day);
-                                    <details class="plan-day-card">
-                                        <summary>
-                                            <span class="plan-day-number">@day.SequenceNumber</span>
-                                            <span class="plan-day-copy"><strong>@day.Name</strong><small>@(day.DayOfWeek is null ? "Rotacyjnie" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń</small></span>
-                                            <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" />
-                                        </summary>
-                                        <div class="plan-day-exercises">
-                                            @foreach (var exercise in day.Exercises)
-                                            {
-                                                <button type="button" class="plan-exercise-link" @onclick="() => OpenExercise(plan.Id, day.Id, exercise.ExerciseId)">
-                                                    <strong>@exercise.ExerciseName</strong>
-                                                    <span>@exercise.Sets serie · @exercise.MinReps-@exercise.MaxReps powt.</span>
-                                                    <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" />
-                                                </button>
-                                            }
-                                        </div>
-                                        <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Edit" OnClick="() => EditPlanDay(plan, dayIndex)">Edytuj dzień</MudButton>
-                                    </details>
+                                    <button type="button"
+                                            class="@(day.Id == selectedDay.Id ? "active" : null)"
+                                            aria-selected="@(day.Id == selectedDay.Id)"
+                                            @onclick="() => SelectPlanDay(plan.Id, day.Id)">
+                                        <span class="plan-day-number">@day.SequenceNumber</span>
+                                        <span class="plan-day-copy">
+                                            <strong>@day.Name</strong>
+                                            <small>@(day.DayOfWeek is null ? "Rotacyjnie" : DayName(day.DayOfWeek.Value)) · @day.Exercises.Count ćwiczeń</small>
+                                        </span>
+                                    </button>
                                 }
-                            </div>
+                            </nav>
+                            <section class="selected-plan-day" aria-label="Ćwiczenia dnia @selectedDay.Name">
+                                <header>
+                                    <div>
+                                        <span class="card-kicker">Wybrany dzień</span>
+                                        <h3>@selectedDay.Name</h3>
+                                    </div>
+                                    <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Edit"
+                                               OnClick="() => EditPlanDay(plan, selectedDayIndex)">Edytuj dzień</MudButton>
+                                </header>
+                                <div class="plan-exercise-list">
+                                    @foreach (var exercise in selectedDay.Exercises)
+                                    {
+                                        var media = ExerciseMedia(exercise.ExerciseId);
+                                        <button type="button"
+                                                class="plan-exercise-row @(exercise.SupersetGroupId is not null ? "in-superset" : null)"
+                                                @onclick="() => OpenExercise(plan.Id, selectedDay.Id, exercise.ExerciseId)">
+                                            <span class="plan-exercise-media">
+                                                @if (media?.MediaContentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true)
+                                                {
+                                                    <img src="@media.MediaUrl" alt="" loading="lazy" />
+                                                }
+                                                else
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" />
+                                                }
+                                            </span>
+                                            <span class="plan-exercise-copy">
+                                                @if (exercise.SupersetGroupId is not null)
+                                                {
+                                                    <small class="superset-label">Superseria · A@(exercise.SupersetPosition)</small>
+                                                }
+                                                <strong>@exercise.ExerciseName</strong>
+                                                <small>@exercise.Sets serie · @exercise.MinReps–@exercise.MaxReps powt. · przerwa @FormatRest(exercise.RestSeconds)</small>
+                                            </span>
+                                            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                                        </button>
+                                    }
+                                </div>
+                            </section>
                         </MudPaper>
                     }
                 </div>
@@ -168,6 +203,20 @@
                                 <MudNumericField @bind-Value="_planned.MaxReps" Label="Powtórzenia do" Min="1" />
                                 <MudNumericField @bind-Value="_planned.Rir" Label="RIR" HelperText="Powtórzenia w zapasie" Min="0m" Max="10m" />
                                 <MudNumericField @bind-Value="_planned.RestSeconds" Label="Przerwa między seriami (sek.)" Min="0" Max="3600" />
+                            </div>
+                            <div class="superset-builder">
+                                <MudSwitch @bind-Value="_planned.JoinPreviousAsSuperset"
+                                           Disabled="@(_day.Exercises.Count == 0 && _editingExerciseIndex is null)"
+                                           Color="Color.Primary"
+                                           Label="Połącz z poprzednim ćwiczeniem w superserię" />
+                                @if (_planned.JoinPreviousAsSuperset)
+                                {
+                                    <MudNumericField @bind-Value="_planned.IntervalSeconds"
+                                                     Label="Interwał między ćwiczeniami (sek.)"
+                                                     Min="0"
+                                                     Max="3600" />
+                                    <small>Pełna przerwa rozpocznie się po wykonaniu całej rundy superserii.</small>
+                                }
                             </div>
                             <MudButton Variant="Variant.Outlined" StartIcon="@(_editingExerciseIndex is null ? Icons.Material.Outlined.Add : Icons.Material.Outlined.Save)" Disabled="@(_planned.ExerciseId is null)" OnClick="AddExercise">@(_editingExerciseIndex is null ? "Dodaj do dnia" : "Zapisz zmiany ćwiczenia")</MudButton>
                             @if (_day.Exercises.Count > 0)
@@ -271,6 +320,7 @@
     private string _exerciseSearch = string.Empty;
     private int _exerciseSearchVersion;
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
+    private readonly Dictionary<Guid, Guid> _selectedPlanDays = [];
     private TodayWorkoutResponse? _today;
     private WorkoutSessionResponse? _activeSession;
     private readonly PlanDraft _plan = new();
@@ -315,6 +365,15 @@
         _loading = false;
     }
     private async Task Reload() { _exercises = await TrainingApi.GetExercises(); _plans = await TrainingApi.GetPlans(); _today = await TrainingApi.GetToday(); _activeSession = await TrainingApi.GetActiveSession(); }
+    private TrainingDayResponse SelectedDay(TrainingPlanResponse plan)
+    {
+        var ordered = plan.Days.OrderBy(x => x.SequenceNumber).ToList();
+        if (_selectedPlanDays.TryGetValue(plan.Id, out var selectedId))
+            return ordered.FirstOrDefault(x => x.Id == selectedId) ?? ordered[0];
+        return ordered[0];
+    }
+    private void SelectPlanDay(Guid planId, Guid dayId) => _selectedPlanDays[planId] = dayId;
+    private ExerciseResponse? ExerciseMedia(Guid exerciseId) => _exercises.FirstOrDefault(x => x.Id == exerciseId);
     private async Task SearchExercises(string value)
     {
         _exerciseSearch = value;
@@ -344,10 +403,30 @@
             Snackbar.Add("Dolna granica powtórzeń nie może być większa od górnej.", Severity.Warning);
             return;
         }
-        var item = new PlannedDraftItem(exercise.Id, exercise.Name, _planned.Sets, _planned.MinReps, _planned.MaxReps, _planned.Rir, _planned.RestSeconds);
+        Guid? supersetGroupId = null;
+        int? supersetPosition = null;
+        int? intervalSeconds = null;
+        if (_planned.JoinPreviousAsSuperset && _day.Exercises.Count > 0)
+        {
+            var previousIndex = _editingExerciseIndex is int editedIndex ? Math.Max(0, editedIndex - 1) : _day.Exercises.Count - 1;
+            var previous = _day.Exercises[previousIndex];
+            supersetGroupId = previous.SupersetGroupId ?? Guid.NewGuid();
+            if (previous.SupersetGroupId is null)
+                _day.Exercises[previousIndex] = previous with { SupersetGroupId = supersetGroupId, SupersetPosition = 1, IntervalSeconds = _planned.IntervalSeconds };
+            supersetPosition = (previous.SupersetPosition ?? 1) + 1;
+            intervalSeconds = _planned.IntervalSeconds;
+        }
+        else if (_editingExerciseIndex is int existingIndex && _day.Exercises[existingIndex] is { SupersetGroupId: not null, SupersetPosition: 1 } existing)
+        {
+            supersetGroupId = existing.SupersetGroupId;
+            supersetPosition = existing.SupersetPosition;
+            intervalSeconds = existing.IntervalSeconds;
+        }
+        var item = new PlannedDraftItem(exercise.Id, exercise.Name, _planned.Sets, _planned.MinReps, _planned.MaxReps, _planned.Rir, _planned.RestSeconds, supersetGroupId, supersetPosition, intervalSeconds);
         if (_editingExerciseIndex is int index) _day.Exercises[index] = item;
         else _day.Exercises.Add(item);
-        _editingExerciseIndex = null; _planned.ExerciseId = null;
+        NormalizeSupersets();
+        _editingExerciseIndex = null; _planned.ExerciseId = null; _planned.JoinPreviousAsSuperset = false; _planned.IntervalSeconds = 15;
     }
 
     private void NextToDay() => _planStep = 2;
@@ -372,7 +451,7 @@
     {
         _editingPlanId = plan.Id; _plan.Name = plan.Name; _plan.Goal = plan.Goal; _plan.StartsOn = plan.StartsOn; _plan.Days.Clear();
         foreach (var day in plan.Days.OrderBy(x => x.SequenceNumber))
-            _plan.Days.Add(new DayDraftItem(day.Name, day.DayOfWeek, day.Exercises.Select(x => new PlannedDraftItem(x.ExerciseId, x.ExerciseName, x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds)).ToList()));
+            _plan.Days.Add(new DayDraftItem(day.Name, day.DayOfWeek, day.Exercises.Select(x => new PlannedDraftItem(x.ExerciseId, x.ExerciseName, x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds, x.SupersetGroupId, x.SupersetPosition, x.IntervalSeconds)).ToList()));
         _editingDayIndex = null; _editingExerciseIndex = null; _planStep = 4; _activeTab = 1;
     }
 
@@ -386,7 +465,7 @@
     {
         var request = new SaveTrainingPlanRequest($"{plan.Name} · kopia", plan.Goal, DateOnly.FromDateTime(DateTime.Today),
             plan.Days.OrderBy(x => x.SequenceNumber).Select(day => new TrainingDayRequest(day.Name, day.DayOfWeek,
-                day.Exercises.Select(x => new PlannedExerciseRequest(x.ExerciseId, x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds)).ToList())).ToList());
+                day.Exercises.Select(x => new PlannedExerciseRequest(x.ExerciseId, x.Sets, x.MinReps, x.MaxReps, x.TargetRir, x.RestSeconds, x.SupersetGroupId, x.SupersetPosition, x.IntervalSeconds)).ToList())).ToList());
         await TrainingApi.SavePlan(request);
         await Reload();
         Snackbar.Add("Utworzono kopię planu do dalszej edycji.", Severity.Success);
@@ -406,7 +485,10 @@
     {
         var exercise = _day.Exercises[index];
         _planned.ExerciseId = exercise.ExerciseId; _planned.Sets = exercise.Sets; _planned.MinReps = exercise.MinReps;
-        _planned.MaxReps = exercise.MaxReps; _planned.Rir = exercise.Rir; _planned.RestSeconds = exercise.RestSeconds; _editingExerciseIndex = index;
+        _planned.MaxReps = exercise.MaxReps; _planned.Rir = exercise.Rir; _planned.RestSeconds = exercise.RestSeconds;
+        _planned.JoinPreviousAsSuperset = exercise.SupersetGroupId is not null && exercise.SupersetPosition > 1;
+        _planned.IntervalSeconds = exercise.IntervalSeconds ?? 15;
+        _editingExerciseIndex = index;
     }
 
     private void CommitDay(bool addAnother)
@@ -425,12 +507,42 @@
         _planStep = addAnother ? 2 : 4;
     }
 
-    private void RemoveDraftExercise(int index) => _day.Exercises.RemoveAt(index);
+    private void RemoveDraftExercise(int index)
+    {
+        _day.Exercises.RemoveAt(index);
+        NormalizeSupersets();
+    }
+    private void NormalizeSupersets()
+    {
+        var groups = _day.Exercises
+            .Select((item, index) => (Item: item, Index: index))
+            .Where(x => x.Item.SupersetGroupId is not null)
+            .GroupBy(x => x.Item.SupersetGroupId!.Value)
+            .ToList();
+        foreach (var group in groups)
+        {
+            var members = group
+                .OrderBy(x => x.Item.SupersetPosition)
+                .ThenBy(x => x.Index)
+                .ToList();
+            if (members.Count < 2)
+            {
+                foreach (var member in members)
+                    _day.Exercises[member.Index] = member.Item with { SupersetGroupId = null, SupersetPosition = null, IntervalSeconds = null };
+                continue;
+            }
+            for (var position = 0; position < members.Count; position++)
+            {
+                var member = members[position];
+                _day.Exercises[member.Index] = member.Item with { SupersetPosition = position + 1 };
+            }
+        }
+    }
     private void RemoveDraftDay(int index) => _plan.Days.RemoveAt(index);
 
     private async Task SavePlan() => await Run(async () =>
     {
-        var request = new SaveTrainingPlanRequest(_plan.Name, _plan.Goal, _plan.StartsOn, _plan.Days.Select(d => new TrainingDayRequest(d.Name, d.DayOfWeek, d.Exercises.Select(x => new PlannedExerciseRequest(x.ExerciseId, x.Sets, x.MinReps, x.MaxReps, x.Rir, x.RestSeconds)).ToList())).ToList());
+        var request = new SaveTrainingPlanRequest(_plan.Name, _plan.Goal, _plan.StartsOn, _plan.Days.Select(d => new TrainingDayRequest(d.Name, d.DayOfWeek, d.Exercises.Select(x => new PlannedExerciseRequest(x.ExerciseId, x.Sets, x.MinReps, x.MaxReps, x.Rir, x.RestSeconds, x.SupersetGroupId, x.SupersetPosition, x.IntervalSeconds)).ToList())).ToList());
         var saved = _editingPlanId is Guid id ? await TrainingApi.UpdatePlan(id, request) : await TrainingApi.SavePlan(request);
         await TrainingApi.Activate(saved.Id);
         _editingPlanId = null; _plan.Name = "Mój plan"; _plan.Goal = string.Empty; _plan.StartsOn = DateOnly.FromDateTime(DateTime.Now); _plan.Days.Clear(); _planStep = 1; _activeTab = 0;
@@ -479,6 +591,7 @@
     private async Task SkipWorkout() { if (_today is null) return; await TrainingApi.SaveSchedule(new(_today.TrainingDayId, DateOnly.FromDateTime(DateTime.Today), null, ScheduleDecision.Skipped, "Pominięto przez użytkownika")); Snackbar.Add("Dzień został oznaczony jako świadomie pominięty.", Severity.Info); await Reload(); }
     private async Task Run(Func<Task> action) { try { await action(); } catch (HttpRequestException) { Snackbar.Add("Nie udało się zapisać zmian.", Severity.Error); } }
     private static string DayName(DayOfWeek day) => day switch { DayOfWeek.Monday => "Poniedziałek", DayOfWeek.Tuesday => "Wtorek", DayOfWeek.Wednesday => "Środa", DayOfWeek.Thursday => "Czwartek", DayOfWeek.Friday => "Piątek", DayOfWeek.Saturday => "Sobota", _ => "Niedziela" };
+    private static string FormatRest(int? seconds) => seconds is null ? "—" : seconds >= 60 ? $"{seconds / 60}:{seconds % 60:00} min" : $"{seconds} s";
     private string StepClass(int step) => step == _planStep ? "active" : step < _planStep ? "done" : string.Empty;
     private static string StepName(int step) => step switch { 1 => "Cel", 2 => "Dzień", 3 => "Ćwiczenia", _ => "Sprawdź" };
     private string ExerciseStepClass(int step) => step == _exerciseStep ? "active" : step < _exerciseStep ? "done" : string.Empty;
@@ -520,9 +633,9 @@
 
     private sealed class PlanDraft { public string Name { get; set; } = "Mój plan"; public string Goal { get; set; } = string.Empty; public DateOnly StartsOn { get; set; } = DateOnly.FromDateTime(DateTime.Now); public List<DayDraftItem> Days { get; } = []; }
     private sealed class DayDraft { public string Name { get; set; } = string.Empty; public DayOfWeek? DayOfWeek { get; set; } public List<PlannedDraftItem> Exercises { get; } = []; }
-    private sealed class PlannedDraft { public Guid? ExerciseId { get; set; } public int Sets { get; set; } = 3; public int MinReps { get; set; } = 8; public int MaxReps { get; set; } = 12; public decimal? Rir { get; set; } = 2; public int? RestSeconds { get; set; } = 90; }
+    private sealed class PlannedDraft { public Guid? ExerciseId { get; set; } public int Sets { get; set; } = 3; public int MinReps { get; set; } = 8; public int MaxReps { get; set; } = 12; public decimal? Rir { get; set; } = 2; public int? RestSeconds { get; set; } = 90; public bool JoinPreviousAsSuperset { get; set; } public int? IntervalSeconds { get; set; } = 15; }
     private sealed class ExerciseDraft { public string Name { get; set; } = string.Empty; public string? Description { get; set; } public Equipment Equipment { get; set; } = Equipment.Other; public bool IsUnilateral { get; set; } public List<EngagementDraft> Engagements { get; } = [new(MuscleGroup.FullBody, 100)]; }
     private sealed class EngagementDraft(MuscleGroup muscleGroup, int percentage) { public MuscleGroup MuscleGroup { get; set; } = muscleGroup; public int Percentage { get; set; } = percentage; }
-    private sealed record PlannedDraftItem(Guid ExerciseId, string Name, int Sets, int MinReps, int MaxReps, decimal? Rir, int? RestSeconds);
+    private sealed record PlannedDraftItem(Guid ExerciseId, string Name, int Sets, int MinReps, int MaxReps, decimal? Rir, int? RestSeconds, Guid? SupersetGroupId = null, int? SupersetPosition = null, int? IntervalSeconds = null);
     private sealed record DayDraftItem(string Name, DayOfWeek? DayOfWeek, List<PlannedDraftItem> Exercises);
 }

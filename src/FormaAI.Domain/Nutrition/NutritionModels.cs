@@ -120,6 +120,7 @@ public sealed class Meal
     public DateOnly LocalDate { get; private set; }
     public string Name { get; private set; } = null!;
     public MealSource Source { get; private set; }
+    public Guid? CopyOperationId { get; private set; }
     public string? Notes { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
@@ -136,13 +137,39 @@ public sealed class Meal
     }
 
     public void MarkAsAssistantDraft() => Source = MealSource.AssistantDraft;
+
+    public Meal CopyTo(DateTime occurredAtUtc, DateOnly localDate, string targetSlot, Guid operationId)
+    {
+        if (string.IsNullOrWhiteSpace(targetSlot))
+            throw new ArgumentException("Sekcja docelowa jest wymagana.", nameof(targetSlot));
+        var separatorIndex = Name.IndexOf(" · ", StringComparison.Ordinal);
+        var mealName = separatorIndex >= 0 ? Name[(separatorIndex + 3)..] : Name;
+        var copy = new Meal(UserId, $"{targetSlot.Trim()} · {mealName}", occurredAtUtc, localDate)
+        {
+            Source = Source,
+            CopyOperationId = operationId
+        };
+        foreach (var item in Items)
+        {
+            copy.Items.Add(new MealItem(
+                item.ProductId,
+                item.ProductNameSnapshot,
+                item.AmountGrams,
+                item.CaloriesKcal,
+                item.ProteinG,
+                item.FatG,
+                item.CarbohydratesG,
+                item.IsEstimated));
+        }
+        return copy;
+    }
 }
 
 public sealed class MealItem
 {
     private MealItem() { }
 
-    public MealItem(Guid productId, string name, decimal amount, decimal calories, decimal protein, decimal fat, decimal carbs, bool estimated)
+    public MealItem(Guid? productId, string name, decimal amount, decimal calories, decimal protein, decimal fat, decimal carbs, bool estimated)
     {
         Id = Guid.NewGuid();
         ProductId = productId;

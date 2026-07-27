@@ -249,6 +249,41 @@ public sealed class NutritionController(AppDbContext db, OpenFoodFactsClient ope
         return MealResponse(existing);
     }
 
+    [HttpPost("meals/{id:guid}/copy")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<MealResponse>> CopyMeal(Guid id, CopyMealRequest request)
+    {
+        var userId = UserId();
+        if (request.OperationId == Guid.Empty)
+            return ValidationProblem("Identyfikator operacji kopiowania jest wymagany.");
+        var existingCopy = await db.Meals
+            .Include(x => x.Items)
+            .SingleOrDefaultAsync(x => x.UserId == userId && x.CopyOperationId == request.OperationId);
+        if (existingCopy is not null)
+            return MealResponse(existingCopy);
+
+        var source = await db.Meals
+            .Include(x => x.Items)
+            .SingleOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+        if (source is null)
+            return NotFound();
+
+        var profile = await db.UserProfiles
+            .Where(x => x.UserId == userId)
+            .Select(x => new { x.TimeZoneId, x.MealSlots })
+            .SingleAsync();
+        var slots = profile.MealSlots.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var targetSlot = slots.FirstOrDefault(x => string.Equals(x, request.TargetSlot.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (targetSlot is null)
+            return ValidationProblem("Wybierz istniejącą sekcję posiłku.");
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(profile.TimeZoneId);
+        var occurredAtUtc = TimeZoneInfo.ConvertTimeToUtc(request.TargetDate.ToDateTime(new TimeOnly(12, 0)), zone);
+        var copy = source.CopyTo(occurredAtUtc, request.TargetDate, targetSlot, request.OperationId);
+        db.Meals.Add(copy);
+        await db.SaveChangesAsync();
+        return Created($"api/v1/meals/{copy.Id}", MealResponse(copy));
+    }
+
     [HttpDelete("meals/{id:guid}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteMeal(Guid id)

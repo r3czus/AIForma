@@ -114,6 +114,46 @@ public sealed class NutritionFlowTests : IClassFixture<FormaAiFactory>
         Assert.Equal(2000m, summary.Nutrition.AverageCalories);
     }
 
+    [Fact]
+    public async Task CopyMealPreservesSourceAndIsIdempotent()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "nutrition-copy@example.test", "Europe/Warsaw");
+        var sourceDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        var targetDate = sourceDate.AddDays(1);
+        var product = await Send<SaveProductRequest, ProductResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/products",
+            new("Owsianka do kopiowania", null, 370, 12, 7, 60));
+        var source = await Send<SaveMealRequest, MealResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/meals",
+            new("Śniadanie · Owsianka", DateTimeOffset.UtcNow, [new(product.Id, 80, true)]));
+        var request = new CopyMealRequest(targetDate, "Lunch", Guid.NewGuid());
+
+        var first = await Send<CopyMealRequest, MealResponse>(
+            client,
+            HttpMethod.Post,
+            $"api/v1/meals/{source.Id}/copy",
+            request);
+        var second = await Send<CopyMealRequest, MealResponse>(
+            client,
+            HttpMethod.Post,
+            $"api/v1/meals/{source.Id}/copy",
+            request);
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal("Lunch · Owsianka", first.Name);
+        Assert.Equal(source.Items.Single().AmountGrams, first.Items.Single().AmountGrams);
+        Assert.Equal(source.Items.Single().IsEstimated, first.Items.Single().IsEstimated);
+        var originalDay = await client.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{sourceDate:yyyy-MM-dd}");
+        var copiedDay = await client.GetFromJsonAsync<NutritionDayResponse>($"api/v1/nutrition/days/{targetDate:yyyy-MM-dd}");
+        Assert.Contains(originalDay!.Meals, x => x.Id == source.Id);
+        Assert.Single(copiedDay!.Meals, x => x.Id == first.Id);
+    }
+
     private static async Task Register(HttpClient client, string email, string timeZone = "UTC") =>
         _ = await Send<RegisterRequest, CurrentUserResponse>(client, HttpMethod.Post, "api/account/register", new(email, "FormaAI!123", timeZone));
 

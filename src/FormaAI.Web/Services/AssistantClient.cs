@@ -17,6 +17,17 @@ public sealed class AssistantClient(HttpClient http)
     public Task<TrainingPlanResponse> ConfirmTrainingPlan(Guid draftId) =>
         Send<TrainingPlanResponse>(HttpMethod.Post, $"api/v1/assistant/actions/{draftId}/confirm", new { });
 
+    public Task<AssistantCompletedWorkoutDraftResponse> UpdateCompletedWorkout(
+        Guid draftId,
+        UpdateAssistantCompletedWorkoutDraftRequest request) =>
+        Send<AssistantCompletedWorkoutDraftResponse>(
+            HttpMethod.Put,
+            $"api/v1/assistant/actions/{draftId}/completed-workout",
+            request);
+
+    public Task<WorkoutSessionResponse> ConfirmCompletedWorkout(Guid draftId) =>
+        Send<WorkoutSessionResponse>(HttpMethod.Post, $"api/v1/assistant/actions/{draftId}/confirm", new { });
+
     public async Task Reject(Guid draftId)
     {
         using var response = await Send(HttpMethod.Post, $"api/v1/assistant/actions/{draftId}/reject", new { });
