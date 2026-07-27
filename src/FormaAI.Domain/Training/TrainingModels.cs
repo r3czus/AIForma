@@ -245,6 +245,12 @@ public sealed class WorkoutExercise
     public List<WorkoutExerciseMuscleEngagement> MuscleEngagements { get; private set; } = [];
     public void ReplaceExercise(Exercise exercise) { ExerciseId = exercise.Id; ExerciseNameSnapshot = exercise.Name; Snapshot(exercise); }
     public void Shorten(int sets) => PlannedSets = Math.Min(PlannedSets, sets);
+    public void DetachFromSuperset()
+    {
+        SupersetGroupId = null;
+        SupersetPosition = null;
+        IntervalSeconds = null;
+    }
     public void ChangeOrder(int order)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(order, 1);

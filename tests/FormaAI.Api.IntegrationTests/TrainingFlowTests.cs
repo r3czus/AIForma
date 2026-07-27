@@ -87,6 +87,37 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task ReplacingExerciseAfterASetShortensTheOriginalPlan()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "training-partial-swap@example.test");
+        var original = await CreateExercise(client, "Ćwiczenie przed zamianą", MuscleGroup.Chest, Equipment.Barbell);
+        var replacement = await CreateExercise(client, "Ćwiczenie po zamianie", MuscleGroup.Chest, Equipment.Dumbbell);
+        var session = await Send<StartQuickWorkoutRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/workout-sessions/quick",
+            new("Zamiana", 45, [new(original.Id, 3)]));
+        var originalSessionExercise = session.Exercises.Single();
+        await Send<SaveSetRequest, CompletedSetResponse>(
+            client,
+            HttpMethod.Post,
+            $"api/v1/workout-sessions/{session.Id}/sets",
+            new(originalSessionExercise.Id, 1, 50, 8, 2, SetType.Working));
+
+        await Send<ReplaceWorkoutExerciseRequest, WorkoutExerciseResponse>(
+            client,
+            HttpMethod.Put,
+            $"api/v1/workout-sessions/{session.Id}/exercises/{originalSessionExercise.Id}",
+            new(replacement.Id));
+        var saved = await client.GetFromJsonAsync<WorkoutSessionResponse>($"api/v1/workout-sessions/{session.Id}");
+
+        Assert.Equal(1, saved!.Exercises.Single(x => x.Id == originalSessionExercise.Id).PlannedSets);
+        Assert.Equal(2, saved.Exercises.Single(x => x.ExerciseId == replacement.Id).PlannedSets);
+        Assert.Equal(3, saved.Exercises.Sum(x => x.PlannedSets));
+    }
+
+    [Fact]
     public async Task PlanAndSessionPreserveSupersetTiming()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

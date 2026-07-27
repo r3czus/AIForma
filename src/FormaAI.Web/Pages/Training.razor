@@ -425,6 +425,7 @@
         var item = new PlannedDraftItem(exercise.Id, exercise.Name, _planned.Sets, _planned.MinReps, _planned.MaxReps, _planned.Rir, _planned.RestSeconds, supersetGroupId, supersetPosition, intervalSeconds);
         if (_editingExerciseIndex is int index) _day.Exercises[index] = item;
         else _day.Exercises.Add(item);
+        NormalizeSupersets();
         _editingExerciseIndex = null; _planned.ExerciseId = null; _planned.JoinPreviousAsSuperset = false; _planned.IntervalSeconds = 15;
     }
 
@@ -506,7 +507,37 @@
         _planStep = addAnother ? 2 : 4;
     }
 
-    private void RemoveDraftExercise(int index) => _day.Exercises.RemoveAt(index);
+    private void RemoveDraftExercise(int index)
+    {
+        _day.Exercises.RemoveAt(index);
+        NormalizeSupersets();
+    }
+    private void NormalizeSupersets()
+    {
+        var groups = _day.Exercises
+            .Select((item, index) => (Item: item, Index: index))
+            .Where(x => x.Item.SupersetGroupId is not null)
+            .GroupBy(x => x.Item.SupersetGroupId!.Value)
+            .ToList();
+        foreach (var group in groups)
+        {
+            var members = group
+                .OrderBy(x => x.Item.SupersetPosition)
+                .ThenBy(x => x.Index)
+                .ToList();
+            if (members.Count < 2)
+            {
+                foreach (var member in members)
+                    _day.Exercises[member.Index] = member.Item with { SupersetGroupId = null, SupersetPosition = null, IntervalSeconds = null };
+                continue;
+            }
+            for (var position = 0; position < members.Count; position++)
+            {
+                var member = members[position];
+                _day.Exercises[member.Index] = member.Item with { SupersetPosition = position + 1 };
+            }
+        }
+    }
     private void RemoveDraftDay(int index) => _plan.Days.RemoveAt(index);
 
     private async Task SavePlan() => await Run(async () =>

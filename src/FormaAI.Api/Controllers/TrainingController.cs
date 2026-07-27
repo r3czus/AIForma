@@ -391,6 +391,11 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         foreach (var later in session.Exercises.Where(x => x.Order > item.Order))
             later.ChangeOrder(later.Order + 1);
         var remainingSets = Math.Max(1, item.PlannedSets - item.Sets.Count);
+        var supersetGroupId = item.SupersetGroupId;
+        var supersetPosition = item.SupersetPosition;
+        var intervalSeconds = item.IntervalSeconds;
+        item.Shorten(item.Sets.Count);
+        item.DetachFromSuperset();
         var replacement = new WorkoutExercise(
             exercise,
             item.Order + 1,
@@ -399,9 +404,9 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
             item.MaxReps,
             item.TargetRir,
             item.RestSeconds,
-            item.SupersetGroupId,
-            item.SupersetPosition,
-            item.IntervalSeconds);
+            supersetGroupId,
+            supersetPosition,
+            intervalSeconds);
         session.Exercises.Add(replacement);
         db.WorkoutExercises.Add(replacement);
         await db.SaveChangesAsync();
