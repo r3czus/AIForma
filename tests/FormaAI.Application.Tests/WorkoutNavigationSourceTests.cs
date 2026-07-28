@@ -74,6 +74,10 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("Połącz w superserię", source);
         Assert.Contains("SaveSuperset", source);
         Assert.Contains("superset-builder", source);
+        Assert.Contains("Liczba rund", source);
+        Assert.Contains("_supersetRounds", source);
+        Assert.Contains("MoveSupersetExercise", source);
+        Assert.Contains("List<Guid> _supersetExerciseIds", source);
     }
 
     [Fact]

@@ -327,10 +327,11 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
             client,
             HttpMethod.Put,
             $"api/v1/workout-sessions/{session.Id}/superset",
-            new([session.Exercises[0].Id, session.Exercises[1].Id], 20, 120));
+            new([session.Exercises[0].Id, session.Exercises[1].Id], 5, 20, 120));
 
         Assert.All(updated.Exercises, exercise => Assert.NotNull(exercise.SupersetGroupId));
         Assert.Equal([1, 2], updated.Exercises.OrderBy(x => x.SupersetPosition).Select(x => x.SupersetPosition));
+        Assert.All(updated.Exercises, exercise => Assert.Equal(5, exercise.PlannedSets));
         Assert.All(updated.Exercises, exercise => Assert.Equal(20, exercise.IntervalSeconds));
         Assert.All(updated.Exercises, exercise => Assert.Equal(120, exercise.RestSeconds));
     }

@@ -63,6 +63,7 @@ public sealed record AddWorkoutExerciseRequest(Guid ExerciseId, [Range(1, 10)] i
 public sealed record ReplaceWorkoutExerciseRequest(Guid ExerciseId);
 public sealed record UpdateWorkoutSupersetRequest(
     [MinLength(2), MaxLength(5)] IReadOnlyList<Guid> WorkoutExerciseIds,
+    [Range(1, 10)] int Rounds = 3,
     [Range(0, 3600)] int IntervalSeconds = 15,
     [Range(0, 3600)] int RestSeconds = 90);
 public sealed record SaveWorkoutNotesRequest([MaxLength(1000)] string? Notes);

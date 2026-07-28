@@ -288,11 +288,16 @@ public sealed class WorkoutExercise
         SupersetPosition = null;
         IntervalSeconds = null;
     }
-    public void ConfigureSuperset(Guid groupId, int position, int intervalSeconds, int restSeconds)
+    public void ConfigureSuperset(Guid groupId, int position, int rounds, int intervalSeconds, int restSeconds)
     {
         ValidateSuperset(groupId, position, intervalSeconds);
+        if (rounds is < 1 or > 10)
+            throw new ArgumentOutOfRangeException(nameof(rounds));
+        if (rounds < Sets.Count(x => x.Type == SetType.Working))
+            throw new InvalidOperationException("Liczba rund nie może być mniejsza od liczby wykonanych serii roboczych.");
         if (restSeconds is < 0 or > 3600)
             throw new ArgumentOutOfRangeException(nameof(restSeconds));
+        PlannedSets = rounds;
         SupersetGroupId = groupId;
         SupersetPosition = position;
         IntervalSeconds = intervalSeconds;

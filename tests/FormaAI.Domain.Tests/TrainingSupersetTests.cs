@@ -11,12 +11,37 @@ public sealed class TrainingSupersetTests
         var workoutExercise = new WorkoutExercise(exercise, 1, 3, 6, 8, 2, 90);
         var groupId = Guid.NewGuid();
 
-        workoutExercise.ConfigureSuperset(groupId, 2, 15, 120);
+        workoutExercise.ConfigureSuperset(groupId, 2, 4, 15, 120);
 
         Assert.Equal(groupId, workoutExercise.SupersetGroupId);
         Assert.Equal(2, workoutExercise.SupersetPosition);
+        Assert.Equal(4, workoutExercise.PlannedSets);
         Assert.Equal(15, workoutExercise.IntervalSeconds);
         Assert.Equal(120, workoutExercise.RestSeconds);
+    }
+
+    [Fact]
+    public void SupersetRoundsCannotHideCompletedSets()
+    {
+        var exercise = new Exercise(null, "Wiosłowanie", MuscleGroup.Back, Equipment.Dumbbell, false, null);
+        var workoutExercise = new WorkoutExercise(exercise, 1, 3, 8, 12, 2, 90);
+        workoutExercise.Sets.Add(new CompletedSet(workoutExercise.Id, 1, 40, 10, 2, SetType.Working));
+        workoutExercise.Sets.Add(new CompletedSet(workoutExercise.Id, 2, 40, 9, 2, SetType.Working));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            workoutExercise.ConfigureSuperset(Guid.NewGuid(), 1, 1, 15, 120));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(11)]
+    public void SupersetRoundsStayInsideWorkoutSetRange(int rounds)
+    {
+        var exercise = new Exercise(null, "Wiosłowanie", MuscleGroup.Back, Equipment.Dumbbell, false, null);
+        var workoutExercise = new WorkoutExercise(exercise, 1, 3, 8, 12, 2, 90);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            workoutExercise.ConfigureSuperset(Guid.NewGuid(), 1, rounds, 15, 120));
     }
 
     [Fact]

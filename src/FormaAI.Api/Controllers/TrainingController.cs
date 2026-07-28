@@ -446,6 +446,9 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
             .ToList();
         if (selected.Any(x => x is null))
             return ValidationProblem("Wybrane ćwiczenie nie należy do tej sesji.");
+        var completedWorkingSets = selected.Max(x => x!.Sets.Count(set => set.Type == SetType.Working));
+        if (request.Rounds < completedWorkingSets)
+            return ValidationProblem($"Superseria musi mieć co najmniej {completedWorkingSets} rund, ponieważ tyle serii już wykonano.");
 
         var previousGroups = selected
             .Where(x => x!.SupersetGroupId is not null)
@@ -456,7 +459,7 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
 
         var supersetId = Guid.NewGuid();
         for (var index = 0; index < selected.Count; index++)
-            selected[index]!.ConfigureSuperset(supersetId, index + 1, request.IntervalSeconds, request.RestSeconds);
+            selected[index]!.ConfigureSuperset(supersetId, index + 1, request.Rounds, request.IntervalSeconds, request.RestSeconds);
 
         await db.SaveChangesAsync();
         return SessionResponse(session);
