@@ -52,6 +52,7 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains(".workout-mode:has(.live-workout-surface)", css);
         Assert.Contains("min-height: 100dvh", css);
         Assert.Contains("overflow-x: auto", css);
+        Assert.Contains("width: min(680px, calc(100% - 32px))", css);
     }
 
     [Fact]
