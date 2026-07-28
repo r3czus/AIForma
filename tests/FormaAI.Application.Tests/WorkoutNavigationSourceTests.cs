@@ -22,7 +22,7 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("<WorkoutExerciseHero", source);
         Assert.Contains("workout-superset-strip", source);
         Assert.Contains("swap-exercise-trigger", source);
-        Assert.Contains("exercise-timer-actions", source);
+        Assert.Contains("live-timer-controls", source);
         Assert.Contains("ApplyNextPreset", source);
     }
 
@@ -60,15 +60,43 @@ public sealed class WorkoutNavigationSourceTests
     {
         var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
 
-        Assert.Contains("workout-set-row saved", source);
-        Assert.Contains("workout-set-row active", source);
-        Assert.Contains("workout-primary-action", source);
+        Assert.Contains("live-set-row saved", source);
+        Assert.Contains("live-set-row active", source);
+        Assert.Contains("workout-sticky-action", source);
         Assert.Contains("workout-sheet swap-sheet", source);
         Assert.Contains("swap-filter", source);
         Assert.Contains("aria-modal=\"true\"", source);
         Assert.Contains("@onkeydown=\"HandleSwapKeyDown\"", source);
         Assert.Contains("keyboardEvent.Key == \"Escape\"", source);
         Assert.Contains("_savingSet", source);
+    }
+
+    [Fact]
+    public void LiveWorkoutUsesFlatSetPlateSkeletonTimersAndStickySaveAction()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+        var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
+
+        Assert.Contains("workout-live-skeleton", source);
+        Assert.Contains("live-exercise-plate", source);
+        Assert.Contains("live-exercise-title", source);
+        Assert.Contains("live-timer-controls", source);
+        Assert.Contains("ToggleTimer", source);
+        Assert.Contains("ResetTimer", source);
+        Assert.Contains("CloseTimer", source);
+        Assert.Contains("live-set-grid", source);
+        Assert.Contains("live-set-row saved", source);
+        Assert.Contains("live-set-row active", source);
+        Assert.Contains("workout-sticky-action", source);
+        Assert.Contains("OnClick=\"() => SaveSet(exercise, form)\"", source);
+        Assert.Contains(".workout-live-skeleton", css);
+        Assert.Contains(".live-exercise-plate", css);
+        Assert.Contains(".live-timer-controls", css);
+        Assert.Contains(".live-set-grid", css);
+        Assert.Contains(".workout-sticky-action", css);
+        Assert.Contains("safe-area-inset-bottom", css);
+        Assert.Contains(".live-workout-surface > .session-actions", css);
+        Assert.Contains("calc(128px + env(safe-area-inset-bottom))", css);
     }
 
     [Fact]

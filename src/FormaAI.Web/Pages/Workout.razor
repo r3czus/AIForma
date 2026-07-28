@@ -12,7 +12,14 @@
 <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap workout-mode">
     @if (_session is null)
     {
-        <PageSkeleton Message="Przygotowuję sesję" Compact="true" />
+        <div class="workout-live-skeleton" aria-label="Przygotowuję sesję" aria-busy="true">
+            <span class="skeleton-block hero"></span>
+            <span class="skeleton-block title"></span>
+            <div><span class="skeleton-block timer"></span><span class="skeleton-block timer"></span></div>
+            <span class="skeleton-block row"></span>
+            <span class="skeleton-block row"></span>
+            <span class="skeleton-block row"></span>
+        </div>
     }
     else
     {
@@ -109,30 +116,22 @@
                                      OnNext="NextExercise"
                                      OnSelect="SelectExercise" />
 
-            @if (_timerMode != TimerMode.None)
-            {
-                <section class="workout-timer @(_timerMode == TimerMode.Interval ? "interval" : null)" aria-live="polite">
-                    <div><span>@TimerLabel</span><strong>@FormatTime(_timerSeconds)</strong></div>
-                    <MudIconButton Icon="@(_timerRunning ? Icons.Material.Outlined.Pause : Icons.Material.Outlined.PlayArrow)" OnClick="ToggleTimer" aria-label="@(_timerRunning ? "Wstrzymaj timer" : "Wznów timer")" />
-                    <MudIconButton Icon="@Icons.Material.Outlined.RestartAlt" OnClick="ResetTimer" aria-label="Resetuj timer" />
-                    <MudButton Variant="Variant.Text" OnClick="CloseTimer">Zamknij</MudButton>
-                </section>
-            }
-
-            <article class="workout-exercise workout-exercise-focus">
-                <div class="exercise-live-heading">
-                    <span class="exercise-order">@(_activeExerciseIndex + 1)</span>
+            <article class="live-exercise-plate">
+                <header class="live-exercise-title">
                     <div>
                         <span class="card-kicker">Ćwiczenie @(_activeExerciseIndex + 1) z @OrderedExercises.Count</span>
-                        <MudText Typo="Typo.h4">@exercise.ExerciseName</MudText>
-                        <MudText Typo="Typo.caption">@exercise.PlannedSets × @exercise.MinReps-@exercise.MaxReps @if (exercise.TargetRir is not null) { <span>· RIR @exercise.TargetRir</span> }</MudText>
-                        @if (exercise.Presets is { Count: > 0 })
-                        {
-                            <span class="ai-preset-badge"><MudIcon Icon="@Icons.Material.Filled.AutoAwesome" /> Serie przygotowane przez AI</span>
-                        }
+                        <h1>@exercise.ExerciseName</h1>
+                        <p>@exercise.PlannedSets serie × @exercise.MinReps–@exercise.MaxReps powt.
+                            @if (exercise.TargetRir is not null) { <span> · RIR @exercise.TargetRir</span> }
+                        </p>
                     </div>
-                    <strong class="exercise-set-count">@exercise.Sets.Count/@exercise.PlannedSets</strong>
-                </div>
+                    <span class="live-e1rm">1RM <strong>@BestEstimatedOneRepMax(exercise).ToString("0.#")</strong></span>
+                </header>
+
+                @if (exercise.Presets is { Count: > 0 })
+                {
+                    <span class="ai-preset-badge"><MudIcon Icon="@Icons.Material.Filled.AutoAwesome" /> Serie przygotowane przez AI</span>
+                }
 
                 <div class="exercise-live-actions">
                     <MudButton Class="swap-exercise-trigger" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.SwapHoriz"
@@ -293,10 +292,30 @@
                     </section>
                 }
 
-                <div class="exercise-timer-actions">
-                    <button type="button" @onclick="() => StartRestTimer(exercise.RestSeconds ?? 90)"><MudIcon Icon="@Icons.Material.Outlined.Timer" /><span>Przerwa</span><strong>@FormatTime(exercise.RestSeconds ?? 90)</strong></button>
-                    <button type="button" @onclick="StartInterval"><MudIcon Icon="@Icons.Material.Outlined.Timelapse" /><span>Interwał</span><strong>stoper</strong></button>
+                <div class="live-timer-controls">
+                    <button type="button" class="@(_timerMode == TimerMode.Rest ? "active" : null)"
+                            @onclick="() => StartRestTimer(exercise.RestSeconds ?? 90)">
+                        <MudIcon Icon="@Icons.Material.Outlined.Schedule" />
+                        <span>Przerwa</span>
+                        <strong>@(_timerMode == TimerMode.Rest ? FormatTime(_timerSeconds) : FormatTime(exercise.RestSeconds ?? 90))</strong>
+                    </button>
+                    <button type="button" class="@(_timerMode == TimerMode.Interval ? "active" : null)"
+                            @onclick="StartInterval">
+                        <MudIcon Icon="@Icons.Material.Outlined.Timer" />
+                        <span>Interwał</span>
+                        <strong>@(_timerMode == TimerMode.Interval ? FormatTime(_timerSeconds) : "stoper")</strong>
+                    </button>
                 </div>
+
+                @if (_timerMode != TimerMode.None)
+                {
+                    <div class="live-timer-session-actions" aria-live="polite">
+                        <span>@TimerLabel <strong>@FormatTime(_timerSeconds)</strong></span>
+                        <MudIconButton Icon="@(_timerRunning ? Icons.Material.Outlined.Pause : Icons.Material.Outlined.PlayArrow)" OnClick="ToggleTimer" aria-label="@(_timerRunning ? "Wstrzymaj timer" : "Wznów timer")" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.RestartAlt" OnClick="ResetTimer" aria-label="Resetuj timer" />
+                        <MudButton Variant="Variant.Text" OnClick="CloseTimer">Zamknij</MudButton>
+                    </div>
+                }
 
                 @if (SupersetMembers.Count > 1)
                 {
@@ -325,14 +344,14 @@
                     }
                 }
 
-                <div class="workout-set-table" role="table" aria-label="Serie ćwiczenia">
-                    <div class="workout-set-header" role="row">
+                <div class="live-set-grid" role="table" aria-label="Serie ćwiczenia">
+                    <div class="live-set-header" role="row">
                         <span>Seria</span><span>kg</span><span>Powt.</span><span>RIR</span><span>Stan</span>
                     </div>
                     @foreach (var set in exercise.Sets.OrderBy(x => x.SetNumber))
                     {
                         <button type="button"
-                                class="workout-set-row saved"
+                                class="live-set-row saved"
                                 @onclick="() => EditSet(exercise, set)"
                                 role="row"
                                 aria-label="@($"Edytuj serię {set.SetNumber}: {set.WeightKg} kg, {set.Repetitions} powtórzeń")">
@@ -343,7 +362,7 @@
                             <span class="set-status"><MudIcon Icon="@Icons.Material.Filled.Check" /></span>
                         </button>
                     }
-                    <div class="workout-set-row active @(form.ValidationError is null ? null : "invalid")"
+                    <div class="live-set-row active @(form.ValidationError is null ? null : "invalid")"
                          role="row"
                          aria-invalid="@(form.ValidationError is null ? "false" : "true")">
                         <span class="set-number">@(form.SetNumber ?? exercise.Sets.Count + 1)</span>
@@ -374,7 +393,7 @@
                     @for (var plannedSet = firstPlannedSet; plannedSet <= exercise.PlannedSets; plannedSet++)
                     {
                         var preset = exercise.Presets?.FirstOrDefault(x => x.SetNumber == plannedSet);
-                        <div class="workout-set-row planned" role="row" aria-label="@($"Zaplanowana seria {plannedSet}")">
+                        <div class="live-set-row planned" role="row" aria-label="@($"Zaplanowana seria {plannedSet}")">
                             <span class="set-number">@plannedSet</span>
                             <span>@(preset?.WeightKg.ToString("0.#") ?? "-")</span>
                             <span>@(preset?.Repetitions.ToString() ?? $"{exercise.MinReps}-{exercise.MaxReps}")</span>
@@ -384,15 +403,17 @@
                     }
                 </div>
 
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           FullWidth="true"
-                           Size="Size.Large"
-                           Disabled="_savingSet"
-                           OnClick="() => SaveSet(exercise, form)"
-                           Class="workout-primary-action log-set-button">
-                    @(_savingSet ? "Zapisuję…" : form.SetId is null ? "Zapisz serię" : "Zapisz poprawioną serię")
-                </MudButton>
+                <div class="workout-sticky-action">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               Disabled="_savingSet"
+                               OnClick="() => SaveSet(exercise, form)"
+                               Class="log-set-button">
+                        @(_savingSet ? "Zapisuję…" : form.SetId is null ? "Zapisz serię" : "Zapisz poprawioną serię")
+                    </MudButton>
+                </div>
 
                 <details class="set-details">
                     <summary>Notatka i typ serii</summary>
