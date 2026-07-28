@@ -97,6 +97,10 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("safe-area-inset-bottom", css);
         Assert.Contains(".live-workout-surface > .session-actions", css);
         Assert.Contains("calc(128px + env(safe-area-inset-bottom))", css);
+        Assert.Contains(".workout-mode:has(.workout-live-skeleton)", css);
+        Assert.Contains("body:has(.workout-live-skeleton) .page-content", css);
+        Assert.Contains("@keyframes workout-skeleton-sweep", css);
+        Assert.Matches(@"\.live-exercise-title\s*\{\s*align-items:\s*end;", css);
     }
 
     [Fact]

@@ -910,25 +910,30 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .set-entry > :nth-child(3) { grid-column: 1 / -1; }
 .workout-mode { max-width: 760px !important; }
 body:has(.workout-mode) .top-bar { display: none; }
-.workout-mode:has(.live-workout-surface) {
+.workout-mode:has(.live-workout-surface),
+.workout-mode:has(.workout-live-skeleton) {
     max-width: 680px !important;
     padding: 0 !important;
     width: 100%;
 }
-body:has(.live-workout-surface) .page-content { padding: 0; }
+body:has(.live-workout-surface) .page-content,
+body:has(.workout-live-skeleton) .page-content { padding: 0; }
 .live-workout-surface {
     background: var(--surface);
     min-height: 100dvh;
     overflow: hidden;
 }
 @media (min-width: 601px) {
-    body:has(.live-workout-surface) .page-content { padding: 24px 0; }
-    .workout-mode:has(.live-workout-surface) {
+    body:has(.live-workout-surface) .page-content,
+    body:has(.workout-live-skeleton) .page-content { padding: 24px 0; }
+    .workout-mode:has(.live-workout-surface),
+    .workout-mode:has(.workout-live-skeleton) {
         margin-inline: auto;
         max-width: 680px !important;
         width: min(680px, calc(100% - 32px));
     }
-    .live-workout-surface {
+    .live-workout-surface,
+    .workout-live-skeleton {
         border-radius: 24px;
         min-height: calc(100dvh - 48px);
     }
@@ -2560,12 +2565,15 @@ body:has(.live-workout-surface) .page-content { padding: 0; }
     position: relative;
 }
 .skeleton-block::after {
-    animation: skeleton-sweep 1.15s linear infinite;
+    animation: workout-skeleton-sweep 1.15s linear infinite;
     background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 72%, transparent), transparent);
     content: "";
     inset: 0;
     position: absolute;
     transform: translateX(-100%);
+}
+@keyframes workout-skeleton-sweep {
+    to { transform: translateX(100%); }
 }
 .workout-live-skeleton .hero { aspect-ratio: 1.42 / 1; border-radius: 0; width: 100%; }
 .workout-live-skeleton .title { height: 54px; margin-inline: 18px; width: min(72%, 360px); }
@@ -2575,7 +2583,7 @@ body:has(.live-workout-surface) .page-content { padding: 0; }
 .live-exercise-plate { padding: 0 18px calc(128px + env(safe-area-inset-bottom)); }
 .live-workout-surface > .session-actions { padding: 0 18px calc(128px + env(safe-area-inset-bottom)); }
 .live-exercise-title {
-    align-items: center;
+    align-items: end;
     display: grid;
     gap: 14px;
     grid-template-columns: minmax(0, 1fr) auto;
