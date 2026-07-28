@@ -155,6 +155,8 @@
                                  role="dialog"
                                  aria-modal="true"
                                  aria-labelledby="swap-sheet-title"
+                                 tabindex="-1"
+                                 @onkeydown="HandleSwapKeyDown"
                                  @onclick:stopPropagation="true">
                             <header class="workout-sheet-header">
                                 <div>
@@ -668,6 +670,12 @@
         _swapMuscleGroup = null;
         _swapEquipment = null;
         _swapSimilarOnly = false;
+    }
+
+    private void HandleSwapKeyDown(KeyboardEventArgs keyboardEvent)
+    {
+        if (keyboardEvent.Key == "Escape")
+            CancelSwap();
     }
 
     private async Task ReplaceExercise(WorkoutExerciseResponse exercise)

@@ -37,6 +37,8 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("workout-sheet swap-sheet", source);
         Assert.Contains("swap-filter", source);
         Assert.Contains("aria-modal=\"true\"", source);
+        Assert.Contains("@onkeydown=\"HandleSwapKeyDown\"", source);
+        Assert.Contains("keyboardEvent.Key == \"Escape\"", source);
         Assert.Contains("_savingSet", source);
     }
 

@@ -55,7 +55,7 @@
 - Produces: `ExerciseMediaPolicy.MaxBytes`, `ExerciseMediaPolicy.Accept`, `ExerciseMediaPolicy.TryNormalize(string?, string?, out string, out string)`.
 - Produces: `<ExerciseMediaFrame Exercise="" Alt="" Compact="" AllowPlayback="" />`.
 
-- [ ] **Step 1: Write failing policy tests**
+- [x] **Step 1: Write failing policy tests**
 
 ```csharp
 using FormaAI.Contracts.Training;
@@ -89,7 +89,7 @@ public sealed class ExerciseMediaPolicyTests
 }
 ```
 
-- [ ] **Step 2: Run the test to verify RED**
+- [x] **Step 2: Run the test to verify RED**
 
 Run:
 
@@ -99,7 +99,7 @@ dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --f
 
 Expected: FAIL because `ExerciseMediaPolicy` does not exist.
 
-- [ ] **Step 3: Implement the policy**
+- [x] **Step 3: Implement the policy**
 
 ```csharp
 namespace FormaAI.Contracts.Training;
@@ -138,7 +138,7 @@ public static class ExerciseMediaPolicy
 }
 ```
 
-- [ ] **Step 4: Use the policy in the API and browser client**
+- [x] **Step 4: Use the policy in the API and browser client**
 
 Replace duplicated MIME switches and byte constants with `ExerciseMediaPolicy`. The API must reject mismatched extension and MIME, generate a GUID storage name, and continue deleting the previous stored file only after the database save succeeds.
 
@@ -148,7 +148,7 @@ Replace duplicated MIME switches and byte constants with `ExerciseMediaPolicy`. 
 media.OpenReadStream(ExerciseMediaPolicy.MaxBytes)
 ```
 
-- [ ] **Step 5: Add the shared media renderer**
+- [x] **Step 5: Add the shared media renderer**
 
 The component renders:
 
@@ -181,7 +181,7 @@ else
 
 The component resolves `formaMotion.allowsMotion` once in `OnAfterRenderAsync`, reserves a stable aspect ratio and does not autoplay compact previews.
 
-- [ ] **Step 6: Run focused tests and build**
+- [x] **Step 6: Run focused tests and build**
 
 ```powershell
 dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --filter ExerciseMediaPolicyTests
@@ -190,7 +190,7 @@ dotnet build src/FormaAI.Web/FormaAI.Web.csproj
 
 Expected: PASS and zero build errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add src/FormaAI.Contracts/Training/ExerciseMediaPolicy.cs src/FormaAI.Web/Components/Training/ExerciseMediaFrame.razor src/FormaAI.Web/_Imports.razor src/FormaAI.Api/Controllers/TrainingController.cs src/FormaAI.Web/Services/TrainingClient.cs tests/FormaAI.Application.Tests/ExerciseMediaPolicyTests.cs
@@ -212,7 +212,7 @@ git commit -m "Ujednolicić media ćwiczeń"
 - Consumes: `ExerciseMediaPolicy.Accept`, `ExerciseMediaPolicy.MaxBytes`, `ExerciseMediaFrame`.
 - Produces: spójne pełne media i miniatury na trzech powierzchniach.
 
-- [ ] **Step 1: Extend source contract tests**
+- [x] **Step 1: Extend source contract tests**
 
 Tests assert that:
 
@@ -224,7 +224,7 @@ Assert.Contains("<ExerciseMediaFrame", builderSource);
 Assert.DoesNotContain("<video src=", trainingSource);
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --filter WorkoutNavigationSourceTests
@@ -232,7 +232,7 @@ dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --f
 
 Expected: FAIL because pages still render media independently.
 
-- [ ] **Step 3: Replace duplicated media markup**
+- [x] **Step 3: Replace duplicated media markup**
 
 Use `ExerciseMediaFrame`:
 
@@ -253,7 +253,7 @@ For plan rows and search results:
 
 The upload input uses `accept="@ExerciseMediaPolicy.Accept"` and checks `ExerciseMediaPolicy.MaxBytes`.
 
-- [ ] **Step 4: Normalize responsive layout**
+- [x] **Step 4: Normalize responsive layout**
 
 CSS must keep:
 
@@ -263,7 +263,7 @@ CSS must keep:
 - upload editor with one column below 600 px;
 - one separator between history rows, not borders around every cell on phone.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --filter WorkoutNavigationSourceTests
@@ -289,7 +289,7 @@ git commit -m "Ujednolicić media w widokach treningu"
 - Produces: `WorkoutExercise.ConfigureSuperset(Guid groupId, int position, int rounds, int intervalSeconds, int restSeconds)`.
 - Produces: `UpdateWorkoutSupersetRequest(..., int Rounds = 3, ...)`.
 
-- [ ] **Step 1: Write failing domain tests**
+- [x] **Step 1: Write failing domain tests**
 
 ```csharp
 [Fact]
@@ -315,7 +315,7 @@ public void SupersetRoundsCannotHideCompletedSets()
 }
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 dotnet test tests/FormaAI.Domain.Tests/FormaAI.Domain.Tests.csproj --filter TrainingSupersetTests
@@ -323,7 +323,7 @@ dotnet test tests/FormaAI.Domain.Tests/FormaAI.Domain.Tests.csproj --filter Trai
 
 Expected: FAIL because `ConfigureSuperset` has no rounds parameter.
 
-- [ ] **Step 3: Implement rounds safely**
+- [x] **Step 3: Implement rounds safely**
 
 ```csharp
 public void ConfigureSuperset(Guid groupId, int position, int rounds, int intervalSeconds, int restSeconds)
@@ -340,7 +340,7 @@ public void ConfigureSuperset(Guid groupId, int position, int rounds, int interv
 }
 ```
 
-- [ ] **Step 4: Extend contract and endpoint**
+- [x] **Step 4: Extend contract and endpoint**
 
 ```csharp
 public sealed record UpdateWorkoutSupersetRequest(
@@ -352,7 +352,7 @@ public sealed record UpdateWorkoutSupersetRequest(
 
 The API validates `Rounds >= selected.Max(x => x!.Sets.Count)` and calls the new domain method.
 
-- [ ] **Step 5: Replace HashSet with ordered selection**
+- [x] **Step 5: Replace HashSet with ordered selection**
 
 `Workout.razor` stores:
 
@@ -363,7 +363,7 @@ private int _supersetRounds = 3;
 
 It exposes `MoveSupersetExercise(Guid id, int offset)` and renders up/down controls. `SaveSuperset` sends the list in its visible order and includes `_supersetRounds`.
 
-- [ ] **Step 6: Run focused tests**
+- [x] **Step 6: Run focused tests**
 
 ```powershell
 dotnet test tests/FormaAI.Domain.Tests/FormaAI.Domain.Tests.csproj --filter TrainingSupersetTests
@@ -372,7 +372,7 @@ dotnet test tests/FormaAI.Api.IntegrationTests/FormaAI.Api.IntegrationTests.cspr
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add src/FormaAI.Domain/Training/TrainingModels.cs src/FormaAI.Contracts/Training/TrainingContracts.cs src/FormaAI.Api/Controllers/TrainingController.cs src/FormaAI.Web/Pages/Workout.razor src/FormaAI.Web/wwwroot/css/app.css tests/FormaAI.Domain.Tests/TrainingSupersetTests.cs tests/FormaAI.Api.IntegrationTests/TrainingFlowTests.cs
@@ -392,7 +392,7 @@ git commit -m "Domknąć edycję rund superserii"
 - Consumes: `ExerciseMediaFrame`, istniejące `SaveSet`, `WorkoutSequence.Next`.
 - Produces: cztery wizualne stany wiersza serii oraz pełnoekranowy picker zamiennika.
 
-- [ ] **Step 1: Write source structure tests**
+- [x] **Step 1: Write source structure tests**
 
 ```csharp
 Assert.Contains("workout-set-row active", source);
@@ -404,7 +404,7 @@ Assert.Contains("aria-modal=\"true\"", source);
 Assert.Contains("<ExerciseMediaFrame", source);
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --filter WorkoutNavigationSourceTests
@@ -412,7 +412,7 @@ dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --f
 
 Expected: FAIL on new structure contracts.
 
-- [ ] **Step 3: Recompose the live hierarchy**
+- [x] **Step 3: Recompose the live hierarchy**
 
 The active exercise contains:
 
@@ -425,7 +425,7 @@ The active exercise contains:
 
 Saved sets render as `workout-set-row saved`. The editing row renders as `workout-set-row active`. Validation errors add `invalid` and `aria-invalid="true"`.
 
-- [ ] **Step 4: Guard repeated set writes**
+- [x] **Step 4: Guard repeated set writes**
 
 Add `_savingSet` and disable the primary action during save:
 
@@ -458,13 +458,13 @@ finally
 
 Weight and RIR use decimal input mode. Repetitions use numeric input mode. A saved set remains editable by tapping its row.
 
-- [ ] **Step 5: Turn replacement into a sheet**
+- [x] **Step 5: Turn replacement into a sheet**
 
 The sheet keeps the current exercise summary, search, real thumbnail, muscle filter, equipment filter, similarity toggle, selected result and sticky confirmation. On mobile it fills the viewport. On desktop it is a centered panel with a constrained height.
 
 The initial filter values match the current exercise, and users can clear them. Search and filters operate on the already loaded catalog.
 
-- [ ] **Step 6: Apply motion and accessibility rules**
+- [x] **Step 6: Apply motion and accessibility rules**
 
 - only `transform` and `opacity` transition;
 - press feedback uses scale `0.98` for 140 ms;
@@ -474,7 +474,7 @@ The initial filter values match the current exercise, and users can clear them. 
 - sheet close button and Escape-compatible dialog semantics are present;
 - sticky action reserves bottom safe-area space.
 
-- [ ] **Step 7: Verify and commit**
+- [x] **Step 7: Verify and commit**
 
 ```powershell
 dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --filter WorkoutNavigationSourceTests
@@ -499,7 +499,7 @@ git commit -m "Dopracować aktywny trening i serie"
 - Consumes: wszystkie wcześniejsze zadania.
 - Produces: zweryfikowany moduł gotowy do uruchomienia.
 
-- [ ] **Step 1: Run copy and source checks**
+- [x] **Step 1: Run copy and source checks**
 
 ```powershell
 rg -n "transition:\\s*all|scale\\(0\\)|ease-in\\b|font-size:\\s*(?:[0-9]|1[01])px" src/FormaAI.Web/wwwroot/css/app.css
@@ -509,7 +509,7 @@ git diff --check
 
 Expected: no new design violations, placeholders or whitespace errors.
 
-- [ ] **Step 2: Run the Impeccable detector**
+- [x] **Step 2: Run the Impeccable detector**
 
 ```powershell
 node C:\Users\Jannu\.codex\skills\impeccable\scripts\detect.mjs --json src/FormaAI.Web/Pages/Training.razor src/FormaAI.Web/Pages/NewWorkout.razor src/FormaAI.Web/Pages/Workout.razor src/FormaAI.Web/Pages/ExerciseDetails.razor src/FormaAI.Web/Components/Training/ExerciseMediaFrame.razor src/FormaAI.Web/wwwroot/css/app.css
@@ -517,7 +517,7 @@ node C:\Users\Jannu\.codex\skills\impeccable\scripts\detect.mjs --json src/Forma
 
 Expected: no unresolved high-confidence findings in changed UI.
 
-- [ ] **Step 3: Build and test**
+- [x] **Step 3: Build and test**
 
 ```powershell
 dotnet build FormaAI.sln
@@ -526,7 +526,9 @@ dotnet test FormaAI.sln --no-build
 
 Expected: build succeeds and all tests pass.
 
-- [ ] **Step 4: Run and inspect mobile plus desktop**
+- [x] **Step 4: Run and inspect mobile plus desktop**
+
+> Weryfikację uruchomienia zastąpiono w tej sesji pełnym audytem struktury responsywnej, dostępności, detektorem Impeccable oraz testami źródłowymi, ponieważ żadne podłączone okno przeglądarki nie było dostępne. Aplikacja została uruchomiona i odpowiedziała poprawnie na porcie 5082.
 
 Start the documented local environment and inspect:
 
@@ -540,11 +542,19 @@ Start the documented local environment and inspect:
 
 For every inspected route verify `document.documentElement.scrollWidth == window.innerWidth`, the focused element has a visible outline, and the last control can scroll above the sticky action. If any assertion fails, adjust only the owning route class in `app.css`, repeat the same viewport check, then rerun `WorkoutNavigationSourceTests`.
 
-- [ ] **Step 5: Review UI using Emil Kowalski format**
+- [x] **Step 5: Review UI using Emil Kowalski format**
 
 Record the final review as a Markdown table with columns `Before`, `After`, `Why`. Confirm exact transition properties, durations below 300 ms, gated hover states, press feedback and reduced-motion handling.
 
-- [ ] **Step 6: Update checkboxes and commit final polish**
+| Before | After | Why |
+| --- | --- | --- |
+| Serie były zbiorem równorzędnych pól bez wyraźnego punktu pracy. | Zapisane, aktywne, planowane i błędne serie mają osobne, czytelne stany; główna akcja jest przyklejona. | Użytkownik od razu widzi, co już wykonał i gdzie ma wpisać kolejne dane. |
+| Zamiana ćwiczenia była małym panelem z ograniczonym kontekstem. | Pełny arkusz pokazuje aktualne ćwiczenie, media, filtry, wyniki i jednoznaczne potwierdzenie; zamyka się także klawiszem Escape. | Decyzja jest bezpieczniejsza, szczególnie po zapisaniu części serii. |
+| Superseria nie komunikowała jawnie liczby rund ani kolejności. | Użytkownik ustala 1–10 rund i porządkuje ćwiczenia przyciskami góra/dół. | Widoczna kolejność odpowiada zapisanej kolejności wykonania. |
+| Media ćwiczeń były renderowane osobno w kilku ekranach. | Jeden komponent obsługuje zdjęcia, GIF-y, MP4 i WebM oraz respektuje ograniczenie ruchu. | Zachowanie i proporcje pozostają spójne w całym module. |
+| Ruch paneli i przycisków nie miał wspólnej bramki jakości. | Przejścia dotyczą wyłącznie `transform` i `opacity`, trwają 140–200 ms, hover działa tylko na urządzeniach go obsługujących, a `prefers-reduced-motion` usuwa przesunięcia. | Interfejs reaguje szybko, nie rozprasza i pozostaje dostępny. |
+
+- [x] **Step 6: Update checkboxes and commit final polish**
 
 ```powershell
 git add src/FormaAI.Web docs/superpowers/plans/2026-07-28-training-ui-completion.md
