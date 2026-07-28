@@ -89,8 +89,12 @@ public sealed class WorkoutNavigationSourceTests
         Assert.DoesNotContain("NavigateTo(\"/exercise", workout);
         Assert.Contains("role=\"dialog\"", sheet);
         Assert.Contains("aria-modal=\"true\"", sheet);
+        Assert.Contains("<MudFocusTrap", sheet);
+        Assert.Contains("DefaultFocus=\"DefaultFocus.FirstChild\"", sheet);
         Assert.Contains("@onkeydown=\"HandleKeyDown\"", sheet);
         Assert.Contains("args.Key == \"Escape\"", sheet);
+        Assert.DoesNotContain("Navigation.NavigateTo", sheet);
+        Assert.DoesNotContain("_forms.Clear", workout);
         Assert.Contains("Historia", sheet);
         Assert.Contains("Wykres", sheet);
         Assert.Contains("Technika", sheet);

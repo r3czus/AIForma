@@ -1,11 +1,12 @@
 <div class="workout-sheet-backdrop" @onclick="() => OnClose.InvokeAsync()">
-    <section class="workout-sheet workout-history-sheet"
-             role="dialog"
-             aria-modal="true"
-             aria-labelledby="workout-history-title"
-             tabindex="-1"
-             @onkeydown="HandleKeyDown"
-             @onclick:stopPropagation="true">
+    <MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
+        <section class="workout-sheet workout-history-sheet"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="workout-history-title"
+                 tabindex="-1"
+                 @onkeydown="HandleKeyDown"
+                 @onclick:stopPropagation="true">
         <header class="workout-sheet-header">
             <MudIconButton Icon="@Icons.Material.Outlined.ArrowBack"
                            OnClick="() => OnClose.InvokeAsync()"
@@ -109,7 +110,8 @@
                 </section>
             }
         </div>
-    </section>
+        </section>
+    </MudFocusTrap>
 </div>
 
 @code {
