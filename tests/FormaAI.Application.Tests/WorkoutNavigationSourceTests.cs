@@ -31,6 +31,7 @@ public sealed class WorkoutNavigationSourceTests
     {
         var workout = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
         var heroPath = SourcePath("src", "FormaAI.Web", "Components", "Training", "WorkoutExerciseHero.razor");
+        var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
 
         Assert.True(File.Exists(heroPath), "The gesture-aware exercise hero component must exist.");
 
@@ -41,6 +42,16 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("@onpointerup=\"HandlePointerUp\"", hero);
         Assert.Contains("SwipeThreshold", hero);
         Assert.Contains("if (!args.IsPrimary || _pointerStartX is null || _pointerStartY is null) return;", hero);
+        Assert.Contains("OnHistory=\"OpenHistory\"", workout);
+        Assert.Contains("OnSwap=\"() => BeginSwap(exercise)\"", workout);
+        Assert.Contains("OnMenu=\"OpenWorkoutMenu\"", workout);
+        Assert.Contains("OnSelect=\"SelectExercise\"", workout);
+        Assert.Contains("aria-current", hero);
+        Assert.Contains("touch-action: pan-y", css);
+        Assert.Contains("min-width: 44px", css);
+        Assert.Contains(".workout-mode:has(.live-workout-surface)", css);
+        Assert.Contains("min-height: 100dvh", css);
+        Assert.Contains("overflow-x: auto", css);
     }
 
     [Fact]
