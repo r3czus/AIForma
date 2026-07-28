@@ -63,12 +63,49 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("live-set-row saved", source);
         Assert.Contains("live-set-row active", source);
         Assert.Contains("workout-sticky-action", source);
-        Assert.Contains("workout-sheet swap-sheet", source);
+        Assert.Contains("workout-sheet workout-swap-sheet", source);
         Assert.Contains("swap-filter", source);
         Assert.Contains("aria-modal=\"true\"", source);
         Assert.Contains("@onkeydown=\"HandleSwapKeyDown\"", source);
         Assert.Contains("keyboardEvent.Key == \"Escape\"", source);
         Assert.Contains("_savingSet", source);
+    }
+
+    [Fact]
+    public void LiveWorkoutUsesReferenceFaithfulFullScreenReplacementWorkflow()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+        var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
+
+        Assert.Contains("workout-sheet workout-swap-sheet", source);
+        Assert.Contains("<MudFocusTrap", source);
+        Assert.Contains("DefaultFocus=\"DefaultFocus.FirstChild\"", source);
+        Assert.Contains("aria-modal=\"true\"", source);
+        Assert.Contains("@onkeydown=\"HandleSwapKeyDown\"", source);
+        Assert.Contains("keyboardEvent.Key == \"Escape\"", source);
+        Assert.Contains("swap-current-exercise", source);
+        Assert.Contains("Zamień ćwiczenie", source);
+        Assert.Contains("swap-search", source);
+        Assert.Contains("_swapMuscleGroup", source);
+        Assert.Contains("_swapEquipment", source);
+        Assert.Contains("_swapSimilarOnly", source);
+        Assert.Contains("SwapOptions", source);
+        Assert.Contains(".Where(x => !used.Contains(x.Id))", source);
+        Assert.Contains("<ExerciseMediaFrame Exercise=\"option\"", source);
+        Assert.Contains("swap-result-action", source);
+        Assert.Contains("Disabled=\"@(_selectedExerciseId is null || _swapping)\"", source);
+        Assert.Contains("if (_selectedExerciseId is null) return;", source);
+        Assert.Contains("_swapping = true;", source);
+        Assert.Contains("_swapping = false;", source);
+        Assert.Contains("SwapExplanation(exercise)", source);
+        Assert.Contains(".workout-swap-sheet", css);
+        Assert.Contains("min-height: 100dvh", css);
+        Assert.Contains(".swap-result-action", css);
+        Assert.Contains("height: 48px", css);
+        Assert.Contains("var(--action-soft)", css);
+        Assert.Contains("safe-area-inset-bottom", css);
+        Assert.Contains("body:has(.workout-swap-sheet) .bottom-nav", css);
+        Assert.Contains("overflow-x: hidden", css);
     }
 
     [Fact]

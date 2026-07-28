@@ -142,98 +142,109 @@
                 @if (_swapTargetId == exercise.Id)
                 {
                     <div class="workout-sheet-backdrop" @onclick="CancelSwap">
-                        <section class="workout-sheet swap-sheet"
-                                 role="dialog"
-                                 aria-modal="true"
-                                 aria-labelledby="swap-sheet-title"
-                                 tabindex="-1"
-                                 @onkeydown="HandleSwapKeyDown"
-                                 @onclick:stopPropagation="true">
-                            <header class="workout-sheet-header">
-                                <div>
-                                    <span class="card-kicker">Aktualne ćwiczenie</span>
-                                    <h2 id="swap-sheet-title">Zamień ćwiczenie</h2>
+                        <MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
+                            <section class="workout-sheet workout-swap-sheet"
+                                     role="dialog"
+                                     aria-modal="true"
+                                     aria-labelledby="swap-sheet-title"
+                                     tabindex="-1"
+                                     @onkeydown="HandleSwapKeyDown"
+                                     @onclick:stopPropagation="true">
+                                <header class="workout-sheet-header swap-sheet-header">
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                                                   OnClick="CancelSwap"
+                                                   aria-label="Zamknij wybór zamiennika" />
+                                    <section class="swap-current-exercise" aria-label="Aktualne ćwiczenie">
+                                        <ExerciseMediaFrame Exercise="ActiveExerciseMedia"
+                                                            Alt=""
+                                                            Compact="true" />
+                                        <div>
+                                            <span class="card-kicker">Aktualne ćwiczenie</span>
+                                            <strong>@exercise.ExerciseName</strong>
+                                            <small>@exercise.PlannedSets serie × @exercise.MinReps-@exercise.MaxReps powt.</small>
+                                        </div>
+                                    </section>
+                                </header>
+
+                                <h2 id="swap-sheet-title" class="swap-sheet-title">Zamień ćwiczenie</h2>
+
+                                <MudTextField @bind-Value="_swapSearch"
+                                              Immediate="true"
+                                              Label="Znajdź zamiennik"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Outlined.Search"
+                                              Class="swap-search" />
+
+                                <div class="swap-filter" aria-label="Filtry zamienników">
+                                    <MudSelect T="MuscleGroup?" @bind-Value="_swapMuscleGroup" Label="Partia">
+                                        <MudSelectItem T="MuscleGroup?" Value="@((MuscleGroup?)null)">Wszystkie</MudSelectItem>
+                                        @foreach (var group in Enum.GetValues<MuscleGroup>())
+                                        {
+                                            <MudSelectItem T="MuscleGroup?" Value="@((MuscleGroup?)group)">@MuscleGroupName(group)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudSelect T="Equipment?" @bind-Value="_swapEquipment" Label="Sprzęt">
+                                        <MudSelectItem T="Equipment?" Value="@((Equipment?)null)">Dowolny</MudSelectItem>
+                                        @foreach (var equipment in Enum.GetValues<Equipment>())
+                                        {
+                                            <MudSelectItem T="Equipment?" Value="@((Equipment?)equipment)">@EquipmentName(equipment)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudCheckBox @bind-Value="_swapSimilarOnly" Label="Podobne" Color="Color.Primary" />
                                 </div>
-                                <MudIconButton Icon="@Icons.Material.Outlined.Close"
-                                               OnClick="CancelSwap"
-                                               aria-label="Zamknij wybór zamiennika" />
-                            </header>
 
-                            <section class="swap-current-exercise">
-                                <ExerciseMediaFrame Exercise="ActiveExerciseMedia"
-                                                    Alt=""
-                                                    Compact="true" />
-                                <div>
-                                    <strong>@exercise.ExerciseName</strong>
-                                    <span>@exercise.PlannedSets serie × @exercise.MinReps-@exercise.MaxReps powt.</span>
-                                    <small>@(exercise.Sets.Count == 0 ? "Zamiana przed pierwszą serią" : $"Wykonane serie zostaną zachowane: {exercise.Sets.Count}")</small>
+                                <div class="swap-exercise-results" aria-live="polite">
+                                    @if (_catalog.Count == 0)
+                                    {
+                                        <div class="swap-loading-state">
+                                            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                                            <span>Ładowanie zamienników…</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var option in SwapOptions)
+                                        {
+                                            var selected = _selectedExerciseId == option.Id;
+                                            <button type="button"
+                                                    class="swap-result @(selected ? "selected" : null)"
+                                                    aria-pressed="@selected"
+                                                    @onclick="() => _selectedExerciseId = option.Id">
+                                                <ExerciseMediaFrame Exercise="option" Alt="" Compact="true" />
+                                                <span>
+                                                    <strong>@option.Name</strong>
+                                                    <small>@MuscleGroupName(option.MuscleGroup) · @EquipmentName(option.Equipment)</small>
+                                                </span>
+                                                <span class="swap-result-action" aria-hidden="true">
+                                                    <MudIcon Icon="@(selected ? Icons.Material.Filled.Check : Icons.Material.Outlined.SwapHoriz)" />
+                                                </span>
+                                            </button>
+                                        }
+                                        @if (SwapOptions.Count == 0)
+                                        {
+                                            <div class="swap-empty-state">
+                                                <MudIcon Icon="@Icons.Material.Outlined.SearchOff" />
+                                                <strong>Brak pasujących zamienników</strong>
+                                                <span>Wyczyść filtr partii lub sprzętu i spróbuj ponownie.</span>
+                                            </div>
+                                        }
+                                    }
                                 </div>
-                            </section>
 
-                            <MudTextField @bind-Value="_swapSearch"
-                                          Immediate="true"
-                                          Label="Znajdź zamiennik"
-                                          Adornment="Adornment.Start"
-                                          AdornmentIcon="@Icons.Material.Outlined.Search"
-                                          Class="swap-search" />
-
-                            <div class="swap-filter" aria-label="Filtry zamienników">
-                                <MudSelect T="MuscleGroup?" @bind-Value="_swapMuscleGroup" Label="Partia">
-                                    <MudSelectItem T="MuscleGroup?" Value="@((MuscleGroup?)null)">Wszystkie</MudSelectItem>
-                                    @foreach (var group in Enum.GetValues<MuscleGroup>())
-                                    {
-                                        <MudSelectItem T="MuscleGroup?" Value="@((MuscleGroup?)group)">@MuscleGroupName(group)</MudSelectItem>
-                                    }
-                                </MudSelect>
-                                <MudSelect T="Equipment?" @bind-Value="_swapEquipment" Label="Sprzęt">
-                                    <MudSelectItem T="Equipment?" Value="@((Equipment?)null)">Dowolny</MudSelectItem>
-                                    @foreach (var equipment in Enum.GetValues<Equipment>())
-                                    {
-                                        <MudSelectItem T="Equipment?" Value="@((Equipment?)equipment)">@EquipmentName(equipment)</MudSelectItem>
-                                    }
-                                </MudSelect>
-                                <MudCheckBox @bind-Value="_swapSimilarOnly" Label="Podobne" Color="Color.Primary" />
-                            </div>
-
-                            <div class="swap-exercise-results">
-                                @foreach (var option in SwapOptions)
-                                {
-                                    var selected = _selectedExerciseId == option.Id;
-                                    <button type="button"
-                                            class="swap-result @(selected ? "selected" : null)"
-                                            aria-pressed="@selected"
-                                            @onclick="() => _selectedExerciseId = option.Id">
-                                        <ExerciseMediaFrame Exercise="option" Alt="" Compact="true" />
-                                        <span>
-                                            <strong>@option.Name</strong>
-                                            <small>@MuscleGroupName(option.MuscleGroup) · @EquipmentName(option.Equipment)</small>
-                                        </span>
-                                        <MudIcon Icon="@(selected ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" />
-                                    </button>
-                                }
-                                @if (SwapOptions.Count == 0)
-                                {
-                                    <div class="swap-empty-state">
-                                        <MudIcon Icon="@Icons.Material.Outlined.SearchOff" />
-                                        <strong>Brak pasujących zamienników</strong>
-                                        <span>Wyczyść filtr partii lub sprzętu i spróbuj ponownie.</span>
+                                <footer class="swap-exercise-actions">
+                                    <span>@SwapExplanation(exercise)</span>
+                                    <div>
+                                        <MudButton Variant="Variant.Outlined" Disabled="_swapping" OnClick="CancelSwap">Anuluj</MudButton>
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Primary"
+                                                   Disabled="@(_selectedExerciseId is null || _swapping)"
+                                                   OnClick="() => ReplaceExercise(exercise)">
+                                            @(_swapping ? "Zamieniam…" : "Potwierdź zamianę")
+                                        </MudButton>
                                     </div>
-                                }
-                            </div>
-
-                            <footer class="swap-exercise-actions">
-                                <span>@SwapExplanation(exercise)</span>
-                                <div>
-                                    <MudButton Variant="Variant.Outlined" Disabled="_swapping" OnClick="CancelSwap">Anuluj</MudButton>
-                                    <MudButton Variant="Variant.Filled"
-                                               Color="Color.Primary"
-                                               Disabled="@(_selectedExerciseId is null || _swapping)"
-                                               OnClick="() => ReplaceExercise(exercise)">
-                                        @(_swapping ? "Zamieniam…" : "Potwierdź zamianę")
-                                    </MudButton>
-                                </div>
-                            </footer>
-                        </section>
+                                </footer>
+                            </section>
+                        </MudFocusTrap>
                     </div>
                 }
 
