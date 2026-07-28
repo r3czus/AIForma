@@ -2390,4 +2390,69 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
     .ai-cardio-review article > :first-child { grid-column: 1 / -1; }
 }
 
+.exercise-media-frame {
+    align-items: center;
+    aspect-ratio: 16 / 9;
+    background: #101915;
+    color: #f4f6f3;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+}
+.exercise-media-frame.full { border-radius: 14px; }
+.exercise-media-frame.compact {
+    aspect-ratio: 4 / 3;
+    border-radius: 10px;
+    height: 100%;
+}
+.exercise-media-frame img,
+.exercise-media-frame video {
+    display: block;
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+.exercise-media-frame-placeholder,
+.exercise-media-paused {
+    align-items: center;
+    background: #101915;
+    border: 0;
+    color: #dce8e1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    justify-content: center;
+    min-height: 100%;
+    padding: 18px;
+    text-align: center;
+    width: 100%;
+}
+.exercise-media-paused {
+    cursor: pointer;
+    font: inherit;
+    min-height: 44px;
+    transition: transform 140ms cubic-bezier(.23, 1, .32, 1), background-color 180ms ease;
+}
+.exercise-media-paused:active { transform: scale(.98); }
+.exercise-media-frame-placeholder .mud-icon-root,
+.exercise-media-paused .mud-icon-root { color: #8fd8ba; font-size: 2.25rem; }
+.exercise-media-frame-placeholder.compact-gif { gap: 2px; padding: 8px; }
+.exercise-media-frame-placeholder.compact-gif .mud-icon-root { font-size: 1.6rem; }
+.exercise-media-frame-placeholder.compact-gif span { font: 700 .65rem "IBM Plex Mono", monospace; }
+.plan-exercise-media > .exercise-media-frame,
+.exercise-result-media > .exercise-media-frame { height: 100%; }
+.exercise-motion-card > .exercise-media-frame { border-radius: 10px; }
+
+@media (hover: hover) and (pointer: fine) {
+    .exercise-media-paused:hover { background: #17251f; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .exercise-media-paused { transition: background-color 180ms ease; }
+    .exercise-media-paused:active { transform: none; }
+}
+
 * { box-sizing: border-box; }

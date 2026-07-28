@@ -119,14 +119,7 @@
                                                 class="plan-exercise-row @(exercise.SupersetGroupId is not null ? "in-superset" : null)"
                                                 @onclick="() => OpenExercise(plan.Id, selectedDay.Id, exercise.ExerciseId)">
                                             <span class="plan-exercise-media">
-                                                @if (media?.MediaContentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true)
-                                                {
-                                                    <img src="@media.MediaUrl" alt="" loading="lazy" />
-                                                }
-                                                else
-                                                {
-                                                    <MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" />
-                                                }
+                                                <ExerciseMediaFrame Exercise="media" Alt="" Compact="true" />
                                             </span>
                                             <span class="plan-exercise-copy">
                                                 @if (exercise.SupersetGroupId is not null)

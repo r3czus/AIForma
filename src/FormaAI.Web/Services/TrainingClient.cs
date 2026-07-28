@@ -40,7 +40,7 @@ public sealed class TrainingClient(HttpClient http)
     {
         var csrf = await http.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
         using var content = new MultipartFormDataContent();
-        var file = new StreamContent(media.OpenReadStream(15 * 1024 * 1024));
+        var file = new StreamContent(media.OpenReadStream(ExerciseMediaPolicy.MaxBytes));
         file.Headers.ContentType = new MediaTypeHeaderValue(media.ContentType);
         content.Add(file, "media", media.Name);
         content.Add(new StringContent(author), "author");

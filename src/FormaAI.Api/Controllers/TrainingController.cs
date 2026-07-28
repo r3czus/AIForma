@@ -72,7 +72,7 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
     [HttpPost("exercises/{id:guid}/media")]
     [ValidateAntiForgeryToken]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(16 * 1024 * 1024)]
+    [RequestSizeLimit(ExerciseMediaPolicy.MaxBytes + 1024 * 1024)]
     public async Task<ActionResult<ExerciseResponse>> UploadExerciseMedia(
         Guid id,
         [FromForm] IFormFile media,
@@ -83,10 +83,9 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
     {
         var exercise = await db.Exercises.Include(x => x.MuscleEngagements).SingleOrDefaultAsync(x => x.Id == id && x.IsActive, cancellationToken);
         if (exercise is null || !CanEditMedia(exercise)) return NotFound();
-        var contentType = media.ContentType.ToLowerInvariant();
-        if (media.Length is 0 or > 15 * 1024 * 1024 ||
-            contentType is not ("image/jpeg" or "image/png" or "image/webp" or "image/gif" or "video/mp4" or "video/webm"))
-            return BadRequest("Wybierz JPG, PNG, WebP, GIF, MP4 albo WebM do 15 MB.");
+        if (media.Length is 0 or > ExerciseMediaPolicy.MaxBytes ||
+            !ExerciseMediaPolicy.TryNormalize(media.ContentType, media.FileName, out var contentType, out var extension))
+            return BadRequest(ExerciseMediaPolicy.ValidationMessage);
         if (string.IsNullOrWhiteSpace(author) || author.Length > 150 || string.IsNullOrWhiteSpace(license) || license.Length > 100)
             return BadRequest("Podaj autora i licencję materiału.");
         if (!string.IsNullOrWhiteSpace(sourceUrl) &&
@@ -95,15 +94,6 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
 
         var storage = Path.Combine(environment.ContentRootPath, "App_Data", "exercise-media");
         Directory.CreateDirectory(storage);
-        var extension = contentType switch
-        {
-            "image/jpeg" => ".jpg",
-            "image/png" => ".png",
-            "image/webp" => ".webp",
-            "image/gif" => ".gif",
-            "video/mp4" => ".mp4",
-            _ => ".webm"
-        };
         var storageName = $"{Guid.NewGuid():N}{extension}";
         await using (var stream = System.IO.File.Create(Path.Combine(storage, storageName)))
             await media.CopyToAsync(stream, cancellationToken);

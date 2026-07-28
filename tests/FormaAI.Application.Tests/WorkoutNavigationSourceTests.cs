@@ -41,9 +41,29 @@ public sealed class WorkoutNavigationSourceTests
     public void ExerciseMediaPickerAcceptsPhotosAnimationsAndVideos()
     {
         var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "ExerciseDetails.razor"));
+        var policy = File.ReadAllText(SourcePath("src", "FormaAI.Contracts", "Training", "ExerciseMediaPolicy.cs"));
 
-        Assert.Contains("image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm", source);
+        Assert.Contains("ExerciseMediaPolicy.Accept", source);
+        Assert.Contains("image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm", policy);
         Assert.Contains("Dodaj zdjęcie, GIF lub film", source);
+    }
+
+    [Fact]
+    public void ExerciseMediaRenderingIsSharedAcrossTrainingSurfaces()
+    {
+        var component = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Components", "Training", "ExerciseMediaFrame.razor"));
+        var details = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "ExerciseDetails.razor"));
+        var training = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Training.razor"));
+        var builder = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "NewWorkout.razor"));
+        var workout = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+
+        Assert.Contains("formaMotion.allowsMotion", component);
+        Assert.Contains("exercise-media-frame", component);
+        Assert.Contains("<ExerciseMediaFrame", details);
+        Assert.Contains("ExerciseMediaPolicy.Accept", details);
+        Assert.Contains("<ExerciseMediaFrame", training);
+        Assert.Contains("<ExerciseMediaFrame", builder);
+        Assert.Contains("<ExerciseMediaFrame", workout);
     }
 
     [Fact]

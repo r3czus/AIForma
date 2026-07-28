@@ -1,0 +1,96 @@
+@inject IJSRuntime JS
+
+<div class="exercise-media-frame @(Compact ? "compact" : "full") @Class"
+     aria-label="@(!string.IsNullOrWhiteSpace(Alt) ? Alt : null)">
+    @if (Exercise?.MediaUrl is null)
+    {
+        <div class="exercise-media-frame-placeholder">
+            <MudIcon Icon="@Icons.Material.Outlined.SportsGymnastics" />
+            @if (!Compact)
+            {
+                <span>Podgląd ruchu nie został jeszcze dodany</span>
+            }
+        </div>
+    }
+    else if (IsVideo)
+    {
+        @if (AllowPlayback && MotionPreferenceLoaded && !MotionAllowed)
+        {
+            <button type="button" class="exercise-media-paused" @onclick="EnableMotion">
+                <MudIcon Icon="@Icons.Material.Outlined.MotionPhotosPaused" />
+                <span>Pokaż film</span>
+            </button>
+        }
+        else
+        {
+            <video src="@Exercise.MediaUrl"
+                   muted
+                   playsinline
+                   controls="@AllowPlayback"
+                   autoplay="@(AllowPlayback && MotionAllowed)"
+                   loop="@(AllowPlayback && MotionAllowed)"
+                   preload="metadata"
+                   aria-label="@Alt"></video>
+        }
+    }
+    else if (IsGif && (!AllowPlayback || !MotionPreferenceLoaded || !MotionAllowed))
+    {
+        @if (AllowPlayback)
+        {
+            <button type="button" class="exercise-media-paused" @onclick="EnableMotion">
+                <MudIcon Icon="@Icons.Material.Outlined.MotionPhotosPaused" />
+                <span>Pokaż animację GIF</span>
+            </button>
+        }
+        else
+        {
+            <div class="exercise-media-frame-placeholder compact-gif">
+                <MudIcon Icon="@Icons.Material.Outlined.GifBox" />
+                <span>GIF</span>
+            </div>
+        }
+    }
+    else
+    {
+        <img src="@Exercise.MediaUrl"
+             alt="@Alt"
+             loading="@(Compact ? "lazy" : "eager")" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ExerciseResponse? Exercise { get; set; }
+    [Parameter] public string Alt { get; set; } = string.Empty;
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public bool AllowPlayback { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private bool MotionPreferenceLoaded { get; set; }
+    private bool MotionAllowed { get; set; }
+    private bool IsGif => string.Equals(Exercise?.MediaContentType, "image/gif", StringComparison.OrdinalIgnoreCase);
+    private bool IsVideo => Exercise?.MediaContentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !AllowPlayback || (!IsGif && !IsVideo))
+            return;
+
+        try
+        {
+            MotionAllowed = await JS.InvokeAsync<bool>("formaMotion.allowsMotion");
+        }
+        catch (JSException)
+        {
+            MotionAllowed = true;
+        }
+
+        MotionPreferenceLoaded = true;
+        StateHasChanged();
+    }
+
+    private void EnableMotion()
+    {
+        MotionAllowed = true;
+        MotionPreferenceLoaded = true;
+    }
+}

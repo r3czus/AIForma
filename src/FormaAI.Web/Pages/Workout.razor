@@ -124,34 +124,10 @@
             }
 
             <article class="workout-exercise workout-exercise-focus">
-                <section class="workout-motion-hero" aria-label="Podgląd ruchu ćwiczenia">
-                    @if (ActiveExerciseMedia is { MediaUrl: not null } media && _motionPreferenceLoaded && _allowMotionMedia)
-                    {
-                        @if (media.MediaContentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true)
-                        {
-                            <video src="@media.MediaUrl" autoplay muted loop playsinline controls preload="metadata"></video>
-                        }
-                        else
-                        {
-                            <img src="@media.MediaUrl" alt="Podgląd wykonania: @exercise.ExerciseName" />
-                        }
-                    }
-                    else if (ActiveExerciseMedia is { MediaUrl: not null })
-                    {
-                        <div class="workout-motion-placeholder">
-                            <MudIcon Icon="@Icons.Material.Outlined.MotionPhotosPaused" />
-                            <span>Animacja jest wstrzymana zgodnie z ustawieniem ograniczenia ruchu</span>
-                            <MudButton Variant="Variant.Text" OnClick="EnableMotionMedia">Pokaż animację</MudButton>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="workout-motion-placeholder">
-                            <MudIcon Icon="@Icons.Material.Outlined.SportsGymnastics" />
-                            <span>Podgląd ruchu nie został jeszcze dodany</span>
-                        </div>
-                    }
-                </section>
+                <ExerciseMediaFrame Exercise="ActiveExerciseMedia"
+                                    Alt="@($"Podgląd wykonania: {exercise.ExerciseName}")"
+                                    AllowPlayback="true"
+                                    Class="workout-motion-hero" />
                 <div class="exercise-live-heading">
                     <span class="exercise-order">@(_activeExerciseIndex + 1)</span>
                     <div>
@@ -352,8 +328,6 @@
     private int _timerSeconds;
     private int _timerStartSeconds;
     private bool _timerRunning;
-    private bool _motionPreferenceLoaded;
-    private bool _allowMotionMedia;
     private TimeSpan _elapsed;
     private decimal _trainingCalories;
 
@@ -424,29 +398,6 @@
             _clockCancellation = new CancellationTokenSource();
             _ = RunClock(_clockCancellation.Token);
         }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-
-        try
-        {
-            _allowMotionMedia = await JS.InvokeAsync<bool>("formaMotion.allowsMotion");
-        }
-        catch (JSException)
-        {
-            _allowMotionMedia = true;
-        }
-
-        _motionPreferenceLoaded = true;
-        StateHasChanged();
-    }
-
-    private void EnableMotionMedia()
-    {
-        _allowMotionMedia = true;
-        _motionPreferenceLoaded = true;
     }
 
     private async Task SaveSet(WorkoutExerciseResponse exercise, SetForm form)

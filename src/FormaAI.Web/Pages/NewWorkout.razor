@@ -222,14 +222,7 @@
                             {
                                 <button type="button" @onclick="() => AddExercise(exercise)">
                                     <span class="exercise-result-media">
-                                        @if (exercise.MediaUrl is not null)
-                                        {
-                                            <img src="@exercise.MediaUrl" alt="" loading="lazy" />
-                                        }
-                                        else
-                                        {
-                                            <MudIcon Icon="@Icons.Material.Outlined.FitnessCenter" />
-                                        }
+                                        <ExerciseMediaFrame Exercise="exercise" Alt="" Compact="true" />
                                     </span>
                                     <span><strong>@exercise.Name</strong><small>@ExerciseMeta(exercise)</small></span>
                                     <MudIcon Icon="@Icons.Material.Outlined.Add" />

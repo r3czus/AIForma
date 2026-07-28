@@ -33,16 +33,11 @@
     else
     {
         <section class="exercise-motion-card" aria-label="Podgląd ruchu ćwiczenia">
+            <ExerciseMediaFrame Exercise="_exercise"
+                                Alt="@($"Podgląd wykonania: {_exercise.Name}")"
+                                AllowPlayback="true" />
             @if (!string.IsNullOrWhiteSpace(_exercise.MediaUrl))
             {
-                @if (_exercise.MediaContentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true)
-                {
-                    <video src="@_exercise.MediaUrl" autoplay muted loop playsinline controls preload="metadata"></video>
-                }
-                else
-                {
-                    <img src="@_exercise.MediaUrl" alt="Animowany podgląd wykonania: @_exercise.Name" />
-                }
                 @if (!string.IsNullOrWhiteSpace(_exercise.MediaAttribution))
                 {
                     <small>
@@ -51,15 +46,6 @@
                     </small>
                 }
             }
-            else
-            {
-                <div class="exercise-motion-placeholder">
-                    <MudIcon Icon="@Icons.Material.Outlined.SportsGymnastics" />
-                    <strong>Podgląd ruchu w przygotowaniu</strong>
-                    <span>Opis i parametry ćwiczenia znajdziesz poniżej.</span>
-                </div>
-            }
-
             @if (_exercise.CanEditMedia)
             {
                 <details class="exercise-media-editor">
@@ -68,7 +54,7 @@
                         <MudIcon Icon="@Icons.Material.Outlined.Movie" />
                         <strong>@(_mediaFile?.Name ?? "Wybierz GIF, MP4 lub WebM")</strong>
                         <span>Maksymalnie 15 MB.</span>
-                        <InputFile OnChange="SelectMedia" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" disabled="@_mediaSaving" />
+                        <InputFile OnChange="SelectMedia" accept="@ExerciseMediaPolicy.Accept" disabled="@_mediaSaving" />
                     </label>
                     <div class="field-grid">
                         <MudTextField @bind-Value="_mediaAuthor" Label="Autor materiału" MaxLength="150" />
@@ -238,10 +224,10 @@
     private void SelectMedia(InputFileChangeEventArgs args)
     {
         var file = args.File;
-        if (file.Size is 0 or > 15 * 1024 * 1024 ||
-            file.ContentType is not ("image/jpeg" or "image/png" or "image/webp" or "image/gif" or "video/mp4" or "video/webm"))
+        if (file.Size is 0 or > ExerciseMediaPolicy.MaxBytes ||
+            !ExerciseMediaPolicy.TryNormalize(file.ContentType, file.Name, out _, out _))
         {
-            Snackbar.Add("Wybierz JPG, PNG, WebP, GIF, MP4 albo WebM do 15 MB.", Severity.Warning);
+            Snackbar.Add(ExerciseMediaPolicy.ValidationMessage, Severity.Warning);
             _mediaFile = null;
             return;
         }
