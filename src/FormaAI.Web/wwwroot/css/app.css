@@ -2465,6 +2465,58 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .exercise-result-media > .exercise-media-frame { height: 100%; }
 .exercise-motion-card > .exercise-media-frame { border-radius: 10px; }
 
+.workout-exercise-hero {
+    background: #101915;
+    min-height: 280px;
+    overflow: hidden;
+    position: relative;
+    touch-action: pan-y;
+}
+.workout-exercise-hero .workout-hero-media {
+    aspect-ratio: 1.42 / 1;
+    border-radius: 0;
+    height: auto;
+}
+.workout-hero-actions {
+    align-items: start;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: auto 1fr repeat(3, auto);
+    inset: max(14px, env(safe-area-inset-top)) 14px auto;
+    pointer-events: none;
+    position: absolute;
+    z-index: 2;
+}
+.workout-hero-actions .mud-icon-button-root {
+    backdrop-filter: blur(12px);
+    background: rgb(23 33 28 / .62);
+    border-radius: 13px;
+    color: white;
+    min-height: 48px;
+    min-width: 48px;
+    pointer-events: auto;
+}
+.workout-hero-progress {
+    background: var(--surface);
+    display: grid;
+    gap: 8px;
+    grid-auto-columns: 1fr;
+    grid-auto-flow: column;
+    padding: 8px 14px 6px;
+}
+.workout-hero-progress button {
+    background: transparent;
+    border: 0;
+    min-height: 44px;
+    padding: 8px 0;
+}
+.workout-hero-progress span {
+    background: var(--rule-strong);
+    border-radius: 999px;
+    display: block;
+    height: 5px;
+}
+.workout-hero-progress button.active span { background: var(--action); }
 .workout-set-table {
     border-bottom: 1px solid var(--rule);
     margin: 18px -20px 0;

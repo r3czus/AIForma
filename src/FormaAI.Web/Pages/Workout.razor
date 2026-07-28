@@ -16,15 +16,6 @@
     }
     else
     {
-        <header class="workout-heading">
-            <MudIconButton Href="/training" Icon="@Icons.Material.Filled.ArrowBack" Class="workout-back" aria-label="Wróć do planu" />
-            <div>
-                <span class="page-kicker">Sesja na żywo</span>
-                <MudText Typo="Typo.h4">@_session.Name</MudText>
-            </div>
-            <span class="data-chip">@CompletedSets / @PlannedSets serii</span>
-        </header>
-
         @if (_session.CardioEntries is { Count: > 0 })
         {
             <section class="workout-cardio-summary">
@@ -42,6 +33,14 @@
 
         @if (_completed)
         {
+            <header class="workout-heading">
+                <MudIconButton Href="/training" Icon="@Icons.Material.Filled.ArrowBack" Class="workout-back" aria-label="Wróć do planu" />
+                <div>
+                    <span class="page-kicker">Sesja na żywo</span>
+                    <MudText Typo="Typo.h4">@_session.Name</MudText>
+                </div>
+                <span class="data-chip">@CompletedSets / @PlannedSets serii</span>
+            </header>
             <section class="workout-finish-summary">
                 <div class="finish-title">
                     <div><span class="page-kicker">Trening zakończony</span><MudText Typo="Typo.h3">Sesja zapisana</MudText><p>@CompletionCopy</p></div>
@@ -95,23 +94,20 @@
         {
             var form = _forms[exercise.Id];
 
-            <section class="workout-console" aria-label="Czas i postęp treningu">
-                <div class="session-clock"><span>Czas treningu</span><strong>@FormatElapsed(_elapsed)</strong><small>start @_session.StartedAtUtc.ToLocalTime().ToString("HH:mm")</small></div>
-                <div class="session-progress"><span>Postęp sesji</span><strong>@SessionPercent%</strong><i style="@($"--progress: {SessionPercent}%")"><b></b></i></div>
-            </section>
-
-            <nav class="exercise-switcher" aria-label="Ćwiczenia w sesji">
-                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Disabled="@(_activeExerciseIndex == 0)" OnClick="PreviousExercise" aria-label="Poprzednie ćwiczenie" />
-                <div>
-                    @for (var index = 0; index < OrderedExercises.Count; index++)
-                    {
-                        var navIndex = index;
-                        var item = OrderedExercises[index];
-                        <button type="button" class="@(index == _activeExerciseIndex ? "active" : null) @(item.Sets.Count >= item.PlannedSets ? "done" : null)" @onclick="() => SelectExercise(navIndex)" aria-label="@item.ExerciseName" aria-current="@(index == _activeExerciseIndex ? "step" : null)" title="@item.ExerciseName"><span></span></button>
-                    }
-                </div>
-                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_activeExerciseIndex >= OrderedExercises.Count - 1)" OnClick="NextExercise" aria-label="Następne ćwiczenie" />
-            </nav>
+            <main class="live-workout-surface"
+                  data-history-open="@_historyOpen"
+                  data-workout-menu-open="@_workoutMenuOpen">
+                <WorkoutExerciseHero Exercise="ActiveExerciseMedia"
+                                     ExerciseName="@exercise.ExerciseName"
+                                     ActiveIndex="_activeExerciseIndex"
+                                     ExerciseCount="@OrderedExercises.Count"
+                                     OnBack="BackToTraining"
+                                     OnHistory="OpenHistory"
+                                     OnSwap="() => BeginSwap(exercise)"
+                                     OnMenu="OpenWorkoutMenu"
+                                     OnPrevious="PreviousExercise"
+                                     OnNext="NextExercise"
+                                     OnSelect="SelectExercise" />
 
             @if (_timerMode != TimerMode.None)
             {
@@ -124,10 +120,6 @@
             }
 
             <article class="workout-exercise workout-exercise-focus">
-                <ExerciseMediaFrame Exercise="ActiveExerciseMedia"
-                                    Alt="@($"Podgląd wykonania: {exercise.ExerciseName}")"
-                                    AllowPlayback="true"
-                                    Class="workout-motion-hero" />
                 <div class="exercise-live-heading">
                     <span class="exercise-order">@(_activeExerciseIndex + 1)</span>
                     <div>
@@ -428,9 +420,18 @@
                 <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ i zobacz podsumowanie</MudButton>
                 <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
             </div>
+            </main>
         }
         else if (_session.CardioEntries is { Count: > 0 })
         {
+            <header class="workout-heading">
+                <MudIconButton Href="/training" Icon="@Icons.Material.Filled.ArrowBack" Class="workout-back" aria-label="Wróć do planu" />
+                <div>
+                    <span class="page-kicker">Sesja na żywo</span>
+                    <MudText Typo="Typo.h4">@_session.Name</MudText>
+                </div>
+                <span class="data-chip">@CompletedSets / @PlannedSets serii</span>
+            </header>
             <section class="cardio-only-workout">
                 <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
                 <div><span class="page-kicker">Cardio gotowe do zapisania</span><h2>@_session.Name</h2><p>Sprawdź rozpoznany czas i zakończ sesję, aby zapisać ją w historii.</p></div>
@@ -466,6 +467,8 @@
     private int _supersetRestSeconds = 90;
     private string? _sessionNotes;
     private bool _completed;
+    private bool _historyOpen;
+    private bool _workoutMenuOpen;
     private int _activeExerciseIndex;
     private CancellationTokenSource? _clockCancellation;
     private TimerMode _timerMode;
@@ -650,6 +653,10 @@
     private void SelectExercise(int index) => _activeExerciseIndex = Math.Clamp(index, 0, Math.Max(0, OrderedExercises.Count - 1));
     private void PreviousExercise() => SelectExercise(_activeExerciseIndex - 1);
     private void NextExercise() => SelectExercise(_activeExerciseIndex + 1);
+    private void BackToTraining() => Navigation.NavigateTo("/training");
+    private void OpenHistory() => _historyOpen = true;
+    private void OpenWorkoutMenu() => _workoutMenuOpen = true;
+    private void CloseWorkoutMenu() => _workoutMenuOpen = false;
     private void BeginSwap(WorkoutExerciseResponse exercise)
     {
         _swapTargetId = exercise.Id;

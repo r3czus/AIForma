@@ -1,0 +1,87 @@
+<section class="workout-exercise-hero"
+         aria-label="@($"Ćwiczenie {ActiveIndex + 1} z {ExerciseCount}: {ExerciseName}")"
+         @onpointerdown="HandlePointerDown"
+         @onpointerup="HandlePointerUp"
+         @onpointercancel="CancelPointer"
+         @onpointerleave="CancelPointer">
+    <ExerciseMediaFrame Exercise="Exercise"
+                        Alt="@($"Podgląd wykonania: {ExerciseName}")"
+                        AllowPlayback="true"
+                        Class="workout-hero-media" />
+
+    <div class="workout-hero-actions">
+        <MudIconButton Icon="@Icons.Material.Outlined.ArrowBackIosNew"
+                       OnClick="() => OnBack.InvokeAsync()"
+                       aria-label="Wróć do treningów" />
+        <span></span>
+        <MudIconButton Icon="@Icons.Material.Outlined.BarChart"
+                       OnClick="() => OnHistory.InvokeAsync()"
+                       aria-label="Historia i wykres ćwiczenia" />
+        <MudIconButton Icon="@Icons.Material.Outlined.SwapHoriz"
+                       OnClick="() => OnSwap.InvokeAsync()"
+                       aria-label="Zamień ćwiczenie" />
+        <MudIconButton Icon="@Icons.Material.Outlined.MoreHoriz"
+                       OnClick="() => OnMenu.InvokeAsync()"
+                       aria-label="Więcej opcji treningu" />
+    </div>
+</section>
+
+<nav class="workout-hero-progress" aria-label="Pozycja w treningu">
+    @for (var index = 0; index < ExerciseCount; index++)
+    {
+        var target = index;
+        <button type="button"
+                class="@(index == ActiveIndex ? "active" : null)"
+                aria-current="@(index == ActiveIndex ? "step" : null)"
+                aria-label="@($"Przejdź do ćwiczenia {index + 1}")"
+                @onclick="() => OnSelect.InvokeAsync(target)">
+            <span></span>
+        </button>
+    }
+</nav>
+
+@code {
+    private const double SwipeThreshold = 56;
+    private double? _pointerStartX;
+    private double? _pointerStartY;
+
+    [Parameter] public ExerciseResponse? Exercise { get; set; }
+    [Parameter, EditorRequired] public string ExerciseName { get; set; } = string.Empty;
+    [Parameter] public int ActiveIndex { get; set; }
+    [Parameter] public int ExerciseCount { get; set; }
+    [Parameter] public EventCallback OnBack { get; set; }
+    [Parameter] public EventCallback OnHistory { get; set; }
+    [Parameter] public EventCallback OnSwap { get; set; }
+    [Parameter] public EventCallback OnMenu { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback<int> OnSelect { get; set; }
+
+    private void HandlePointerDown(PointerEventArgs args)
+    {
+        if (!args.IsPrimary) return;
+        _pointerStartX = args.ClientX;
+        _pointerStartY = args.ClientY;
+    }
+
+    private async Task HandlePointerUp(PointerEventArgs args)
+    {
+        if (!args.IsPrimary || _pointerStartX is null || _pointerStartY is null) return;
+        var deltaX = args.ClientX - _pointerStartX.Value;
+        var deltaY = args.ClientY - _pointerStartY.Value;
+        CancelPointer();
+        if (Math.Abs(deltaX) < SwipeThreshold || Math.Abs(deltaX) <= Math.Abs(deltaY) * 1.25)
+            return;
+        if (deltaX < 0 && ActiveIndex < ExerciseCount - 1)
+            await OnNext.InvokeAsync();
+        else if (deltaX > 0 && ActiveIndex > 0)
+            await OnPrevious.InvokeAsync();
+    }
+
+    private void CancelPointer(PointerEventArgs? _ = null)
+    {
+        if (_ is not null && !_.IsPrimary) return;
+        _pointerStartX = null;
+        _pointerStartY = null;
+    }
+}

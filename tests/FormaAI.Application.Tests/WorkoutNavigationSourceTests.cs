@@ -19,11 +19,28 @@ public sealed class WorkoutNavigationSourceTests
     {
         var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
 
-        Assert.Contains("workout-motion-hero", source);
+        Assert.Contains("<WorkoutExerciseHero", source);
         Assert.Contains("workout-superset-strip", source);
         Assert.Contains("swap-exercise-trigger", source);
         Assert.Contains("exercise-timer-actions", source);
         Assert.Contains("ApplyNextPreset", source);
+    }
+
+    [Fact]
+    public void LiveWorkoutUsesGestureAwareExerciseHero()
+    {
+        var workout = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+        var heroPath = SourcePath("src", "FormaAI.Web", "Components", "Training", "WorkoutExerciseHero.razor");
+
+        Assert.True(File.Exists(heroPath), "The gesture-aware exercise hero component must exist.");
+
+        var hero = File.ReadAllText(heroPath);
+        Assert.Contains("<WorkoutExerciseHero", workout);
+        Assert.Contains("live-workout-surface", workout);
+        Assert.Contains("@onpointerdown=\"HandlePointerDown\"", hero);
+        Assert.Contains("@onpointerup=\"HandlePointerUp\"", hero);
+        Assert.Contains("SwipeThreshold", hero);
+        Assert.Contains("if (!args.IsPrimary || _pointerStartX is null || _pointerStartY is null) return;", hero);
     }
 
     [Fact]
