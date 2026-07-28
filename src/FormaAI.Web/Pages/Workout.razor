@@ -335,7 +335,9 @@
                     </section>
                 }
 
-                @if (exercise.ExerciseId is Guid exerciseId && _history.TryGetValue(exerciseId, out var last) && last is not null)
+                @if (exercise.ExerciseId is Guid exerciseId &&
+                     _history.TryGetValue(exerciseId, out var history) &&
+                     history.FirstOrDefault() is { } last)
                 {
                     <div class="last-performance"><span>Ostatnio</span><strong>@last.WeightKg kg × @last.Repetitions</strong><small>RIR @(last.Rir?.ToString("0.#") ?? "brak")</small></div>
                     @if (last.Repetitions >= exercise.MaxReps)
@@ -463,12 +465,22 @@
     }
 </MudContainer>
 
+@if (_historyOpen && ActiveExerciseMedia is { } historyExercise)
+{
+    var history = _history.TryGetValue(historyExercise.Id, out var entries)
+        ? entries
+        : Array.Empty<ExerciseHistoryEntry>();
+    <WorkoutHistorySheet Exercise="historyExercise"
+                         History="history"
+                         OnClose="() => _historyOpen = false" />
+}
+
 @code {
     [Parameter] public Guid Id { get; set; }
 
     private WorkoutSessionResponse? _session;
     private readonly Dictionary<Guid, SetForm> _forms = [];
-    private readonly Dictionary<Guid, ExerciseHistoryEntry?> _history = [];
+    private readonly Dictionary<Guid, IReadOnlyList<ExerciseHistoryEntry>> _history = [];
     private IReadOnlyList<ExerciseResponse> _catalog = [];
     private readonly List<string> _newRecords = [];
     private IReadOnlyList<ExerciseProgressionResponse> _progressions = [];
@@ -564,8 +576,8 @@
             var presetApplied = exercise.Sets.Count == 0 && ApplyNextPreset(exercise, _forms[exercise.Id]);
             if (exercise.ExerciseId is Guid exerciseId && !_history.ContainsKey(exerciseId))
             {
-                _history[exerciseId] = (await TrainingApi.GetHistory(exerciseId)).FirstOrDefault();
-                if (_history[exerciseId] is { } last && exercise.Sets.Count == 0 && !presetApplied)
+                _history[exerciseId] = await TrainingApi.GetHistory(exerciseId);
+                if (_history[exerciseId].FirstOrDefault() is { } last && exercise.Sets.Count == 0 && !presetApplied)
                 {
                     _forms[exercise.Id].WeightKg = last.WeightKg;
                     _forms[exercise.Id].Repetitions = last.Repetitions;
@@ -598,7 +610,8 @@
             var request = new SaveSetRequest(exercise.Id, setNumber, form.WeightKg, form.Repetitions, form.Rir, form.IsWarmup ? SetType.Warmup : SetType.Working, form.Notes);
             if (form.SetId is Guid setId) await TrainingApi.UpdateSet(Id, setId, request); else await TrainingApi.SaveSet(Id, request);
 
-            if (!form.IsWarmup && exercise.ExerciseId is Guid exerciseId && (!_history.TryGetValue(exerciseId, out var last) || last is null || form.WeightKg > last.WeightKg))
+            if (!form.IsWarmup && exercise.ExerciseId is Guid exerciseId &&
+                (!_history.TryGetValue(exerciseId, out var history) || history.FirstOrDefault() is not { } last || form.WeightKg > last.WeightKg))
                 if (!_newRecords.Contains(exercise.ExerciseName)) _newRecords.Add(exercise.ExerciseName);
 
             await Reload();
@@ -716,7 +729,7 @@
             await Reload();
             _forms.TryAdd(replacement.Id, new SetForm());
             if (replacement.ExerciseId is Guid replacementExerciseId && !_history.ContainsKey(replacementExerciseId))
-                _history[replacementExerciseId] = (await TrainingApi.GetHistory(replacementExerciseId)).FirstOrDefault();
+                _history[replacementExerciseId] = await TrainingApi.GetHistory(replacementExerciseId);
             _activeExerciseIndex = OrderedExercises.ToList().FindIndex(x => x.Id == replacement.Id);
             Snackbar.Add(exercise.Sets.Count == 0 ? "Ćwiczenie zostało zamienione." : "Wykonane serie zostały zachowane, a zamiennik dodany jako następne ćwiczenie.", Severity.Success);
             CancelSwap();

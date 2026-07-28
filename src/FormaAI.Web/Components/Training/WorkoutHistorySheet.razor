@@ -1,0 +1,183 @@
+<div class="workout-sheet-backdrop" @onclick="() => OnClose.InvokeAsync()">
+    <section class="workout-sheet workout-history-sheet"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="workout-history-title"
+             tabindex="-1"
+             @onkeydown="HandleKeyDown"
+             @onclick:stopPropagation="true">
+        <header class="workout-sheet-header">
+            <MudIconButton Icon="@Icons.Material.Outlined.ArrowBack"
+                           OnClick="() => OnClose.InvokeAsync()"
+                           aria-label="Wróć do aktywnego treningu" />
+            <strong>FORMA<span>/AI</span></strong>
+            <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                           OnClick="() => OnClose.InvokeAsync()"
+                           aria-label="Zamknij historię ćwiczenia" />
+        </header>
+
+        <div class="workout-history-content">
+            <section class="workout-history-hero">
+                <ExerciseMediaFrame Exercise="Exercise"
+                                    Alt="@($"Podgląd wykonania: {Exercise.Name}")"
+                                    AllowPlayback="true" />
+                <div>
+                    <h1 id="workout-history-title">@Exercise.Name</h1>
+                    <p><strong>Mięśnie główne</strong><span>@MuscleGroupName(Exercise.MuscleGroup)</span></p>
+                    <p><strong>Sprzęt</strong><span>@EquipmentName(Exercise.Equipment)</span></p>
+                </div>
+            </section>
+
+            <nav class="workout-history-tabs" aria-label="Informacje o ćwiczeniu">
+                <button type="button" class="@(_tab == 0 ? "active" : null)" @onclick="() => _tab = 0">Historia</button>
+                <button type="button" class="@(_tab == 1 ? "active" : null)" @onclick="() => _tab = 1">Wykres</button>
+                <button type="button" class="@(_tab == 2 ? "active" : null)" @onclick="() => _tab = 2">Technika</button>
+            </nav>
+
+            @if (_tab == 0)
+            {
+                <section class="workout-history-list">
+                    @if (History.Count == 0)
+                    {
+                        <div class="module-empty">
+                            <MudIcon Icon="@Icons.Material.Outlined.History" />
+                            <div><strong>Brak zapisanych serii</strong><span>Historia pojawi się po pierwszym ukończonym treningu.</span></div>
+                        </div>
+                    }
+                    @foreach (var group in History.GroupBy(x => x.CompletedAtUtc.ToLocalTime().Date).OrderByDescending(x => x.Key))
+                    {
+                        <article>
+                            <h2><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" /> @group.Key.ToString("dd.MM.yyyy")</h2>
+                            <div class="workout-history-table">
+                                <div><span>Seria</span><span>Ciężar × powt.</span><span>1RM</span></div>
+                                @{ var setNumber = 0; }
+                                @foreach (var set in group.OrderBy(x => x.CompletedAtUtc))
+                                {
+                                    setNumber++;
+                                    <div>
+                                        <span>@setNumber</span>
+                                        <strong>@set.WeightKg.ToString("0.#") kg × @set.Repetitions</strong>
+                                        <strong>@EstimatedOneRepMax(set).ToString("0.#") kg</strong>
+                                    </div>
+                                }
+                            </div>
+                        </article>
+                    }
+                </section>
+            }
+            else if (_tab == 1)
+            {
+                <section class="workout-history-chart-panel">
+                    <div><span class="card-kicker">Ostatnie wyniki</span><h2>Szacowane 1RM</h2><p>Najlepszy wynik z każdego dnia.</p></div>
+                    @if (ChartPoints.Count == 0)
+                    {
+                        <div class="module-empty">
+                            <MudIcon Icon="@Icons.Material.Outlined.BarChart" />
+                            <div><strong>Brak danych do wykresu</strong><span>Zapisz pierwszą serię, aby zobaczyć trend.</span></div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="workout-history-chart" aria-label="Wykres szacowanego maksymalnego ciężaru">
+                            @foreach (var point in ChartPoints)
+                            {
+                                <div style="@($"--value:{point.Percent}%")">
+                                    <i></i>
+                                    <strong>@point.Value.ToString("0.#")</strong>
+                                    <span>@point.Date.ToString("dd.MM")</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </section>
+            }
+            else
+            {
+                <section class="workout-technique-panel">
+                    <article><span class="card-kicker">Wykonanie</span><h2>Opis i wskazówki</h2><p>@TechniqueCopy</p></article>
+                    <article>
+                        <span class="card-kicker">Zaangażowanie</span>
+                        <h2>Pracujące mięśnie</h2>
+                        @foreach (var engagement in Engagements)
+                        {
+                            <div class="workout-muscle-row">
+                                <span><strong>@MuscleGroupName(engagement.MuscleGroup)</strong><small>@engagement.Percentage%</small></span>
+                                <i style="@($"--engagement:{engagement.Percentage}%")"></i>
+                            </div>
+                        }
+                    </article>
+                </section>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ExerciseResponse Exercise { get; set; } = default!;
+    [Parameter] public IReadOnlyList<ExerciseHistoryEntry> History { get; set; } = [];
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private int _tab;
+    private string TechniqueCopy => string.IsNullOrWhiteSpace(Exercise.Description)
+        ? "Do tego ćwiczenia nie dodano jeszcze wskazówek wykonania."
+        : Exercise.Description;
+    private IReadOnlyList<ExerciseMuscleEngagementResponse> Engagements =>
+        Exercise.MuscleEngagements is { Count: > 0 } values
+            ? values.OrderByDescending(x => x.Percentage).ToList()
+            : [new(Exercise.MuscleGroup, 100)];
+
+    private static decimal EstimatedOneRepMax(ExerciseHistoryEntry set) =>
+        set.Repetitions <= 1 ? set.WeightKg : set.WeightKg * (1 + set.Repetitions / 30m);
+
+    private IReadOnlyList<HistoryChartPoint> ChartPoints
+    {
+        get
+        {
+            var values = History
+                .GroupBy(x => x.CompletedAtUtc.ToLocalTime().Date)
+                .OrderBy(x => x.Key)
+                .TakeLast(8)
+                .Select(x => new HistoryChartPoint(x.Key, x.Max(EstimatedOneRepMax), 0))
+                .ToList();
+            var max = values.Select(x => x.Value).DefaultIfEmpty().Max();
+            return values
+                .Select(x => x with { Percent = max == 0 ? 0 : Math.Max(8, (int)Math.Round(x.Value * 100 / max)) })
+                .ToList();
+        }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+            _ = OnClose.InvokeAsync();
+    }
+
+    private static string EquipmentName(Equipment equipment) => equipment switch
+    {
+        Equipment.Barbell => "Sztanga",
+        Equipment.Dumbbell => "Hantle",
+        Equipment.Machine => "Maszyna",
+        Equipment.Cable => "Wyciąg",
+        Equipment.Bodyweight => "Masa ciała",
+        Equipment.Kettlebell => "Kettlebell",
+        _ => "Inny sprzęt"
+    };
+
+    private static string MuscleGroupName(MuscleGroup group) => group switch
+    {
+        MuscleGroup.Chest => "Klatka piersiowa",
+        MuscleGroup.Back => "Plecy",
+        MuscleGroup.Shoulders => "Barki",
+        MuscleGroup.Biceps => "Biceps",
+        MuscleGroup.Triceps => "Triceps",
+        MuscleGroup.Quadriceps => "Czworogłowe uda",
+        MuscleGroup.Hamstrings => "Dwugłowe uda",
+        MuscleGroup.Glutes => "Pośladki",
+        MuscleGroup.Calves => "Łydki",
+        MuscleGroup.Core => "Core",
+        MuscleGroup.Forearms => "Przedramiona",
+        _ => "Całe ciało"
+    };
+
+    private sealed record HistoryChartPoint(DateTime Date, decimal Value, int Percent);
+}

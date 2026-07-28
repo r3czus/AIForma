@@ -72,6 +72,37 @@ public sealed class WorkoutNavigationSourceTests
     }
 
     [Fact]
+    public void LiveWorkoutProvidesAnInPlaceFullHistorySheet()
+    {
+        var workout = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+        var sheetPath = SourcePath("src", "FormaAI.Web", "Components", "Training", "WorkoutHistorySheet.razor");
+        var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
+
+        Assert.True(File.Exists(sheetPath), "The full history sheet component must exist.");
+
+        var sheet = File.ReadAllText(sheetPath);
+        Assert.Contains("Dictionary<Guid, IReadOnlyList<ExerciseHistoryEntry>> _history", workout);
+        Assert.Contains("_history[exerciseId] = await TrainingApi.GetHistory(exerciseId)", workout);
+        Assert.Contains("history.FirstOrDefault() is { } last", workout);
+        Assert.Contains("<WorkoutHistorySheet", workout);
+        Assert.Contains("OnClose=\"() => _historyOpen = false\"", workout);
+        Assert.DoesNotContain("NavigateTo(\"/exercise", workout);
+        Assert.Contains("role=\"dialog\"", sheet);
+        Assert.Contains("aria-modal=\"true\"", sheet);
+        Assert.Contains("@onkeydown=\"HandleKeyDown\"", sheet);
+        Assert.Contains("args.Key == \"Escape\"", sheet);
+        Assert.Contains("Historia", sheet);
+        Assert.Contains("Wykres", sheet);
+        Assert.Contains("Technika", sheet);
+        Assert.Contains("TakeLast(8)", sheet);
+        Assert.Contains("GroupBy(x => x.CompletedAtUtc.ToLocalTime().Date)", sheet);
+        Assert.Contains(".workout-history-sheet", css);
+        Assert.Contains(".workout-history-tabs", css);
+        Assert.Contains(".workout-history-chart", css);
+        Assert.Contains("safe-area-inset-bottom", css);
+    }
+
+    [Fact]
     public void LiveWorkoutUsesFlatSetPlateSkeletonTimersAndStickySaveAction()
     {
         var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
