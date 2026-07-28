@@ -27,6 +27,20 @@ public sealed class WorkoutNavigationSourceTests
     }
 
     [Fact]
+    public void LiveWorkoutUsesFocusedSetRowsAndFullReplacementSheet()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+
+        Assert.Contains("workout-set-row saved", source);
+        Assert.Contains("workout-set-row active", source);
+        Assert.Contains("workout-primary-action", source);
+        Assert.Contains("workout-sheet swap-sheet", source);
+        Assert.Contains("swap-filter", source);
+        Assert.Contains("aria-modal=\"true\"", source);
+        Assert.Contains("_savingSet", source);
+    }
+
+    [Fact]
     public void AiWorkoutReviewCanBeSavedAsCompletedOrStarted()
     {
         var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "NewWorkout.razor"));
