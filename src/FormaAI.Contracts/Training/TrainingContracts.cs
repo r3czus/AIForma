@@ -57,6 +57,18 @@ public sealed record StartQuickWorkoutRequest(
     [Required, MaxLength(120)] string Name,
     [Range(5, 300)] int TimeLimitMinutes,
     [MinLength(1)] IReadOnlyList<QuickWorkoutExerciseRequest> Exercises);
+public sealed record CompletedWorkoutSetRequest(
+    [Range(0, 1000)] decimal WeightKg,
+    [Range(1, 1000)] int Repetitions,
+    [Range(0, 10)] decimal? Rir);
+public sealed record CompletedWorkoutExerciseRequest(
+    Guid ExerciseId,
+    [Required, MaxLength(150)] string ExerciseName,
+    [MinLength(1), MaxLength(50)] IReadOnlyList<CompletedWorkoutSetRequest> Sets);
+public sealed record SaveCompletedWorkoutRequest(
+    DateOnly LocalDate,
+    [Required, MaxLength(150)] string Name,
+    [MinLength(1), MaxLength(20)] IReadOnlyList<CompletedWorkoutExerciseRequest> Exercises);
 public sealed record SaveSetRequest(Guid WorkoutExerciseId, [Range(1, 50)] int SetNumber, [Range(0, 1000)] decimal WeightKg, [Range(1, 1000)] int Repetitions, [Range(0, 10)] decimal? Rir, SetType SetType, [MaxLength(300)] string? Notes = null);
 public sealed record CompletedSetResponse(Guid Id, int SetNumber, decimal WeightKg, int Repetitions, decimal? Rir, SetType SetType, DateTime CompletedAtUtc, string? Notes = null);
 public sealed record AddWorkoutExerciseRequest(Guid ExerciseId, [Range(1, 10)] int PlannedSets = 3, [Range(1, 100)] int MinReps = 8, [Range(1, 100)] int MaxReps = 12, [Range(0, 10)] decimal? TargetRir = 2, [Range(0, 3600)] int? RestSeconds = 90);

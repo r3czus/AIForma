@@ -2396,6 +2396,31 @@ body:has(.workout-live-skeleton) .page-content { padding: 0; }
 .workout-start-bar > span { display: grid; gap: 2px; }
 .workout-start-bar small { color: var(--muted); }
 .workout-start-actions { display: flex; gap: 8px; }
+.completed-workout-date-backdrop {
+    align-items: flex-end;
+    background: rgba(5, 15, 10, .72);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    padding: 18px;
+    position: fixed;
+    z-index: 1500;
+}
+.completed-workout-date-dialog {
+    background: var(--surface);
+    border: 1px solid var(--rule-strong);
+    border-radius: 20px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .3);
+    display: grid;
+    gap: 18px;
+    max-width: 480px;
+    padding: 22px;
+    width: 100%;
+}
+.completed-workout-date-dialog > header,
+.completed-workout-date-dialog > footer { align-items: center; display: flex; gap: 10px; justify-content: space-between; }
+.completed-workout-date-dialog h2 { margin: 3px 0 0; }
+.completed-workout-date-dialog p { color: var(--muted); line-height: 1.55; margin: 0; }
 .ai-cardio-review {
     border-bottom: 1px solid var(--rule);
     display: grid;

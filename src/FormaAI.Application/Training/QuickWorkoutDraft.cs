@@ -40,6 +40,10 @@ public sealed class QuickWorkoutDraft(string name = "Trening na dziś", int minu
                 errors.Add($"{exercise.Exercise.Name}: przerwa musi mieścić się w zakresie 0–3600 sekund.");
             if (exercise.IntervalSeconds is < 0 or > 3600)
                 errors.Add($"{exercise.Exercise.Name}: interwał musi mieścić się w zakresie 0–3600 sekund.");
+            if (exercise.WeightKg is < 0 or > 1000)
+                errors.Add($"{exercise.Exercise.Name}: ciężar musi mieścić się w zakresie 0–1000 kg.");
+            if (exercise.CompletedRepetitions is < 1 or > 1000)
+                errors.Add($"{exercise.Exercise.Name}: wykonane powtórzenia muszą mieścić się w zakresie 1–1000.");
         }
 
         return errors;
@@ -65,11 +69,39 @@ public sealed class QuickWorkoutDraft(string name = "Trening na dziś", int minu
                     exercise.RestSeconds,
                     assignment.GroupId,
                     assignment.Position,
-                    assignment.GroupId is null ? null : exercise.IntervalSeconds);
+                    assignment.GroupId is null ? null : exercise.IntervalSeconds,
+                    Enumerable.Range(1, exercise.Sets)
+                        .Select(setNumber => new QuickWorkoutSetPresetRequest(
+                            setNumber,
+                            exercise.WeightKg,
+                            exercise.CompletedRepetitions,
+                            exercise.TargetRir))
+                        .ToList());
             })
             .ToList();
 
         return new StartQuickWorkoutRequest(Name.Trim(), Minutes, exercises);
+    }
+
+    public SaveCompletedWorkoutRequest ToCompletedRequest(DateOnly localDate)
+    {
+        var errors = Validate();
+        if (errors.Count > 0)
+            throw new InvalidOperationException(string.Join(" ", errors));
+
+        return new SaveCompletedWorkoutRequest(
+            localDate,
+            Name.Trim(),
+            Exercises.Select(exercise => new CompletedWorkoutExerciseRequest(
+                exercise.Exercise.Id,
+                exercise.Exercise.Name,
+                Enumerable.Range(0, exercise.Sets)
+                    .Select(_ => new CompletedWorkoutSetRequest(
+                        exercise.WeightKg,
+                        exercise.CompletedRepetitions,
+                        exercise.TargetRir))
+                    .ToList()))
+                .ToList());
     }
 
     private SupersetAssignment[] SupersetAssignments()
@@ -114,5 +146,7 @@ public sealed class QuickWorkoutExerciseDraft(ExerciseResponse exercise, int set
     public decimal? TargetRir { get; set; } = 2;
     public int? RestSeconds { get; set; } = 90;
     public int? IntervalSeconds { get; set; } = 15;
+    public decimal WeightKg { get; set; }
+    public int CompletedRepetitions { get; set; } = 8;
     public bool LinkWithNext { get; set; }
 }

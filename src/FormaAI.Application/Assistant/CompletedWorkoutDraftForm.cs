@@ -5,7 +5,7 @@ namespace FormaAI.Application.Assistant;
 public sealed class CompletedWorkoutDraftForm
 {
     public Guid Id { get; init; }
-    public DateOnly LocalDate { get; init; }
+    public DateOnly LocalDate { get; set; }
     public string Name { get; set; } = string.Empty;
     public List<CompletedWorkoutExerciseForm> Exercises { get; set; } = [];
     public List<CompletedWorkoutCardioForm> Cardio { get; set; } = [];

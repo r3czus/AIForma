@@ -88,7 +88,7 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
             HttpMethod.Post,
             "api/v1/exercises",
             new("Wyciskanie sztangi testowe", FormaAI.Domain.Training.MuscleGroup.Chest, FormaAI.Domain.Training.Equipment.Barbell, false));
-        var localDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        var localDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-4);
 
         _factory.Model.Enqueue(new AssistantModelTurn(null, new AssistantToolCall(
             "create_completed_workout_draft",
@@ -157,6 +157,10 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
         Assert.Equal("Trening klatki — poprawiony", first.Name);
         Assert.Equal(52.5m, first.Exercises.Single().Sets[0].WeightKg);
         Assert.Equal(2, first.Exercises.Single().Sets.Count);
+        Assert.Equal(localDate, DateOnly.FromDateTime(first.StartedAtUtc));
+        Assert.Equal(localDate, DateOnly.FromDateTime(first.FinishedAtUtc!.Value));
+        Assert.All(first.Exercises.Single().Sets, set =>
+            Assert.Equal(localDate, DateOnly.FromDateTime(set.CompletedAtUtc)));
     }
 
     [Fact]

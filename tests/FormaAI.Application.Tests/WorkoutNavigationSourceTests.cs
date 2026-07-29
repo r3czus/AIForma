@@ -476,6 +476,26 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains(".progress-photo-heading > .mud-icon-button", css);
     }
 
+    [Fact]
+    public void WorkoutBuilderOffersDatedCompletedSaveBesideLiveStart()
+    {
+        var builder = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "NewWorkout.razor"));
+        var client = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Services", "TrainingClient.cs"));
+        var dialog = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Components", "Training", "CompletedWorkoutDateDialog.razor"));
+
+        Assert.Contains("<CompletedWorkoutDateDialog", builder);
+        Assert.True(builder.Split(">Zapisz trening</MudButton>", StringSplitOptions.None).Length - 1 >= 2);
+        Assert.Contains("OpenCompletedDateDialog(WorkoutBuilderMode.Ai)", builder);
+        Assert.Contains("OpenCompletedDateDialog(WorkoutBuilderMode.Manual)", builder);
+        Assert.Contains("@bind-Value=\"item.WeightKg\"", builder);
+        Assert.Contains("@bind-Value=\"item.CompletedRepetitions\"", builder);
+        Assert.Contains("TrainingApi.SaveCompleted", builder);
+        Assert.Contains("workout-sessions/completed", client);
+        Assert.Contains("MudDatePicker", dialog);
+        Assert.Contains("MaxDate=\"DateTime.Today\"", dialog);
+        Assert.Contains("Wybierz dzień treningu", dialog);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

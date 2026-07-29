@@ -321,6 +321,78 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         return Created($"api/v1/workout-sessions/{session.Id}", SessionResponse(session));
     }
 
+    [HttpPost("workout-sessions/completed")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult<WorkoutSessionResponse>> SaveCompleted(SaveCompletedWorkoutRequest request)
+    {
+        var userId = UserId();
+        var requestedIds = request.Exercises.Select(x => x.ExerciseId).ToList();
+        if (requestedIds.Distinct().Count() != requestedIds.Count ||
+            request.Exercises.Any(x => x.Sets.Count is < 1 or > 50 ||
+                                       x.Sets.Any(set => set.WeightKg is < 0 or > 1000 ||
+                                                         set.Repetitions is < 1 or > 1000 ||
+                                                         set.Rir is < 0 or > 10)))
+            return ValidationProblem("Sprawdź ćwiczenia, serie, ciężary, powtórzenia i RIR.");
+
+        var zoneId = await db.UserProfiles
+            .Where(x => x.UserId == userId)
+            .Select(x => x.TimeZoneId)
+            .SingleAsync();
+        DateTime occurrenceUtc;
+        try
+        {
+            occurrenceUtc = WorkoutLocalDate.Resolve(
+                request.LocalDate,
+                TimeZoneInfo.FindSystemTimeZoneById(zoneId),
+                DateTime.UtcNow);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return ValidationProblem("Nie można zapisać treningu w przyszłości.");
+        }
+
+        var catalog = await db.Exercises
+            .Include(x => x.MuscleEngagements)
+            .Where(x => requestedIds.Contains(x.Id) &&
+                        x.IsActive &&
+                        (x.OwnerUserId == null || x.OwnerUserId == userId))
+            .ToDictionaryAsync(x => x.Id);
+        if (catalog.Count != requestedIds.Count)
+            return ValidationProblem("Lista zawiera niedostępne ćwiczenie.");
+
+        var session = new WorkoutSession(userId, request.Name, null, occurrenceUtc);
+        for (var index = 0; index < request.Exercises.Count; index++)
+        {
+            var source = request.Exercises[index];
+            var workoutExercise = new WorkoutExercise(
+                catalog[source.ExerciseId],
+                index + 1,
+                source.Sets.Count,
+                source.Sets.Min(x => x.Repetitions),
+                source.Sets.Max(x => x.Repetitions),
+                source.Sets.Select(x => x.Rir).Where(x => x.HasValue).Select(x => x!.Value).DefaultIfEmpty(2).Average(),
+                90);
+            for (var setIndex = 0; setIndex < source.Sets.Count; setIndex++)
+            {
+                var set = source.Sets[setIndex];
+                workoutExercise.Sets.Add(new CompletedSet(
+                    workoutExercise.Id,
+                    setIndex + 1,
+                    set.WeightKg,
+                    set.Repetitions,
+                    set.Rir,
+                    SetType.Working,
+                    occurrenceUtc));
+            }
+            session.Exercises.Add(workoutExercise);
+        }
+
+        session.Finish(SessionStatus.Completed, occurrenceUtc);
+        db.WorkoutSessions.Add(session);
+        await db.SaveChangesAsync();
+        return Created($"api/v1/workout-sessions/{session.Id}", SessionResponse(session));
+    }
+
     [HttpGet("workout-sessions/active")]
     public async Task<ActionResult<WorkoutSessionResponse>> ActiveSession()
     {

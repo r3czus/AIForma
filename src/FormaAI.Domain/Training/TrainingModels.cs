@@ -167,10 +167,10 @@ public sealed class PlannedExercise
 public sealed class WorkoutSession
 {
     private WorkoutSession() { }
-    public WorkoutSession(string userId, string name, int? timeLimitMinutes)
+    public WorkoutSession(string userId, string name, int? timeLimitMinutes, DateTime? startedAtUtc = null)
     {
         Id = Guid.NewGuid(); UserId = userId; NameSnapshot = name.Trim();
-        StartedAtUtc = DateTime.UtcNow; Status = SessionStatus.InProgress;
+        StartedAtUtc = startedAtUtc ?? DateTime.UtcNow; Status = SessionStatus.InProgress;
         TimeLimitMinutes = timeLimitMinutes;
     }
     public WorkoutSession(string userId, TrainingPlan plan, TrainingDay day)
@@ -191,7 +191,7 @@ public sealed class WorkoutSession
     public int? TimeLimitMinutes { get; private set; }
     public List<WorkoutExercise> Exercises { get; private set; } = [];
     public List<WorkoutCardioEntry> CardioEntries { get; private set; } = [];
-    public void Finish(SessionStatus status) { Status = status; FinishedAtUtc = DateTime.UtcNow; }
+    public void Finish(SessionStatus status, DateTime? finishedAtUtc = null) { Status = status; FinishedAtUtc = finishedAtUtc ?? DateTime.UtcNow; }
     public void UpdateNotes(string? notes) => Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
     public void MarkShortened(int minutes) { IsShortened = true; TimeLimitMinutes = minutes; }
 }
@@ -204,7 +204,8 @@ public sealed class WorkoutCardioEntry
         string activityName,
         int durationMinutes,
         decimal? distanceKm,
-        int? averageHeartRate)
+        int? averageHeartRate,
+        DateTime? completedAtUtc = null)
     {
         if (string.IsNullOrWhiteSpace(activityName) || activityName.Trim().Length > 150)
             throw new ArgumentException("Nieprawidłowa nazwa aktywności.", nameof(activityName));
@@ -220,7 +221,7 @@ public sealed class WorkoutCardioEntry
         DurationMinutes = durationMinutes;
         DistanceKm = distanceKm;
         AverageHeartRate = averageHeartRate;
-        CompletedAtUtc = DateTime.UtcNow;
+        CompletedAtUtc = completedAtUtc ?? DateTime.UtcNow;
     }
     public Guid Id { get; private set; }
     public Guid WorkoutSessionId { get; private set; }
@@ -387,10 +388,10 @@ public sealed class WorkoutExerciseMuscleEngagement
 public sealed class CompletedSet
 {
     private CompletedSet() { }
-    public CompletedSet(Guid workoutExerciseId, int setNumber, decimal weightKg, int repetitions, decimal? rir, SetType type)
+    public CompletedSet(Guid workoutExerciseId, int setNumber, decimal weightKg, int repetitions, decimal? rir, SetType type, DateTime? completedAtUtc = null)
     {
         Id = Guid.NewGuid(); WorkoutExerciseId = workoutExerciseId; SetNumber = setNumber; WeightKg = weightKg; Repetitions = repetitions;
-        Rir = rir; Type = type; CompletedAtUtc = DateTime.UtcNow;
+        Rir = rir; Type = type; CompletedAtUtc = completedAtUtc ?? DateTime.UtcNow;
     }
     public Guid Id { get; private set; }
     public Guid WorkoutExerciseId { get; private set; }

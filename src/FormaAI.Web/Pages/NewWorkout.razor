@@ -167,9 +167,7 @@
                                        Size="Size.Large"
                                        StartIcon="@Icons.Material.Outlined.CheckCircle"
                                        Disabled="@(_saving || AiValidationErrors.Count > 0)"
-                                       OnClick="SaveAiWorkoutAsCompleted">
-                                @(_saving ? "Zapisuję…" : "Zapisz jako wykonany")
-                            </MudButton>
+                                       OnClick="() => OpenCompletedDateDialog(WorkoutBuilderMode.Ai)">Zapisz trening</MudButton>
                             <MudButton Variant="Variant.Filled"
                                        Color="Color.Primary"
                                        Size="Size.Large"
@@ -256,6 +254,8 @@
                                     <MudNumericField @bind-Value="item.TargetRir" Label="RIR" Min="0m" Max="10m" HideSpinButtons="true" />
                                     <MudNumericField @bind-Value="item.RestSeconds" Label="Przerwa (s)" Min="0" Max="3600" HideSpinButtons="true" />
                                     <MudNumericField @bind-Value="item.IntervalSeconds" Label="Interwał (s)" Min="0" Max="3600" HideSpinButtons="true" Disabled="@(!item.LinkWithNext && (currentIndex == 0 || !_manualDraft.Exercises[currentIndex - 1].LinkWithNext))" />
+                                    <MudNumericField @bind-Value="item.WeightKg" Label="Wykonany ciężar (kg)" Min="0m" Max="1000m" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="item.CompletedRepetitions" Label="Wykonane powt." Min="1" Max="1000" HideSpinButtons="true" />
                                 </div>
                                 @if (currentIndex < _manualDraft.Exercises.Count - 1)
                                 {
@@ -277,19 +277,34 @@
                 }
                 <div class="workout-start-bar">
                     <span><strong>@_manualDraft.Exercises.Count ćwiczeń</strong><small>@_manualDraft.Exercises.Sum(x => x.Sets) zaplanowanych serii · @_manualDraft.Minutes min</small></span>
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               Size="Size.Large"
-                               StartIcon="@Icons.Material.Filled.PlayArrow"
-                               Disabled="_saving"
-                               OnClick="StartManualWorkout">
-                        @(_saving ? "Rozpoczynam…" : "Rozpocznij trening")
-                    </MudButton>
+                    <div class="workout-start-actions">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Outlined.CheckCircle"
+                                   Disabled="@(_saving || ManualValidationErrors.Count > 0)"
+                                   OnClick="() => OpenCompletedDateDialog(WorkoutBuilderMode.Manual)">Zapisz trening</MudButton>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   Disabled="_saving"
+                                   OnClick="StartManualWorkout">
+                            @(_saving ? "Rozpoczynam…" : "Rozpocznij trening")
+                        </MudButton>
+                    </div>
                 </div>
             </section>
         }
     }
 </MudContainer>
+
+<CompletedWorkoutDateDialog Open="_completedDateDialogOpen"
+                            Date="_completedDate"
+                            DateChanged="date => _completedDate = date"
+                            Saving="_saving"
+                            OnSave="SaveWorkoutAsCompleted"
+                            OnClose="CloseCompletedDateDialog" />
 
 @code {
     private WorkoutBuilderMode _mode;
@@ -304,6 +319,9 @@
     private bool _searching;
     private bool _saving;
     private bool _showManualErrors;
+    private bool _completedDateDialogOpen;
+    private DateTime? _completedDate = DateTime.Today;
+    private WorkoutBuilderMode _completedSaveMode;
     private int _searchVersion;
 
     private IReadOnlyList<ExerciseResponse> AvailableExercises =>
@@ -415,14 +433,55 @@
         }
     }
 
-    private async Task SaveAiWorkoutAsCompleted()
+    private void OpenCompletedDateDialog(WorkoutBuilderMode mode)
     {
-        if (_aiDraft is null || AiValidationErrors.Count > 0 || _saving) return;
+        if (mode == WorkoutBuilderMode.Ai && (_aiDraft is null || AiValidationErrors.Count > 0))
+            return;
+        if (mode == WorkoutBuilderMode.Manual)
+        {
+            _showManualErrors = true;
+            if (ManualValidationErrors.Count > 0)
+                return;
+        }
+
+        _completedSaveMode = mode;
+        _completedDate = mode == WorkoutBuilderMode.Ai && _aiDraft is not null
+            ? _aiDraft.LocalDate.ToDateTime(TimeOnly.MinValue)
+            : DateTime.Today;
+        _completedDateDialogOpen = true;
+    }
+
+    private void CloseCompletedDateDialog()
+    {
+        if (_saving) return;
+        _completedDateDialogOpen = false;
+        _completedSaveMode = WorkoutBuilderMode.None;
+    }
+
+    private async Task SaveWorkoutAsCompleted()
+    {
+        if (_completedDate is null || _completedDate.Value.Date > DateTime.Today || _saving)
+            return;
+        var localDate = DateOnly.FromDateTime(_completedDate.Value);
         _saving = true;
         try
         {
-            await AssistantApi.UpdateCompletedWorkout(_aiDraft.Id, _aiDraft.ToRequest());
-            await AssistantApi.ConfirmCompletedWorkout(_aiDraft.Id);
+            if (_completedSaveMode == WorkoutBuilderMode.Ai && _aiDraft is not null)
+            {
+                _aiDraft.LocalDate = localDate;
+                await AssistantApi.UpdateCompletedWorkout(_aiDraft.Id, _aiDraft.ToRequest());
+                await AssistantApi.ConfirmCompletedWorkout(_aiDraft.Id);
+            }
+            else if (_completedSaveMode == WorkoutBuilderMode.Manual)
+            {
+                await TrainingApi.SaveCompleted(_manualDraft.ToCompletedRequest(localDate));
+            }
+            else
+            {
+                return;
+            }
+
+            _completedDateDialogOpen = false;
             Snackbar.Add("Trening został zapisany jako wykonany.", Severity.Success);
             Navigation.NavigateTo("/training");
         }

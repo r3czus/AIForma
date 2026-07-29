@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using FormaAI.Application.Assistant;
 using FormaAI.Application.Nutrition;
+using FormaAI.Application.Training;
 using FormaAI.Contracts.Assistant;
 using FormaAI.Contracts.Nutrition;
 using FormaAI.Domain.Assistant;
@@ -566,11 +567,12 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
 
         var payload = CompletedWorkoutPayload(draft);
         await ValidateCompletedWorkout(userId, payload, cancellationToken);
+        var occurrenceUtc = await CompletedWorkoutOccurrenceUtc(userId, payload.LocalDate, cancellationToken);
         var exerciseIds = payload.Exercises.Select(x => x.ExerciseId).Distinct().ToList();
         var exercises = await db.Exercises
             .Where(x => exerciseIds.Contains(x.Id) && x.IsActive && (x.OwnerUserId == null || x.OwnerUserId == userId))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
-        var session = new WorkoutSession(userId, payload.Name, null);
+        var session = new WorkoutSession(userId, payload.Name, null, occurrenceUtc);
         foreach (var cardio in payload.Cardio ?? [])
         {
             session.CardioEntries.Add(new WorkoutCardioEntry(
@@ -578,7 +580,8 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
                 cardio.ActivityName,
                 cardio.DurationMinutes,
                 cardio.DistanceKm,
-                cardio.AverageHeartRate));
+                cardio.AverageHeartRate,
+                occurrenceUtc));
         }
         for (var index = 0; index < payload.Exercises.Count; index++)
         {
@@ -602,11 +605,12 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
                     set.WeightKg,
                     set.Repetitions,
                     set.Rir,
-                    SetType.Working));
+                    SetType.Working,
+                    occurrenceUtc));
             }
             session.Exercises.Add(workoutExercise);
         }
-        session.Finish(SessionStatus.Completed);
+        session.Finish(SessionStatus.Completed, occurrenceUtc);
         db.WorkoutSessions.Add(session);
         draft.Confirm(session.Id);
         await db.SaveChangesAsync(cancellationToken);
@@ -643,6 +647,22 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
             cancellationToken);
         if (count != ids.Count)
             throw new ArgumentException("exercise_not_found");
+        _ = await CompletedWorkoutOccurrenceUtc(userId, payload.LocalDate, cancellationToken);
+    }
+
+    private async Task<DateTime> CompletedWorkoutOccurrenceUtc(
+        string userId,
+        DateOnly localDate,
+        CancellationToken cancellationToken)
+    {
+        var zoneId = await db.UserProfiles
+            .Where(x => x.UserId == userId)
+            .Select(x => x.TimeZoneId)
+            .SingleAsync(cancellationToken);
+        return WorkoutLocalDate.Resolve(
+            localDate,
+            TimeZoneInfo.FindSystemTimeZoneById(zoneId),
+            DateTime.UtcNow);
     }
 
     private async Task<WorkoutSession> WorkoutSession(

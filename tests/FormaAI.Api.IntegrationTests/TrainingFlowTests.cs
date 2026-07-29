@@ -410,6 +410,60 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
+    [Fact]
+    public async Task UserCanSaveCompletedWorkoutOnPastDateWithoutActiveSession()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "completed-past-workout@example.test");
+        var exercise = await CreateExercise(client, "Wyciskanie historyczne", MuscleGroup.Chest, Equipment.Barbell);
+        var localDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-3);
+        var request = new SaveCompletedWorkoutRequest(
+            localDate,
+            "Zaległa góra",
+            [new CompletedWorkoutExerciseRequest(
+                exercise.Id,
+                exercise.Name,
+                [new(80, 8, 2), new(80, 8, 2), new(80, 7, 1)])]);
+
+        var saved = await Send<SaveCompletedWorkoutRequest, WorkoutSessionResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/workout-sessions/completed",
+            request);
+
+        Assert.Equal(SessionStatus.Completed, saved.Status);
+        Assert.Equal(localDate, DateOnly.FromDateTime(saved.StartedAtUtc));
+        Assert.Equal(localDate, DateOnly.FromDateTime(saved.FinishedAtUtc!.Value));
+        Assert.Equal(3, saved.Exercises.Single().Sets.Count);
+        using var active = await client.GetAsync("api/v1/workout-sessions/active");
+        Assert.Equal(HttpStatusCode.NotFound, active.StatusCode);
+        var history = await client.GetFromJsonAsync<List<ExerciseHistoryEntry>>($"api/v1/exercises/{exercise.Id}/history");
+        Assert.Equal(3, history!.Count);
+        Assert.All(history, entry => Assert.Equal(localDate, DateOnly.FromDateTime(entry.CompletedAtUtc)));
+    }
+
+    [Fact]
+    public async Task CompletedWorkoutRejectsFutureDateWithoutCreatingSession()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "completed-future-workout@example.test");
+        var exercise = await CreateExercise(client, "Przysiad z przyszłości", MuscleGroup.Quadriceps, Equipment.Barbell);
+        var request = new SaveCompletedWorkoutRequest(
+            DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1),
+            "Przyszły trening",
+            [new CompletedWorkoutExerciseRequest(exercise.Id, exercise.Name, [new(100, 5, 2)])]);
+
+        using var response = await client.SendAsync(await Request(
+            client,
+            HttpMethod.Post,
+            "api/v1/workout-sessions/completed",
+            request));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var active = await client.GetAsync("api/v1/workout-sessions/active");
+        Assert.Equal(HttpStatusCode.NotFound, active.StatusCode);
+    }
+
     private static Task<ExerciseResponse> CreateExercise(HttpClient client, string name, MuscleGroup group, Equipment equipment) =>
         Send<SaveExerciseRequest, ExerciseResponse>(client, HttpMethod.Post, "api/v1/exercises", new(name, group, equipment, false));
 

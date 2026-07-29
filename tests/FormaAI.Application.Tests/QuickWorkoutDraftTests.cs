@@ -53,6 +53,37 @@ public sealed class QuickWorkoutDraftTests
         Assert.Throws<InvalidOperationException>(() => draft.ToRequest());
     }
 
+    [Fact]
+    public void DraftBuildsLivePresetsAndCompletedSetsFromEnteredPerformance()
+    {
+        var draft = new QuickWorkoutDraft("Zaległy trening", 45);
+        draft.Exercises.Add(new QuickWorkoutExerciseDraft(Exercise("Wyciskanie"), 3)
+        {
+            WeightKg = 82.5m,
+            CompletedRepetitions = 8,
+            TargetRir = 2
+        });
+
+        var live = Assert.Single(draft.ToRequest().Exercises);
+        var completed = Assert.Single(draft.ToCompletedRequest(new DateOnly(2026, 7, 20)).Exercises);
+
+        Assert.Equal(3, live.Presets!.Count);
+        Assert.All(live.Presets, set =>
+        {
+            Assert.Equal(82.5m, set.WeightKg);
+            Assert.Equal(8, set.Repetitions);
+            Assert.Equal(2, set.Rir);
+        });
+        Assert.Equal(new DateOnly(2026, 7, 20), draft.ToCompletedRequest(new DateOnly(2026, 7, 20)).LocalDate);
+        Assert.Equal(3, completed.Sets.Count);
+        Assert.All(completed.Sets, set =>
+        {
+            Assert.Equal(82.5m, set.WeightKg);
+            Assert.Equal(8, set.Repetitions);
+            Assert.Equal(2, set.Rir);
+        });
+    }
+
     private static ExerciseResponse Exercise(string name) =>
         new(Guid.NewGuid(), name, MuscleGroup.FullBody, Equipment.Barbell, false, false);
 }

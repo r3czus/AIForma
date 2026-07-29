@@ -1,0 +1,50 @@
+@if (Open)
+{
+    <div class="completed-workout-date-backdrop" @onclick="Close">
+        <section class="completed-workout-date-dialog"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="completed-workout-date-title"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span class="card-kicker">Zapis ukończonego treningu</span>
+                    <h2 id="completed-workout-date-title">Wybierz dzień treningu</h2>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                               Disabled="Saving"
+                               OnClick="Close"
+                               aria-label="Zamknij" />
+            </header>
+            <p>Trening trafi od razu do historii jako wykonany. Możesz wybrać dzisiaj albo wcześniejszy dzień.</p>
+            <MudDatePicker Label="Data treningu"
+                           Date="Date"
+                           DateChanged="ChangeDate"
+                           MaxDate="DateTime.Today"
+                           DateFormat="dd.MM.yyyy"
+                           Disabled="Saving" />
+            <footer>
+                <MudButton Variant="Variant.Text" Disabled="Saving" OnClick="Close">Anuluj</MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="@(Saving || Date is null || Date.Value.Date > DateTime.Today)"
+                           OnClick="Save">
+                    @(Saving ? "Zapisuję…" : "Zapisz trening")
+                </MudButton>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public DateTime? Date { get; set; }
+    [Parameter] public EventCallback<DateTime?> DateChanged { get; set; }
+    [Parameter] public bool Saving { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private Task ChangeDate(DateTime? value) => DateChanged.InvokeAsync(value);
+    private Task Save() => OnSave.InvokeAsync();
+    private Task Close() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
+}
