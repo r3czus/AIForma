@@ -30,6 +30,7 @@ html, body {
 }
 
 html, body, #app { max-width: 100%; }
+html { scrollbar-gutter: stable; }
 body { overflow-x: clip; }
 
 body {
@@ -2460,10 +2461,11 @@ body:has(.workout-live-skeleton) .page-content { padding: 0; }
     display: block;
     height: 100%;
     object-fit: cover;
+    pointer-events: none;
     width: 100%;
 }
 .exercise-media-frame-placeholder,
-.exercise-media-paused {
+.exercise-media-playback {
     align-items: center;
     background: #101915;
     border: 0;
@@ -2478,15 +2480,29 @@ body:has(.workout-live-skeleton) .page-content { padding: 0; }
     text-align: center;
     width: 100%;
 }
-.exercise-media-paused {
+.exercise-media-playback {
+    backdrop-filter: blur(12px);
+    background: rgb(9 16 13 / .72);
+    border: 1px solid rgb(255 255 255 / .28);
+    border-radius: 999px;
+    bottom: 14px;
     cursor: pointer;
     font: inherit;
+    height: auto;
+    left: 50%;
     min-height: 44px;
+    min-width: 112px;
+    padding: 8px 14px;
+    position: absolute;
+    transform: translateX(-50%);
     transition: transform 140ms cubic-bezier(.23, 1, .32, 1), background-color 180ms ease;
+    width: auto;
+    z-index: 3;
 }
-.exercise-media-paused:active { transform: scale(.98); }
+.exercise-media-playback:active { transform: translateX(-50%) scale(.98); }
 .exercise-media-frame-placeholder .mud-icon-root,
-.exercise-media-paused .mud-icon-root { color: #8fd8ba; font-size: 2.25rem; }
+.exercise-media-playback .mud-icon-root { color: #8fd8ba; font-size: 1.35rem; }
+.exercise-media-playback span { font-size: .76rem; font-weight: 750; }
 .exercise-media-frame-placeholder.compact-gif { gap: 2px; padding: 8px; }
 .exercise-media-frame-placeholder.compact-gif .mud-icon-root { font-size: 1.6rem; }
 .exercise-media-frame-placeholder.compact-gif span { font: 700 .65rem "IBM Plex Mono", monospace; }
@@ -2655,7 +2671,11 @@ body:has(.workout-live-skeleton) .page-content { padding: 0; }
     width: 100%;
 }
 .live-set-row.saved { cursor: pointer; }
-.live-set-row.active { background: var(--action-soft); padding-block: 5px; }
+.live-set-row.active {
+    background: var(--action-soft);
+    box-shadow: inset 0 0 0 2px var(--action);
+    padding-block: 5px;
+}
 .live-set-row.active.invalid {
     background: color-mix(in srgb, var(--danger) 7%, var(--surface));
 }
@@ -2708,7 +2728,12 @@ body:has(.workout-live-skeleton) .page-content { padding: 0; }
     justify-content: center;
     padding: 24px;
     position: fixed;
+    overscroll-behavior: none;
     z-index: 120;
+}
+body:has(.workout-sheet-backdrop) {
+    overflow: hidden;
+    overscroll-behavior: none;
 }
 .workout-sheet {
     background: var(--surface);
@@ -2741,6 +2766,7 @@ body:has(.workout-options-sheet) .bottom-nav { display: none; }
     gap: 0;
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 0 20px max(20px, env(safe-area-inset-bottom));
 }
 .workout-option-row {
@@ -2797,10 +2823,12 @@ body:has(.workout-options-sheet) .bottom-nav { display: none; }
     margin: 0;
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 20px 20px max(20px, env(safe-area-inset-bottom));
 }
 .workout-swap-sheet {
-    background: #fff;
+    background: var(--surface);
+    color: var(--ink);
     display: flex;
     flex-direction: column;
     max-height: min(920px, calc(100dvh - 48px));
@@ -2841,6 +2869,9 @@ body:has(.workout-swap-sheet) .bottom-nav { display: none; }
 .swap-sheet-title { font-size: 1.15rem; margin: 18px 20px 0; }
 .workout-swap-sheet .swap-search { margin: 12px 20px 0; }
 .workout-swap-sheet .swap-search .mud-input-control-input-container { min-height: 52px; }
+.workout-swap-sheet .mud-input,
+.workout-swap-sheet .mud-input-label,
+.workout-swap-sheet .mud-select-input { color: var(--ink); }
 .swap-filter {
     align-items: center;
     display: grid;
@@ -2861,6 +2892,7 @@ body:has(.workout-swap-sheet) .bottom-nav { display: none; }
     flex: 1;
     min-height: 180px;
     overflow-y: auto;
+    overscroll-behavior: contain;
 }
 .workout-swap-sheet .swap-exercise-results {
     flex: 1 1 auto;
@@ -2907,7 +2939,8 @@ body:has(.workout-swap-sheet) .bottom-nav { display: none; }
 }
 .swap-result.selected .swap-result-action { background: var(--action); color: #fff; }
 .swap-loading-state,
-.swap-empty-state {
+.swap-empty-state,
+.workout-auxiliary-state {
     align-items: center;
     color: var(--muted);
     display: flex;
@@ -2920,6 +2953,17 @@ body:has(.workout-swap-sheet) .bottom-nav { display: none; }
 }
 .swap-loading-state { min-height: 190px; }
 .swap-empty-state .mud-icon-root { color: var(--action); font-size: 2rem; }
+.swap-empty-state.error .mud-icon-root,
+.workout-auxiliary-state.error .mud-icon-root { color: var(--danger); }
+.workout-auxiliary-state { min-height: 220px; }
+.workout-inline-state {
+    align-items: center;
+    color: var(--muted);
+    display: flex;
+    gap: 10px;
+    min-height: 52px;
+}
+.workout-inline-state.error { color: var(--danger); justify-content: space-between; }
 .swap-exercise-actions {
     align-items: center;
     background: var(--surface);
@@ -3032,14 +3076,14 @@ body:has(.workout-swap-sheet) .bottom-nav { display: none; }
 .workout-muscle-row > i::after { background: var(--action); content: ""; inset: 0 auto 0 0; position: absolute; width: var(--engagement); }
 
 @media (hover: hover) and (pointer: fine) {
-    .exercise-media-paused:hover { background: #17251f; }
+    .exercise-media-playback:hover { background: #17251f; }
     .live-set-row.saved:hover,
     .swap-exercise-results .swap-result:hover { background: var(--action-soft); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .exercise-media-paused { transition: background-color 180ms ease; }
-    .exercise-media-paused:active { transform: none; }
+    .exercise-media-playback { transition: background-color 180ms ease; }
+    .exercise-media-playback:active { transform: translateX(-50%); }
     .skeleton-block::after { animation: none; }
     .workout-sheet,
     .workout-exercise-hero,

@@ -32,17 +32,24 @@ public sealed class WorkoutNavigationSourceTests
     {
         var workout = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
         var heroPath = SourcePath("src", "FormaAI.Web", "Components", "Training", "WorkoutExerciseHero.razor");
+        var mediaPath = SourcePath("src", "FormaAI.Web", "Components", "Training", "ExerciseMediaFrame.razor");
         var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
 
         Assert.True(File.Exists(heroPath), "The gesture-aware exercise hero component must exist.");
 
         var hero = File.ReadAllText(heroPath);
+        var media = File.ReadAllText(mediaPath);
         Assert.Contains("<WorkoutExerciseHero", workout);
         Assert.Contains("live-workout-surface", workout);
         Assert.Contains("@onpointerdown=\"HandlePointerDown\"", hero);
         Assert.Contains("@onpointerup=\"HandlePointerUp\"", hero);
-        Assert.Contains("SwipeThreshold", hero);
+        Assert.Contains("WorkoutSwipeDecision.TargetIndex", hero);
         Assert.Contains("if (!args.IsPrimary || _pointerStartX is null || _pointerStartY is null) return;", hero);
+        Assert.DoesNotContain("controls=\"@AllowPlayback\"", media);
+        Assert.Contains("exercise-media-playback", media);
+        Assert.Contains("@onpointerdown:stopPropagation=\"true\"", media);
+        Assert.Contains("TogglePlayback", media);
+        Assert.Contains("formaMotion.setMediaPlayback", media);
         Assert.Contains("OnHistory=\"OpenHistory\"", workout);
         Assert.Contains("OnSwap=\"() => BeginSwap(exercise)\"", workout);
         Assert.Contains("OnMenu=\"OpenWorkoutMenu\"", workout);
@@ -105,13 +112,14 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("_swapSimilarOnly", source);
         Assert.Contains("SwapOptions", source);
         Assert.Contains(".Where(x => !used.Contains(x.Id))", source);
-        Assert.Contains("private bool _catalogLoading = true;", source);
+        Assert.Contains("private bool _catalogLoading;", source);
+        Assert.Contains("private bool _catalogError;", source);
         Assert.Contains("@if (_catalogLoading)", source);
         Assert.Contains("_catalogLoading = false;", source);
         Assert.Contains("<ExerciseMediaFrame Exercise=\"option\"", source);
         Assert.Contains("swap-result-action", source);
         Assert.Contains("Disabled=\"@(_selectedExerciseId is null || _swapping)\"", source);
-        Assert.Contains("if (_selectedExerciseId is null) return;", source);
+        Assert.Contains("if (_selectedExerciseId is null || _swapping) return;", source);
         Assert.Contains("_swapping = true;", source);
         Assert.Contains("_swapping = false;", source);
         Assert.Contains("SwapExplanation(exercise)", source);
@@ -140,10 +148,15 @@ public sealed class WorkoutNavigationSourceTests
 
         var sheet = File.ReadAllText(sheetPath);
         Assert.Contains("Dictionary<Guid, IReadOnlyList<ExerciseHistoryEntry>> _history", workout);
-        Assert.Contains("_history[exerciseId] = await TrainingApi.GetHistory(exerciseId)", workout);
+        Assert.Contains("LoadHistoryAsync", workout);
+        Assert.Contains("catch (HttpRequestException)", workout);
+        Assert.Contains("_historyStates[exerciseId] = AuxiliaryLoadState.Error;", workout);
         Assert.Contains("history.FirstOrDefault() is { } last", workout);
         Assert.Contains("<WorkoutHistorySheet", workout);
         Assert.Contains("OnClose=\"() => _historyOpen = false\"", workout);
+        Assert.Contains("IsLoading=\"@(historyState == AuxiliaryLoadState.Loading)\"", workout);
+        Assert.Contains("Error=\"@(historyState == AuxiliaryLoadState.Error)\"", workout);
+        Assert.Contains("OnRetry=\"RetryActiveHistory\"", workout);
         Assert.DoesNotContain("NavigateTo(\"/exercise", workout);
         Assert.Contains("role=\"dialog\"", sheet);
         Assert.Contains("aria-modal=\"true\"", sheet);
@@ -156,6 +169,14 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("Historia", sheet);
         Assert.Contains("Wykres", sheet);
         Assert.Contains("Technika", sheet);
+        Assert.Contains("role=\"tablist\"", sheet);
+        Assert.Contains("role=\"tab\"", sheet);
+        Assert.Contains("aria-selected", sheet);
+        Assert.Contains("aria-controls", sheet);
+        Assert.Contains("role=\"tabpanel\"", sheet);
+        Assert.Contains("id=\"workout-history-panel-", sheet);
+        Assert.Contains("Href=\"@($\"/training/exercises/{Exercise.Id}\")\"", sheet);
+        Assert.Contains("OnRetry.InvokeAsync", sheet);
         Assert.Contains("TakeLast(8)", sheet);
         Assert.Contains("GroupBy(x => x.CompletedAtUtc.ToLocalTime().Date)", sheet);
         Assert.Contains(".workout-history-sheet", css);
@@ -255,6 +276,10 @@ public sealed class WorkoutNavigationSourceTests
     {
         var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
         var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
+        var addExercise = Section(source, "private async Task AddExercise()", "private async Task SaveNotes()");
+        var saveNotes = Section(source, "private async Task SaveNotes()", "private async Task Reload()");
+        var complete = Section(source, "private async Task Complete()", "private async Task Decide(");
+        var abandon = Section(source, "private async Task Abandon()", "private static decimal ExerciseVolume");
 
         Assert.Contains("@if (_workoutMenuOpen)", source);
         Assert.Contains("workout-sheet workout-options-sheet", source);
@@ -269,6 +294,28 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("Dodaj ćwiczenie", source);
         Assert.Contains("Notatka do treningu", source);
         Assert.Contains("workout-session-metrics", source);
+        Assert.Contains("if (_addingExercise || _selectedExerciseId is null)", source);
+        Assert.Contains("if (_savingNotes)", source);
+        Assert.Contains("if (_completing || _abandoning)", source);
+        Assert.Contains("if (_abandoning || _completing)", source);
+        Assert.Contains("_addingExercise = true;", source);
+        Assert.Contains("_savingNotes = true;", source);
+        Assert.Contains("_completing = true;", source);
+        Assert.Contains("_abandoning = true;", source);
+        Assert.Contains("Disabled=\"@(_selectedExerciseId is null || _addingExercise)\"", source);
+        Assert.Contains("Disabled=\"_savingNotes\"", source);
+        Assert.Contains("Disabled=\"@(_completing || _abandoning)\"", source);
+        Assert.Contains("Disabled=\"@(_abandoning || _completing)\"", source);
+        Assert.Contains("_catalogError", source);
+        Assert.Contains("RetryCatalog", source);
+        Assert.Contains("catch (HttpRequestException)", addExercise);
+        Assert.Contains("_addingExercise = false;", addExercise);
+        Assert.Contains("catch (HttpRequestException)", saveNotes);
+        Assert.Contains("_savingNotes = false;", saveNotes);
+        Assert.Contains("catch (HttpRequestException)", complete);
+        Assert.Contains("_completing = false;", complete);
+        Assert.Contains("catch (HttpRequestException)", abandon);
+        Assert.Contains("_abandoning = false;", abandon);
         Assert.Contains("Zakończ i zobacz podsumowanie", source);
         Assert.Contains("Porzuć trening", source);
         Assert.Contains("_workoutMenuOpen = true;", source);
@@ -328,6 +375,40 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("Zakończ trening cardio", source);
     }
 
+    [Fact]
+    public void LiveWorkoutIsolatesAuxiliaryFailuresAndKeepsPerformanceStateTruthful()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+        var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
+        var initialization = Section(source, "protected override async Task OnParametersSetAsync()", "private async Task LoadCatalogAsync()");
+        var estimate = Section(source, "private decimal? BestEstimatedOneRepMax", "private static decimal EstimatedOneRepMax");
+
+        Assert.Contains("_ = LoadCatalogAsync();", source);
+        Assert.Contains("_ = LoadHistoryAsync(exercise, seedForm: !presetApplied);", initialization);
+        Assert.DoesNotContain("await TrainingApi.GetExercises", initialization);
+        Assert.DoesNotContain("await TrainingApi.GetHistory", initialization);
+        Assert.Contains("private async Task LoadCatalogAsync()", source);
+        Assert.Contains("private async Task LoadHistoryAsync", source);
+        Assert.Contains("_catalogError = true;", source);
+        Assert.Contains("AuxiliaryLoadState", source);
+        Assert.Contains("BestEstimatedOneRepMax(exercise) is decimal bestEstimate", source);
+        Assert.DoesNotContain("DefaultIfEmpty().Max()", source);
+        Assert.Contains("_history.TryGetValue(exerciseId, out var history)", estimate);
+        Assert.Contains("x.WeightKg > 0 && x.Repetitions > 0", estimate);
+        Assert.Contains("return estimates.Count == 0 ? null : estimates.Max();", estimate);
+        Assert.Contains("exercise.Sets.Count/@exercise.PlannedSets", source);
+        Assert.Contains("body:has(.workout-sheet-backdrop)", css);
+        Assert.Contains("overflow: hidden", css);
+        Assert.Contains("overscroll-behavior: none", css);
+        Assert.Contains("overscroll-behavior: contain", css);
+        Assert.Contains("box-shadow: inset 0 0 0 2px var(--action)", css);
+        Assert.DoesNotContain(".workout-swap-sheet {\n    background: #fff;", css.Replace("\r\n", "\n"));
+
+        var heroIndex = source.IndexOf("<WorkoutExerciseHero", StringComparison.Ordinal);
+        var cardioIndex = source.IndexOf("mixed-session-cardio", StringComparison.Ordinal);
+        Assert.True(cardioIndex > heroIndex, "Mixed-session cardio must not precede the exercise hero.");
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -335,5 +416,14 @@ public sealed class WorkoutNavigationSourceTests
             directory = directory.Parent;
         Assert.NotNull(directory);
         return Path.Combine([directory.FullName, .. parts]);
+    }
+
+    private static string Section(string source, string start, string end)
+    {
+        var startIndex = source.IndexOf(start, StringComparison.Ordinal);
+        Assert.True(startIndex >= 0, $"Missing section start: {start}");
+        var endIndex = source.IndexOf(end, startIndex + start.Length, StringComparison.Ordinal);
+        Assert.True(endIndex > startIndex, $"Missing section end: {end}");
+        return source[startIndex..endIndex];
     }
 }

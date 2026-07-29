@@ -14,41 +14,62 @@
     }
     else if (IsVideo)
     {
-        @if (AllowPlayback && MotionPreferenceLoaded && !MotionAllowed)
-        {
-            <button type="button" class="exercise-media-paused" @onclick="EnableMotion">
-                <MudIcon Icon="@Icons.Material.Outlined.MotionPhotosPaused" />
-                <span>Pokaż film</span>
-            </button>
-        }
-        else
-        {
-            <video src="@Exercise.MediaUrl"
-                   muted
-                   playsinline
-                   controls="@AllowPlayback"
-                   autoplay="@(AllowPlayback && MotionAllowed)"
-                   loop="@(AllowPlayback && MotionAllowed)"
-                   preload="metadata"
-                   aria-label="@Alt"></video>
-        }
-    }
-    else if (IsGif && (!AllowPlayback || !MotionPreferenceLoaded || !MotionAllowed))
-    {
+        <video @ref="_video"
+               src="@Exercise.MediaUrl"
+               muted
+               playsinline
+               loop="@AllowPlayback"
+               preload="metadata"
+               tabindex="-1"
+               aria-label="@Alt"></video>
         @if (AllowPlayback)
         {
-            <button type="button" class="exercise-media-paused" @onclick="EnableMotion">
-                <MudIcon Icon="@Icons.Material.Outlined.MotionPhotosPaused" />
-                <span>Pokaż animację GIF</span>
+            <button type="button"
+                    class="exercise-media-playback"
+                    aria-pressed="@_isPlaying"
+                    aria-label="@(_isPlaying ? "Wstrzymaj film" : "Odtwórz film")"
+                    @onpointerdown:stopPropagation="true"
+                    @onpointerup:stopPropagation="true"
+                    @onclick:stopPropagation="true"
+                    @onclick="TogglePlayback">
+                <MudIcon Icon="@(_isPlaying ? Icons.Material.Outlined.Pause : Icons.Material.Outlined.PlayArrow)" />
+                <span>@(_isPlaying ? "Pauza" : "Odtwórz")</span>
             </button>
+        }
+    }
+    else if (IsGif && AllowPlayback)
+    {
+        @if (_isPlaying)
+        {
+            <img src="@Exercise.MediaUrl"
+                 alt="@Alt"
+                 loading="eager" />
         }
         else
         {
-            <div class="exercise-media-frame-placeholder compact-gif">
+            <div class="exercise-media-frame-placeholder">
                 <MudIcon Icon="@Icons.Material.Outlined.GifBox" />
-                <span>GIF</span>
+                <span>Animacja GIF jest wstrzymana</span>
             </div>
         }
+        <button type="button"
+                class="exercise-media-playback"
+                aria-pressed="@_isPlaying"
+                aria-label="@(_isPlaying ? "Wstrzymaj animację GIF" : "Odtwórz animację GIF")"
+                @onpointerdown:stopPropagation="true"
+                @onpointerup:stopPropagation="true"
+                @onclick:stopPropagation="true"
+                @onclick="TogglePlayback">
+            <MudIcon Icon="@(_isPlaying ? Icons.Material.Outlined.Pause : Icons.Material.Outlined.PlayArrow)" />
+            <span>@(_isPlaying ? "Pauza" : "Odtwórz")</span>
+        </button>
+    }
+    else if (IsGif)
+    {
+        <div class="exercise-media-frame-placeholder compact-gif">
+            <MudIcon Icon="@Icons.Material.Outlined.GifBox" />
+            <span>GIF</span>
+        </div>
     }
     else
     {
@@ -65,32 +86,57 @@
     [Parameter] public bool AllowPlayback { get; set; }
     [Parameter] public string? Class { get; set; }
 
-    private bool MotionPreferenceLoaded { get; set; }
-    private bool MotionAllowed { get; set; }
+    private ElementReference _video;
+    private string? _mediaKey;
+    private bool _motionInitialized;
+    private bool _isPlaying;
     private bool IsGif => string.Equals(Exercise?.MediaContentType, "image/gif", StringComparison.OrdinalIgnoreCase);
     private bool IsVideo => Exercise?.MediaContentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true;
 
+    protected override void OnParametersSet()
+    {
+        var mediaKey = $"{Exercise?.MediaUrl}|{Exercise?.MediaContentType}|{AllowPlayback}";
+        if (string.Equals(mediaKey, _mediaKey, StringComparison.Ordinal))
+            return;
+
+        _mediaKey = mediaKey;
+        _motionInitialized = false;
+        _isPlaying = false;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || !AllowPlayback || (!IsGif && !IsVideo))
+        if (_motionInitialized || !AllowPlayback || (!IsGif && !IsVideo))
+            return;
+
+        _motionInitialized = true;
+        try
+        {
+            _isPlaying = await JS.InvokeAsync<bool>("formaMotion.allowsMotion");
+            if (IsVideo)
+                await JS.InvokeVoidAsync("formaMotion.setMediaPlayback", _video, _isPlaying);
+        }
+        catch (JSException)
+        {
+            _isPlaying = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task TogglePlayback()
+    {
+        _isPlaying = !_isPlaying;
+        if (!IsVideo)
             return;
 
         try
         {
-            MotionAllowed = await JS.InvokeAsync<bool>("formaMotion.allowsMotion");
+            await JS.InvokeVoidAsync("formaMotion.setMediaPlayback", _video, _isPlaying);
         }
         catch (JSException)
         {
-            MotionAllowed = true;
+            _isPlaying = false;
         }
-
-        MotionPreferenceLoaded = true;
-        StateHasChanged();
-    }
-
-    private void EnableMotion()
-    {
-        MotionAllowed = true;
-        MotionPreferenceLoaded = true;
     }
 }

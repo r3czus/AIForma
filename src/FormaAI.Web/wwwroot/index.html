@@ -70,7 +70,15 @@
             return { ready, done };
         })();
         window.formaMotion = {
-            allowsMotion: () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            allowsMotion: () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+            setMediaPlayback: (media, shouldPlay) => {
+                if (!media) return;
+                if (shouldPlay) {
+                    media.play().catch(() => {});
+                } else {
+                    media.pause();
+                }
+            }
         };
     </script>
 </body>

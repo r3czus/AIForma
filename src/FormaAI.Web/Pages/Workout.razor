@@ -23,21 +23,6 @@
     }
     else
     {
-        @if (_session.CardioEntries is { Count: > 0 })
-        {
-            <section class="workout-cardio-summary">
-                <span class="card-kicker">Cardio w tej sesji</span>
-                @foreach (var cardio in _session.CardioEntries)
-                {
-                    <div>
-                        <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
-                        <strong>@cardio.ActivityName</strong>
-                        <span>@cardio.DurationMinutes min@if (cardio.DistanceKm is not null) { <text> · @cardio.DistanceKm.GetValueOrDefault().ToString("0.##") km</text> }</span>
-                    </div>
-                }
-            </section>
-        }
-
         @if (_completed)
         {
             <header class="workout-heading">
@@ -60,6 +45,20 @@
                     <div><span>Objętość</span><strong>@SessionVolume.ToString("0") kg</strong></div>
                     <div><span>Powtórzenia</span><strong>@TotalRepetitions</strong></div>
                 </div>
+                @if (_session.CardioEntries is { Count: > 0 })
+                {
+                    <section class="workout-cardio-summary">
+                        <span class="card-kicker">Cardio w tej sesji</span>
+                        @foreach (var cardio in _session.CardioEntries)
+                        {
+                            <div>
+                                <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
+                                <strong>@cardio.ActivityName</strong>
+                                <span>@cardio.DurationMinutes min@if (cardio.DistanceKm is not null) { <text> · @cardio.DistanceKm.GetValueOrDefault().ToString("0.##") km</text> }</span>
+                            </div>
+                        }
+                    </section>
+                }
                 @if (_trainingCalories > 0)
                 {
                     <div class="workout-calorie-result"><MudIcon Icon="@Icons.Material.Outlined.LocalFireDepartment" /><span>Dodatkowe kalorie na dziś</span><strong>+@_trainingCalories.ToString("0") kcal</strong></div>
@@ -86,7 +85,10 @@
                     {
                         <article>
                             <div><strong>@exercise.ExerciseName</strong><span>@exercise.Sets.Count z @exercise.PlannedSets serii · @ExerciseVolume(exercise).ToString("0") kg objętości</span></div>
-                            <span>e1RM <strong>@BestEstimatedOneRepMax(exercise).ToString("0.#") kg</strong></span>
+                            @if (BestEstimatedOneRepMax(exercise) is decimal bestEstimate)
+                            {
+                                <span>e1RM <strong>@bestEstimate.ToString("0.#") kg</strong></span>
+                            }
                         </article>
                     }
                 </div>
@@ -125,7 +127,10 @@
                             @if (exercise.TargetRir is not null) { <span> · RIR @exercise.TargetRir</span> }
                         </p>
                     </div>
-                    <span class="live-e1rm">1RM <strong>@BestEstimatedOneRepMax(exercise).ToString("0.#")</strong></span>
+                    @if (BestEstimatedOneRepMax(exercise) is decimal bestEstimate)
+                    {
+                        <span class="live-e1rm">1RM <strong>@bestEstimate.ToString("0.#")</strong></span>
+                    }
                 </header>
 
                 @if (exercise.Presets is { Count: > 0 })
@@ -155,7 +160,7 @@
                                         <div>
                                             <span class="card-kicker">Aktualne ćwiczenie</span>
                                             <strong>@exercise.ExerciseName</strong>
-                                            <small>@exercise.PlannedSets serie × @exercise.MinReps-@exercise.MaxReps powt.</small>
+                                            <small>@exercise.Sets.Count/@exercise.PlannedSets serii wykonanych · @exercise.MinReps-@exercise.MaxReps powt.</small>
                                         </div>
                                     </section>
                                 </header>
@@ -193,6 +198,15 @@
                                         <div class="swap-loading-state">
                                             <MudProgressCircular Indeterminate="true" Size="Size.Small" />
                                             <span>Ładowanie zamienników…</span>
+                                        </div>
+                                    }
+                                    else if (_catalogError)
+                                    {
+                                        <div class="swap-empty-state error" role="alert">
+                                            <MudIcon Icon="@Icons.Material.Outlined.CloudOff" />
+                                            <strong>Nie udało się pobrać katalogu ćwiczeń</strong>
+                                            <span>Zapisywanie serii nadal działa. Spróbuj ponownie, aby wybrać zamiennik.</span>
+                                            <MudButton Variant="Variant.Outlined" OnClick="RetryCatalog">Spróbuj ponownie</MudButton>
                                         </div>
                                     }
                                     else
@@ -331,30 +345,75 @@
                                         </details>
                                         <details class="workout-option-details">
                                             <summary>Dodaj ćwiczenie</summary>
-                                            <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Ćwiczenie">
-                                                @foreach (var option in _catalog)
-                                                {
-                                                    <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem>
-                                                }
-                                            </MudSelect>
-                                            <MudButton Variant="Variant.Outlined" FullWidth="true"
-                                                       Disabled="@(_selectedExerciseId is null)"
-                                                       OnClick="AddExercise">Dodaj do sesji</MudButton>
+                                            @if (_catalogLoading)
+                                            {
+                                                <div class="workout-inline-state" role="status">
+                                                    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                                                    <span>Ładowanie katalogu…</span>
+                                                </div>
+                                            }
+                                            else if (_catalogError)
+                                            {
+                                                <div class="workout-inline-state error" role="alert">
+                                                    <span>Nie udało się pobrać katalogu.</span>
+                                                    <MudButton Variant="Variant.Text" OnClick="RetryCatalog">Spróbuj ponownie</MudButton>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Ćwiczenie">
+                                                    @foreach (var option in _catalog)
+                                                    {
+                                                        <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem>
+                                                    }
+                                                </MudSelect>
+                                                <MudButton Variant="Variant.Outlined"
+                                                           FullWidth="true"
+                                                           Disabled="@(_selectedExerciseId is null || _addingExercise)"
+                                                           OnClick="AddExercise">
+                                                    @(_addingExercise ? "Dodaję…" : "Dodaj do sesji")
+                                                </MudButton>
+                                            }
                                         </details>
                                         <details class="workout-option-details">
                                             <summary>Notatka do treningu</summary>
                                             <MudTextField @bind-Value="_sessionNotes" Label="Notatka" Lines="3" MaxLength="1000" />
-                                            <MudButton Variant="Variant.Text" FullWidth="true" OnClick="SaveNotes">Zapisz notatkę</MudButton>
+                                            <MudButton Variant="Variant.Text"
+                                                       FullWidth="true"
+                                                       Disabled="_savingNotes"
+                                                       OnClick="SaveNotes">
+                                                @(_savingNotes ? "Zapisuję…" : "Zapisz notatkę")
+                                            </MudButton>
                                         </details>
+                                        @if (_session.CardioEntries is { Count: > 0 })
+                                        {
+                                            <section class="workout-cardio-summary mixed-session-cardio">
+                                                <span class="card-kicker">Cardio w tej sesji</span>
+                                                @foreach (var cardio in _session.CardioEntries)
+                                                {
+                                                    <div>
+                                                        <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
+                                                        <strong>@cardio.ActivityName</strong>
+                                                        <span>@cardio.DurationMinutes min@if (cardio.DistanceKm is not null) { <text> · @cardio.DistanceKm.GetValueOrDefault().ToString("0.##") km</text> }</span>
+                                                    </div>
+                                                }
+                                            </section>
+                                        }
                                         <div class="workout-session-metrics">
                                             <span><small>Czas</small><strong>@FormatElapsed(_elapsed)</strong></span>
                                             <span><small>Postęp</small><strong>@SessionPercent%</strong></span>
                                             <span><small>Serie</small><strong>@CompletedSets/@PlannedSets</strong></span>
                                         </div>
                                         <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
-                                                   OnClick="Complete">Zakończ i zobacz podsumowanie</MudButton>
+                                                   Disabled="@(_completing || _abandoning)"
+                                                   OnClick="Complete">
+                                            @(_completing ? "Kończę…" : "Zakończ i zobacz podsumowanie")
+                                        </MudButton>
                                         <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true"
-                                                   OnClick="Abandon">Porzuć trening</MudButton>
+                                                   Disabled="@(_abandoning || _completing)"
+                                                   OnClick="Abandon">
+                                            @(_abandoning ? "Porzucam…" : "Porzuć trening")
+                                        </MudButton>
                                     </div>
                                 }
                             </section>
@@ -504,8 +563,30 @@
             <section class="cardio-only-workout">
                 <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
                 <div><span class="page-kicker">Cardio gotowe do zapisania</span><h2>@_session.Name</h2><p>Sprawdź rozpoznany czas i zakończ sesję, aby zapisać ją w historii.</p></div>
-                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ trening cardio</MudButton>
-                <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
+                <section class="workout-cardio-summary">
+                    @foreach (var cardio in _session.CardioEntries)
+                    {
+                        <div>
+                            <MudIcon Icon="@Icons.Material.Outlined.DirectionsRun" />
+                            <strong>@cardio.ActivityName</strong>
+                            <span>@cardio.DurationMinutes min@if (cardio.DistanceKm is not null) { <text> · @cardio.DistanceKm.GetValueOrDefault().ToString("0.##") km</text> }</span>
+                        </div>
+                    }
+                </section>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           FullWidth="true"
+                           Disabled="@(_completing || _abandoning)"
+                           OnClick="Complete">
+                    @(_completing ? "Kończę…" : "Zakończ trening cardio")
+                </MudButton>
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Error"
+                           FullWidth="true"
+                           Disabled="@(_abandoning || _completing)"
+                           OnClick="Abandon">
+                    @(_abandoning ? "Porzucam…" : "Porzuć trening")
+                </MudButton>
             </section>
         }
     }
@@ -516,8 +597,14 @@
     var history = _history.TryGetValue(historyExercise.Id, out var entries)
         ? entries
         : Array.Empty<ExerciseHistoryEntry>();
+    var historyState = _historyStates.TryGetValue(historyExercise.Id, out var state)
+        ? state
+        : AuxiliaryLoadState.NotLoaded;
     <WorkoutHistorySheet Exercise="historyExercise"
                          History="history"
+                         IsLoading="@(historyState == AuxiliaryLoadState.Loading)"
+                         Error="@(historyState == AuxiliaryLoadState.Error)"
+                         OnRetry="RetryActiveHistory"
                          OnClose="() => _historyOpen = false" />
 }
 
@@ -527,8 +614,10 @@
     private WorkoutSessionResponse? _session;
     private readonly Dictionary<Guid, SetForm> _forms = [];
     private readonly Dictionary<Guid, IReadOnlyList<ExerciseHistoryEntry>> _history = [];
+    private readonly Dictionary<Guid, AuxiliaryLoadState> _historyStates = [];
     private IReadOnlyList<ExerciseResponse> _catalog = [];
-    private bool _catalogLoading = true;
+    private bool _catalogLoading;
+    private bool _catalogError;
     private readonly List<string> _newRecords = [];
     private IReadOnlyList<ExerciseProgressionResponse> _progressions = [];
     private Guid? _swapTargetId;
@@ -539,6 +628,10 @@
     private bool _swapSimilarOnly;
     private bool _swapping;
     private bool _savingSet;
+    private bool _addingExercise;
+    private bool _savingNotes;
+    private bool _completing;
+    private bool _abandoning;
     private bool _supersetBuilderOpen;
     private bool _savingSuperset;
     private readonly List<Guid> _supersetExerciseIds = [];
@@ -579,10 +672,22 @@
         }
     }
     private WorkoutExerciseResponse? ActiveExercise => OrderedExercises.ElementAtOrDefault(_activeExerciseIndex);
-    private ExerciseResponse? ActiveExerciseMedia =>
-        ActiveExercise?.ExerciseId is Guid exerciseId ? _catalog.FirstOrDefault(x => x.Id == exerciseId) : null;
-    private ExerciseResponse? SupersetExerciseMedia(WorkoutExerciseResponse exercise) =>
-        exercise.ExerciseId is Guid exerciseId ? _catalog.FirstOrDefault(x => x.Id == exerciseId) : null;
+    private ExerciseResponse? ActiveExerciseMedia => ExerciseDetails(ActiveExercise);
+    private ExerciseResponse? SupersetExerciseMedia(WorkoutExerciseResponse exercise) => ExerciseDetails(exercise);
+    private ExerciseResponse? ExerciseDetails(WorkoutExerciseResponse? exercise)
+    {
+        if (exercise?.ExerciseId is not Guid exerciseId)
+            return null;
+
+        return _catalog.FirstOrDefault(x => x.Id == exerciseId)
+            ?? new ExerciseResponse(
+                exerciseId,
+                exercise.ExerciseName,
+                MuscleGroup.FullBody,
+                Equipment.Other,
+                false,
+                false);
+    }
     private IReadOnlyList<WorkoutExerciseResponse> SupersetMembers =>
         ActiveExercise?.SupersetGroupId is Guid groupId
             ? OrderedExercises.Where(x => x.SupersetGroupId == groupId).OrderBy(x => x.SupersetPosition).ToList()
@@ -611,44 +716,110 @@
     {
         await Reload();
         _completed = _session!.Status == SessionStatus.Completed;
-        if (_completed)
-        {
-            _progressions = await TrainingApi.GetProgressions(Id);
-            await LoadTrainingCalories();
-        }
         _elapsed = (_session.FinishedAtUtc ?? DateTime.UtcNow) - _session.StartedAtUtc;
-        _catalogLoading = true;
-        try
-        {
-            _catalog = await TrainingApi.GetExercises();
-        }
-        finally
-        {
-            _catalogLoading = false;
-        }
 
         foreach (var exercise in _session.Exercises)
         {
             _forms.TryAdd(exercise.Id, new SetForm());
             var presetApplied = exercise.Sets.Count == 0 && ApplyNextPreset(exercise, _forms[exercise.Id]);
-            if (exercise.ExerciseId is Guid exerciseId && !_history.ContainsKey(exerciseId))
-            {
-                _history[exerciseId] = await TrainingApi.GetHistory(exerciseId);
-                if (_history[exerciseId].FirstOrDefault() is { } last && exercise.Sets.Count == 0 && !presetApplied)
-                {
-                    _forms[exercise.Id].WeightKg = last.WeightKg;
-                    _forms[exercise.Id].Repetitions = last.Repetitions;
-                    _forms[exercise.Id].Rir = last.Rir;
-                }
-            }
+            _ = LoadHistoryAsync(exercise, seedForm: !presetApplied);
         }
 
+        _ = LoadCatalogAsync();
+        if (_completed)
+            _ = LoadCompletionDataAsync();
         _activeExerciseIndex = Math.Clamp(_activeExerciseIndex, 0, Math.Max(0, OrderedExercises.Count - 1));
         if (!_completed && _clockCancellation is null)
         {
             _clockCancellation = new CancellationTokenSource();
             _ = RunClock(_clockCancellation.Token);
         }
+    }
+
+    private async Task LoadCatalogAsync()
+    {
+        if (_catalogLoading)
+            return;
+
+        _catalogLoading = true;
+        _catalogError = false;
+        try
+        {
+            _catalog = await TrainingApi.GetExercises();
+        }
+        catch (HttpRequestException)
+        {
+            _catalogError = true;
+        }
+        finally
+        {
+            _catalogLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private Task RetryCatalog() => LoadCatalogAsync();
+
+    private async Task LoadHistoryAsync(WorkoutExerciseResponse exercise, bool seedForm = false)
+    {
+        if (exercise.ExerciseId is not Guid exerciseId ||
+            (_historyStates.TryGetValue(exerciseId, out var state) &&
+             state is AuxiliaryLoadState.Loading or AuxiliaryLoadState.Loaded))
+            return;
+
+        _historyStates[exerciseId] = AuxiliaryLoadState.Loading;
+        var form = _forms[exercise.Id];
+        var weightBeforeLoad = form.WeightKg;
+        var repetitionsBeforeLoad = form.Repetitions;
+        var rirBeforeLoad = form.Rir;
+        try
+        {
+            var history = await TrainingApi.GetHistory(exerciseId);
+            _history[exerciseId] = history;
+            _historyStates[exerciseId] = AuxiliaryLoadState.Loaded;
+            if (seedForm &&
+                exercise.Sets.Count == 0 &&
+                form.WeightKg == weightBeforeLoad &&
+                form.Repetitions == repetitionsBeforeLoad &&
+                form.Rir == rirBeforeLoad &&
+                history.FirstOrDefault() is { } last)
+            {
+                form.WeightKg = last.WeightKg;
+                form.Repetitions = last.Repetitions;
+                form.Rir = last.Rir;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _historyStates[exerciseId] = AuxiliaryLoadState.Error;
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task LoadCompletionDataAsync()
+    {
+        try
+        {
+            _progressions = await TrainingApi.GetProgressions(Id);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się pobrać rekomendacji progresji.", Severity.Warning);
+        }
+
+        try
+        {
+            await LoadTrainingCalories();
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się pobrać kalorii z treningu.", Severity.Warning);
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task SaveSet(WorkoutExerciseResponse exercise, SetForm form)
@@ -667,8 +838,13 @@
             var request = new SaveSetRequest(exercise.Id, setNumber, form.WeightKg, form.Repetitions, form.Rir, form.IsWarmup ? SetType.Warmup : SetType.Working, form.Notes);
             if (form.SetId is Guid setId) await TrainingApi.UpdateSet(Id, setId, request); else await TrainingApi.SaveSet(Id, request);
 
-            if (!form.IsWarmup && exercise.ExerciseId is Guid exerciseId &&
-                (!_history.TryGetValue(exerciseId, out var history) || history.FirstOrDefault() is not { } last || form.WeightKg > last.WeightKg))
+            if (!form.IsWarmup &&
+                exercise.ExerciseId is Guid exerciseId &&
+                _historyStates.TryGetValue(exerciseId, out var historyState) &&
+                historyState == AuxiliaryLoadState.Loaded &&
+                (!_history.TryGetValue(exerciseId, out var history) ||
+                 history.FirstOrDefault() is not { } last ||
+                 form.WeightKg > last.WeightKg))
                 if (!_newRecords.Contains(exercise.ExerciseName)) _newRecords.Add(exercise.ExerciseName);
 
             await Reload();
@@ -745,7 +921,20 @@
     private void PreviousExercise() => SelectExercise(_activeExerciseIndex - 1);
     private void NextExercise() => SelectExercise(_activeExerciseIndex + 1);
     private void BackToTraining() => Navigation.NavigateTo("/training");
-    private void OpenHistory() => _historyOpen = true;
+    private void OpenHistory()
+    {
+        _historyOpen = true;
+        if (ActiveExercise is { } exercise)
+            _ = LoadHistoryAsync(exercise);
+    }
+    private Task RetryActiveHistory()
+    {
+        if (ActiveExercise is not { ExerciseId: Guid exerciseId } exercise)
+            return Task.CompletedTask;
+
+        _historyStates[exerciseId] = AuxiliaryLoadState.NotLoaded;
+        return LoadHistoryAsync(exercise);
+    }
     private void OpenWorkoutMenu() => _workoutMenuOpen = true;
     private void CloseWorkoutMenu()
     {
@@ -788,15 +977,14 @@
 
     private async Task ReplaceExercise(WorkoutExerciseResponse exercise)
     {
-        if (_selectedExerciseId is null) return;
+        if (_selectedExerciseId is null || _swapping) return;
         _swapping = true;
         try
         {
             var replacement = await TrainingApi.ReplaceExercise(Id, exercise.Id, _selectedExerciseId.Value);
             await Reload();
             _forms.TryAdd(replacement.Id, new SetForm());
-            if (replacement.ExerciseId is Guid replacementExerciseId && !_history.ContainsKey(replacementExerciseId))
-                _history[replacementExerciseId] = await TrainingApi.GetHistory(replacementExerciseId);
+            _ = LoadHistoryAsync(replacement, seedForm: true);
             _activeExerciseIndex = OrderedExercises.ToList().FindIndex(x => x.Id == replacement.Id);
             Snackbar.Add(exercise.Sets.Count == 0 ? "Ćwiczenie zostało zamienione." : "Wykonane serie zostały zachowane, a zamiennik dodany jako następne ćwiczenie.", Severity.Success);
             CancelSwap();
@@ -886,18 +1074,49 @@
 
     private async Task AddExercise()
     {
-        if (_selectedExerciseId is null) return;
-        await TrainingApi.AddExercise(Id, new AddWorkoutExerciseRequest(_selectedExerciseId.Value));
-        _selectedExerciseId = null;
-        await Reload();
-        foreach (var item in _session!.Exercises) _forms.TryAdd(item.Id, new SetForm());
-        _activeExerciseIndex = OrderedExercises.Count - 1;
+        if (_addingExercise || _selectedExerciseId is null)
+            return;
+
+        _addingExercise = true;
+        try
+        {
+            var added = await TrainingApi.AddExercise(Id, new AddWorkoutExerciseRequest(_selectedExerciseId.Value));
+            _session = _session! with { Exercises = [.. _session.Exercises, added] };
+            _forms.TryAdd(added.Id, new SetForm());
+            _ = LoadHistoryAsync(added, seedForm: true);
+            _selectedExerciseId = null;
+            _activeExerciseIndex = OrderedExercises.Count - 1;
+            Snackbar.Add("Ćwiczenie dodane do sesji.", Severity.Success);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się dodać ćwiczenia. Wybór został zachowany.", Severity.Error);
+        }
+        finally
+        {
+            _addingExercise = false;
+        }
     }
 
     private async Task SaveNotes()
     {
-        await TrainingApi.SaveNotes(Id, _sessionNotes);
-        Snackbar.Add("Notatka zapisana.", Severity.Success);
+        if (_savingNotes)
+            return;
+
+        _savingNotes = true;
+        try
+        {
+            await TrainingApi.SaveNotes(Id, _sessionNotes);
+            Snackbar.Add("Notatka zapisana.", Severity.Success);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się zapisać notatki. Treść została zachowana.", Severity.Error);
+        }
+        finally
+        {
+            _savingNotes = false;
+        }
     }
 
     private async Task Reload() => _session = await TrainingApi.GetSession(Id);
@@ -965,12 +1184,32 @@
 
     private async Task Complete()
     {
-        await TrainingApi.Complete(Id);
-        _clockCancellation?.Cancel();
-        _completed = true;
-        _timerRunning = false;
-        _progressions = await TrainingApi.GetProgressions(Id);
-        await LoadTrainingCalories();
+        if (_completing || _abandoning)
+            return;
+
+        _completing = true;
+        try
+        {
+            await TrainingApi.Complete(Id);
+            _clockCancellation?.Cancel();
+            _completed = true;
+            _timerRunning = false;
+            _session = _session! with
+            {
+                Status = SessionStatus.Completed,
+                FinishedAtUtc = DateTime.UtcNow
+            };
+            _ = LoadCompletionDataAsync();
+            Snackbar.Add("Trening został zakończony.", Severity.Success);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się zakończyć treningu. Spróbuj ponownie.", Severity.Error);
+        }
+        finally
+        {
+            _completing = false;
+        }
     }
 
     private async Task Decide(ExerciseProgressionResponse item, ProgressionDecision decision)
@@ -989,12 +1228,43 @@
 
     private async Task Abandon()
     {
-        await TrainingApi.Abandon(Id);
-        Navigation.NavigateTo("/training");
+        if (_abandoning || _completing)
+            return;
+
+        _abandoning = true;
+        try
+        {
+            await TrainingApi.Abandon(Id);
+            Navigation.NavigateTo("/training");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Nie udało się porzucić treningu. Sesja pozostaje aktywna.", Severity.Error);
+        }
+        finally
+        {
+            _abandoning = false;
+        }
     }
 
     private static decimal ExerciseVolume(WorkoutExerciseResponse exercise) => exercise.Sets.Where(x => x.SetType == SetType.Working).Sum(x => x.WeightKg * x.Repetitions);
-    private static decimal BestEstimatedOneRepMax(WorkoutExerciseResponse exercise) => exercise.Sets.Where(x => x.SetType == SetType.Working).Select(x => x.WeightKg * (1 + x.Repetitions / 30m)).DefaultIfEmpty().Max();
+    private decimal? BestEstimatedOneRepMax(WorkoutExerciseResponse exercise)
+    {
+        var estimates = exercise.Sets
+            .Where(x => x.SetType == SetType.Working && x.WeightKg > 0 && x.Repetitions > 0)
+            .Select(x => EstimatedOneRepMax(x.WeightKg, x.Repetitions))
+            .ToList();
+        if (exercise.ExerciseId is Guid exerciseId && _history.TryGetValue(exerciseId, out var history))
+        {
+            estimates.AddRange(history
+                .Where(x => x.WeightKg > 0 && x.Repetitions > 0)
+                .Select(x => EstimatedOneRepMax(x.WeightKg, x.Repetitions)));
+        }
+
+        return estimates.Count == 0 ? null : estimates.Max();
+    }
+    private static decimal EstimatedOneRepMax(decimal weightKg, int repetitions) =>
+        repetitions <= 1 ? weightKg : weightKg * (1 + repetitions / 30m);
     private static string FormatTime(int seconds) => $"{seconds / 60:00}:{seconds % 60:00}";
     private static string FormatElapsed(TimeSpan elapsed) => $"{(int)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
     private static decimal SuggestedWeight(decimal weight) => Math.Ceiling((weight + (weight < 30 ? 1.25m : 2.5m)) * 4m) / 4m;
@@ -1032,6 +1302,7 @@
     }
 
     private enum TimerMode { None, Rest, Interval }
+    private enum AuxiliaryLoadState { NotLoaded, Loading, Loaded, Error }
 
     private sealed class SetForm
     {

@@ -7,109 +7,181 @@
                  tabindex="-1"
                  @onkeydown="HandleKeyDown"
                  @onclick:stopPropagation="true">
-        <header class="workout-sheet-header">
-            <MudIconButton Icon="@Icons.Material.Outlined.ArrowBack"
-                           OnClick="() => OnClose.InvokeAsync()"
-                           aria-label="Wróć do aktywnego treningu" />
-            <strong>FORMA<span>/AI</span></strong>
-            <MudIconButton Icon="@Icons.Material.Outlined.Close"
-                           OnClick="() => OnClose.InvokeAsync()"
-                           aria-label="Zamknij historię ćwiczenia" />
-        </header>
+            <header class="workout-sheet-header">
+                <MudIconButton Icon="@Icons.Material.Outlined.ArrowBack"
+                               OnClick="() => OnClose.InvokeAsync()"
+                               aria-label="Wróć do aktywnego treningu" />
+                <strong>FORMA<span>/AI</span></strong>
+                <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                               OnClick="() => OnClose.InvokeAsync()"
+                               aria-label="Zamknij historię ćwiczenia" />
+            </header>
 
-        <div class="workout-history-content">
-            <section class="workout-history-hero">
-                <ExerciseMediaFrame Exercise="Exercise"
-                                    Alt="@($"Podgląd wykonania: {Exercise.Name}")"
-                                    AllowPlayback="true" />
-                <div>
-                    <h1 id="workout-history-title">@Exercise.Name</h1>
-                    <p><strong>Mięśnie główne</strong><span>@MuscleGroupName(Exercise.MuscleGroup)</span></p>
-                    <p><strong>Sprzęt</strong><span>@EquipmentName(Exercise.Equipment)</span></p>
-                </div>
-            </section>
+            <div class="workout-history-content">
+                <section class="workout-history-hero">
+                    <ExerciseMediaFrame Exercise="Exercise"
+                                        Alt="@($"Podgląd wykonania: {Exercise.Name}")"
+                                        AllowPlayback="true" />
+                    <div>
+                        <h1 id="workout-history-title">@Exercise.Name</h1>
+                        <p><strong>Mięśnie główne</strong><span>@MuscleGroupName(Exercise.MuscleGroup)</span></p>
+                        <p><strong>Sprzęt</strong><span>@EquipmentName(Exercise.Equipment)</span></p>
+                    </div>
+                </section>
 
-            <nav class="workout-history-tabs" aria-label="Informacje o ćwiczeniu">
-                <button type="button" class="@(_tab == 0 ? "active" : null)" @onclick="() => _tab = 0">Historia</button>
-                <button type="button" class="@(_tab == 1 ? "active" : null)" @onclick="() => _tab = 1">Wykres</button>
-                <button type="button" class="@(_tab == 2 ? "active" : null)" @onclick="() => _tab = 2">Technika</button>
-            </nav>
+                <nav class="workout-history-tabs"
+                     role="tablist"
+                     aria-label="Informacje o ćwiczeniu">
+                    <button id="workout-history-tab-history"
+                            type="button"
+                            role="tab"
+                            class="@(_tab == 0 ? "active" : null)"
+                            aria-selected="@(_tab == 0 ? "true" : "false")"
+                            aria-controls="workout-history-panel-history"
+                            @onclick="() => _tab = 0">Historia</button>
+                    <button id="workout-history-tab-chart"
+                            type="button"
+                            role="tab"
+                            class="@(_tab == 1 ? "active" : null)"
+                            aria-selected="@(_tab == 1 ? "true" : "false")"
+                            aria-controls="workout-history-panel-chart"
+                            @onclick="() => _tab = 1">Wykres</button>
+                    <button id="workout-history-tab-technique"
+                            type="button"
+                            role="tab"
+                            class="@(_tab == 2 ? "active" : null)"
+                            aria-selected="@(_tab == 2 ? "true" : "false")"
+                            aria-controls="workout-history-panel-technique"
+                            @onclick="() => _tab = 2">Technika</button>
+                </nav>
 
-            @if (_tab == 0)
-            {
-                <section class="workout-history-list">
-                    @if (History.Count == 0)
-                    {
-                        <div class="module-empty">
-                            <MudIcon Icon="@Icons.Material.Outlined.History" />
-                            <div><strong>Brak zapisanych serii</strong><span>Historia pojawi się po pierwszym ukończonym treningu.</span></div>
-                        </div>
-                    }
-                    @foreach (var group in History.GroupBy(x => x.CompletedAtUtc.ToLocalTime().Date).OrderByDescending(x => x.Key))
-                    {
-                        <article>
-                            <h2><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" /> @group.Key.ToString("dd.MM.yyyy")</h2>
-                            <div class="workout-history-table">
-                                <div><span>Seria</span><span>Ciężar × powt.</span><span>1RM</span></div>
-                                @{ var setNumber = 0; }
-                                @foreach (var set in group.OrderBy(x => x.CompletedAtUtc))
+                @if (_tab == 0)
+                {
+                    <section id="workout-history-panel-history"
+                             class="workout-history-list"
+                             role="tabpanel"
+                             aria-labelledby="workout-history-tab-history">
+                        @if (IsLoading)
+                        {
+                            <div class="workout-auxiliary-state" role="status" aria-live="polite">
+                                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                                <strong>Ładowanie historii…</strong>
+                            </div>
+                        }
+                        else if (Error)
+                        {
+                            <div class="workout-auxiliary-state error" role="alert">
+                                <MudIcon Icon="@Icons.Material.Outlined.CloudOff" />
+                                <strong>Nie udało się pobrać historii</strong>
+                                <span>Aktywny trening nadal działa. Spróbuj ponownie, gdy połączenie wróci.</span>
+                                <MudButton Variant="Variant.Outlined" OnClick="() => OnRetry.InvokeAsync()">Spróbuj ponownie</MudButton>
+                            </div>
+                        }
+                        else if (History.Count == 0)
+                        {
+                            <div class="module-empty">
+                                <MudIcon Icon="@Icons.Material.Outlined.History" />
+                                <div><strong>Brak zapisanych serii</strong><span>Historia pojawi się po pierwszym ukończonym treningu.</span></div>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var group in History.GroupBy(x => x.CompletedAtUtc.ToLocalTime().Date).OrderByDescending(x => x.Key))
+                            {
+                                <article>
+                                    <h2><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" /> @group.Key.ToString("dd.MM.yyyy")</h2>
+                                    <div class="workout-history-table">
+                                        <div><span>Seria</span><span>Ciężar × powt.</span><span>1RM</span></div>
+                                        @{ var setNumber = 0; }
+                                        @foreach (var set in group.OrderBy(x => x.CompletedAtUtc))
+                                        {
+                                            setNumber++;
+                                            <div>
+                                                <span>@setNumber</span>
+                                                <strong>@set.WeightKg.ToString("0.#") kg × @set.Repetitions</strong>
+                                                <strong>@EstimatedOneRepMax(set).ToString("0.#") kg</strong>
+                                            </div>
+                                        }
+                                    </div>
+                                </article>
+                            }
+                        }
+                    </section>
+                }
+                else if (_tab == 1)
+                {
+                    <section id="workout-history-panel-chart"
+                             class="workout-history-chart-panel"
+                             role="tabpanel"
+                             aria-labelledby="workout-history-tab-chart">
+                        <div><span class="card-kicker">Ostatnie wyniki</span><h2>Szacowane 1RM</h2><p>Najlepszy wynik z każdego dnia.</p></div>
+                        @if (IsLoading)
+                        {
+                            <div class="workout-auxiliary-state" role="status" aria-live="polite">
+                                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                                <strong>Ładowanie wykresu…</strong>
+                            </div>
+                        }
+                        else if (Error)
+                        {
+                            <div class="workout-auxiliary-state error" role="alert">
+                                <MudIcon Icon="@Icons.Material.Outlined.CloudOff" />
+                                <strong>Nie udało się pobrać danych wykresu</strong>
+                                <MudButton Variant="Variant.Outlined" OnClick="() => OnRetry.InvokeAsync()">Spróbuj ponownie</MudButton>
+                            </div>
+                        }
+                        else if (ChartPoints.Count == 0)
+                        {
+                            <div class="module-empty">
+                                <MudIcon Icon="@Icons.Material.Outlined.BarChart" />
+                                <div><strong>Brak danych do wykresu</strong><span>Zapisz pierwszą serię, aby zobaczyć trend.</span></div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="workout-history-chart" aria-label="Wykres szacowanego maksymalnego ciężaru">
+                                @foreach (var point in ChartPoints)
                                 {
-                                    setNumber++;
-                                    <div>
-                                        <span>@setNumber</span>
-                                        <strong>@set.WeightKg.ToString("0.#") kg × @set.Repetitions</strong>
-                                        <strong>@EstimatedOneRepMax(set).ToString("0.#") kg</strong>
+                                    <div style="@($"--value:{point.Percent}%")">
+                                        <i></i>
+                                        <strong>@point.Value.ToString("0.#")</strong>
+                                        <span>@point.Date.ToString("dd.MM")</span>
                                     </div>
                                 }
                             </div>
+                        }
+                    </section>
+                }
+                else
+                {
+                    <section id="workout-history-panel-technique"
+                             class="workout-technique-panel"
+                             role="tabpanel"
+                             aria-labelledby="workout-history-tab-technique">
+                        <article>
+                            <span class="card-kicker">Wykonanie</span>
+                            <h2>Opis i wskazówki</h2>
+                            <p>@TechniqueCopy</p>
+                            <MudButton Href="@($"/training/exercises/{Exercise.Id}")"
+                                       Variant="Variant.Outlined"
+                                       EndIcon="@Icons.Material.Outlined.OpenInNew">
+                                Pełne szczegóły ćwiczenia
+                            </MudButton>
                         </article>
-                    }
-                </section>
-            }
-            else if (_tab == 1)
-            {
-                <section class="workout-history-chart-panel">
-                    <div><span class="card-kicker">Ostatnie wyniki</span><h2>Szacowane 1RM</h2><p>Najlepszy wynik z każdego dnia.</p></div>
-                    @if (ChartPoints.Count == 0)
-                    {
-                        <div class="module-empty">
-                            <MudIcon Icon="@Icons.Material.Outlined.BarChart" />
-                            <div><strong>Brak danych do wykresu</strong><span>Zapisz pierwszą serię, aby zobaczyć trend.</span></div>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="workout-history-chart" aria-label="Wykres szacowanego maksymalnego ciężaru">
-                            @foreach (var point in ChartPoints)
+                        <article>
+                            <span class="card-kicker">Zaangażowanie</span>
+                            <h2>Pracujące mięśnie</h2>
+                            @foreach (var engagement in Engagements)
                             {
-                                <div style="@($"--value:{point.Percent}%")">
-                                    <i></i>
-                                    <strong>@point.Value.ToString("0.#")</strong>
-                                    <span>@point.Date.ToString("dd.MM")</span>
+                                <div class="workout-muscle-row">
+                                    <span><strong>@MuscleGroupName(engagement.MuscleGroup)</strong><small>@engagement.Percentage%</small></span>
+                                    <i style="@($"--engagement:{engagement.Percentage}%")"></i>
                                 </div>
                             }
-                        </div>
-                    }
-                </section>
-            }
-            else
-            {
-                <section class="workout-technique-panel">
-                    <article><span class="card-kicker">Wykonanie</span><h2>Opis i wskazówki</h2><p>@TechniqueCopy</p></article>
-                    <article>
-                        <span class="card-kicker">Zaangażowanie</span>
-                        <h2>Pracujące mięśnie</h2>
-                        @foreach (var engagement in Engagements)
-                        {
-                            <div class="workout-muscle-row">
-                                <span><strong>@MuscleGroupName(engagement.MuscleGroup)</strong><small>@engagement.Percentage%</small></span>
-                                <i style="@($"--engagement:{engagement.Percentage}%")"></i>
-                            </div>
-                        }
-                    </article>
-                </section>
-            }
-        </div>
+                        </article>
+                    </section>
+                }
+            </div>
         </section>
     </MudFocusTrap>
 </div>
@@ -117,6 +189,9 @@
 @code {
     [Parameter, EditorRequired] public ExerciseResponse Exercise { get; set; } = default!;
     [Parameter] public IReadOnlyList<ExerciseHistoryEntry> History { get; set; } = [];
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public bool Error { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
 
     private int _tab;
@@ -140,6 +215,7 @@
                 .OrderBy(x => x.Key)
                 .TakeLast(8)
                 .Select(x => new HistoryChartPoint(x.Key, x.Max(EstimatedOneRepMax), 0))
+                .Where(x => x.Value > 0)
                 .ToList();
             var max = values.Select(x => x.Value).DefaultIfEmpty().Max();
             return values

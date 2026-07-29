@@ -9,7 +9,10 @@
                         AllowPlayback="true"
                         Class="workout-hero-media" />
 
-    <div class="workout-hero-actions">
+    <div class="workout-hero-actions"
+         @onpointerdown:stopPropagation="true"
+         @onpointerup:stopPropagation="true"
+         @onclick:stopPropagation="true">
         <MudIconButton Icon="@Icons.Material.Outlined.ArrowBackIosNew"
                        OnClick="() => OnBack.InvokeAsync()"
                        aria-label="Wróć do treningów" />
@@ -41,7 +44,6 @@
 </nav>
 
 @code {
-    private const double SwipeThreshold = 56;
     private double? _pointerStartX;
     private double? _pointerStartY;
 
@@ -70,11 +72,14 @@
         var deltaX = args.ClientX - _pointerStartX.Value;
         var deltaY = args.ClientY - _pointerStartY.Value;
         CancelPointer();
-        if (Math.Abs(deltaX) < SwipeThreshold || Math.Abs(deltaX) <= Math.Abs(deltaY) * 1.25)
-            return;
-        if (deltaX < 0 && ActiveIndex < ExerciseCount - 1)
+        var targetIndex = WorkoutSwipeDecision.TargetIndex(
+            ActiveIndex,
+            ExerciseCount,
+            deltaX,
+            deltaY);
+        if (targetIndex > ActiveIndex)
             await OnNext.InvokeAsync();
-        else if (deltaX > 0 && ActiveIndex > 0)
+        else if (targetIndex < ActiveIndex)
             await OnPrevious.InvokeAsync();
     }
 
