@@ -909,7 +909,11 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .food-page .module-tabs .mud-tab:nth-child(2) { display: none; }
 .set-grid, .set-entry { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 12px 0; }
 .set-entry > :nth-child(3) { grid-column: 1 / -1; }
-.workout-mode { max-width: 760px !important; }
+.workout-mode {
+    animation: none;
+    max-width: 760px !important;
+    transform: none;
+}
 body:has(.workout-mode) .top-bar { display: none; }
 .workout-mode:has(.live-workout-surface),
 .workout-mode:has(.workout-live-skeleton) {
@@ -2532,7 +2536,8 @@ body:has(.workout-live-skeleton) .page-content { padding: 0; }
     position: absolute;
     z-index: 2;
 }
-.workout-hero-actions .mud-icon-button-root {
+.workout-hero-actions .mud-icon-button-root,
+.workout-hero-actions .mud-icon-button {
     backdrop-filter: blur(12px);
     background: rgb(23 33 28 / .62);
     border-radius: 13px;

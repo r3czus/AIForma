@@ -59,6 +59,8 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("aria-label=\"Więcej opcji treningu\"", hero);
         Assert.Contains("aria-current", hero);
         Assert.Contains("touch-action: pan-y", css);
+        Assert.Contains(".workout-hero-actions .mud-icon-button", css);
+        Assert.Contains("animation: none;", css);
         Assert.Contains("min-width: 44px", css);
         Assert.Contains("safe-area-inset-bottom", css);
         Assert.Contains("@media (max-width: 390px)", css);
