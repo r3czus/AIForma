@@ -423,10 +423,36 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Equal(numericControlCount, activeRow.Split("@oninput=\"() => MarkFormInteracted(form)\"", StringSplitOptions.None).Length - 1);
         Assert.Equal(numericControlCount, activeRow.Split("Immediate=\"true\"", StringSplitOptions.None).Length - 1);
         Assert.Contains("private static void MarkFormInteracted(SetForm form)", source);
-        Assert.Contains("form.UserInteracted = true;", source);
-        Assert.Contains("public bool UserInteracted { get; set; }", source);
+        Assert.Contains("form.SeedLifecycle = form.SeedLifecycle.MarkInteracted();", source);
+        Assert.Contains("public WorkoutSetSeedLifecycle SeedLifecycle { get; set; }", source);
+        Assert.Contains("public bool UserInteracted => SeedLifecycle.UserInteracted;", source);
         Assert.Contains("WorkoutSetSeedDecision.CanApplyDelayedHistory", historyLoad);
-        Assert.Contains("WorkoutSetSeedDecision.CanApplyProgrammaticSeed", presetSeed);
+        Assert.Contains("WorkoutSetSeedDecision.NextPresetSetNumber", presetSeed);
+    }
+
+    [Fact]
+    public void LiveWorkoutStartsNewSeedLifecycleBeforeApplyingNextPreset()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+        var historyLoad = Section(source, "private async Task LoadHistoryAsync", "private async Task LoadCompletionDataAsync");
+        var saveSet = Section(source, "private async Task SaveSet", "private void EditSet");
+
+        var reloadIndex = saveSet.IndexOf("await Reload();", StringComparison.Ordinal);
+        var advanceIndex = saveSet.IndexOf("form.SeedLifecycle = form.SeedLifecycle.Advance();", StringComparison.Ordinal);
+        var clearIdentityIndex = saveSet.IndexOf("form.SetId = null;", StringComparison.Ordinal);
+        var applyPresetIndex = saveSet.IndexOf("ApplyNextPreset(refreshedExercise, form);", StringComparison.Ordinal);
+
+        Assert.True(reloadIndex >= 0 && reloadIndex < advanceIndex);
+        Assert.True(advanceIndex < clearIdentityIndex);
+        Assert.True(clearIdentityIndex < applyPresetIndex);
+        Assert.Contains("var seedLifecycleBeforeLoad = form.SeedLifecycle;", historyLoad);
+        Assert.Contains("var completedSetCountBeforeLoad = exercise.Sets.Count;", historyLoad);
+        Assert.Contains("var refreshedExercise = OrderedExercises.FirstOrDefault", historyLoad);
+        Assert.Contains("refreshedExercise?.Sets.Count", historyLoad);
+        var compactHistoryLoad = new string(historyLoad.Where(x => !char.IsWhiteSpace(x)).ToArray());
+        Assert.Contains(
+            "seedLifecycleBeforeLoad,form.SeedLifecycle,completedSetCountBeforeLoad,refreshedCompletedSetCount,",
+            compactHistoryLoad);
     }
 
     private static string SourcePath(params string[] parts)

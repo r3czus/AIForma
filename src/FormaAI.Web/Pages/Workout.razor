@@ -778,16 +778,22 @@
 
         _historyStates[exerciseId] = AuxiliaryLoadState.Loading;
         var form = _forms[exercise.Id];
+        var seedLifecycleBeforeLoad = form.SeedLifecycle;
+        var completedSetCountBeforeLoad = exercise.Sets.Count;
         var formBeforeLoad = new WorkoutSetSeedSnapshot(form.WeightKg, form.Repetitions, form.Rir);
         try
         {
             var history = await TrainingApi.GetHistory(exerciseId);
             _history[exerciseId] = history;
             _historyStates[exerciseId] = AuxiliaryLoadState.Loaded;
+            var refreshedExercise = OrderedExercises.FirstOrDefault(x => x.Id == exercise.Id);
+            var refreshedCompletedSetCount = refreshedExercise?.Sets.Count ?? exercise.Sets.Count;
             if (WorkoutSetSeedDecision.CanApplyDelayedHistory(
                     seedForm,
-                    form.UserInteracted,
-                    exercise.Sets.Count,
+                    seedLifecycleBeforeLoad,
+                    form.SeedLifecycle,
+                    completedSetCountBeforeLoad,
+                    refreshedCompletedSetCount,
                     formBeforeLoad,
                     new WorkoutSetSeedSnapshot(form.WeightKg, form.Repetitions, form.Rir)) &&
                 history.FirstOrDefault() is { } last)
@@ -856,6 +862,7 @@
                 if (!_newRecords.Contains(exercise.ExerciseName)) _newRecords.Add(exercise.ExerciseName);
 
             await Reload();
+            form.SeedLifecycle = form.SeedLifecycle.Advance();
             form.SetId = null;
             form.SetNumber = null;
             form.Notes = null;
@@ -904,6 +911,7 @@
     private void EditSet(WorkoutExerciseResponse exercise, CompletedSetResponse set)
     {
         var form = _forms[exercise.Id];
+        form.SeedLifecycle = form.SeedLifecycle.Advance();
         form.SetId = set.Id;
         form.SetNumber = set.SetNumber;
         form.WeightKg = set.WeightKg;
@@ -916,16 +924,18 @@
 
     private static void MarkFormInteracted(SetForm form)
     {
-        form.UserInteracted = true;
+        form.SeedLifecycle = form.SeedLifecycle.MarkInteracted();
     }
 
     private static bool ApplyNextPreset(WorkoutExerciseResponse exercise, SetForm form)
     {
-        if (!WorkoutSetSeedDecision.CanApplyProgrammaticSeed(form.UserInteracted))
+        var nextNumber = WorkoutSetSeedDecision.NextPresetSetNumber(
+            exercise.Sets.Count(x => x.SetType == SetType.Working),
+            form.SeedLifecycle);
+        if (nextNumber is not int presetSetNumber)
             return false;
 
-        var nextNumber = exercise.Sets.Count(x => x.SetType == SetType.Working) + 1;
-        var preset = exercise.Presets?.FirstOrDefault(x => x.SetNumber == nextNumber);
+        var preset = exercise.Presets?.FirstOrDefault(x => x.SetNumber == presetSetNumber);
         if (preset is null) return false;
         form.WeightKg = preset.WeightKg;
         form.Repetitions = preset.Repetitions;
@@ -1330,6 +1340,7 @@
         public int? SetNumber { get; set; }
         public string? Notes { get; set; }
         public string? ValidationError { get; set; }
-        public bool UserInteracted { get; set; }
+        public WorkoutSetSeedLifecycle SeedLifecycle { get; set; }
+        public bool UserInteracted => SeedLifecycle.UserInteracted;
     }
 }

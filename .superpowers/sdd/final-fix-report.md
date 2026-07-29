@@ -325,3 +325,85 @@ Follow-up files:
 - `src/FormaAI.Web/wwwroot/css/app.css`
 - `tests/FormaAI.Application.Tests/WorkoutSetSeedDecisionTests.cs`
 - `tests/FormaAI.Application.Tests/WorkoutNavigationSourceTests.cs`
+
+## Follow-up: set-entry seed lifecycle
+
+The raw-input fix initially made `UserInteracted` sticky for the lifetime of
+the exercise form. That correctly protected the active entry, but it also
+blocked the next AI preset after a successful manual save. The dirty state is
+now scoped to a generation representing one set-entry lifecycle.
+
+### Lifecycle TDD evidence
+
+First RED, before the lifecycle type existed:
+
+```text
+dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --no-restore --filter "FullyQualifiedName~WorkoutSetSeedDecisionTests|FullyQualifiedName~LiveWorkoutMarksEverySetNumberInputDirtyBeforeDelayedSeeding|FullyQualifiedName~LiveWorkoutStartsNewSeedLifecycleBeforeApplyingNextPreset" --verbosity minimal
+Exit code: 1
+WorkoutSetSeedDecisionTests.cs(8,29): error CS0246: WorkoutSetSeedLifecycle could not be found
+```
+
+After adding only the lifecycle/API shell with seed decisions returning
+`false`, the behavioral/source RED was:
+
+```text
+Exit code: 1
+5 failed, 5 passed, 10 total
+```
+
+Those failures covered untouched history eligibility, pre-interaction preset
+eligibility, lifecycle reset ordering, and the raw-input integration contract.
+
+An additional RED made the actual preset transition explicit:
+
+```text
+Exit code: 1
+WorkoutSetSeedDecisionTests.cs: error CS0117:
+WorkoutSetSeedDecision does not contain NextPresetSetNumber
+```
+
+Focused GREEN:
+
+```text
+Exit code: 0
+0 failed, 10 passed, 10 total
+```
+
+### Lifecycle implementation
+
+- Added `WorkoutSetSeedLifecycle(Generation, UserInteracted)` with
+  `MarkInteracted()` and `Advance()` transitions.
+- Raw input still marks the current lifecycle dirty before parse/blur.
+- After successful persistence and `Reload()`, `SaveSet` advances the
+  lifecycle, resets interaction for the new entry, clears `SetId` and
+  `SetNumber`, then applies the next preset.
+- `NextPresetSetNumber` is a unit-tested production decision: a dirty first
+  entry refuses seeding, while an advanced clean lifecycle with one completed
+  working set selects preset `2`.
+- Entering edit mode also advances the lifecycle, preventing an older history
+  request from treating the edited entry as its original target.
+- A history request captures both its lifecycle generation and completed-set
+  count. On completion it reads the exercise again from refreshed
+  `OrderedExercises` and requires the current generation and current completed
+  count to match the captured values.
+- The delayed-history regression independently rejects a generation mismatch
+  even when counts match, and rejects a refreshed-count mismatch even when the
+  generation matches.
+
+### Lifecycle full verification
+
+```text
+dotnet build FormaAI.sln --no-restore --verbosity minimal
+Exit code: 0
+Build succeeded: 0 errors, 0 warnings
+
+dotnet test FormaAI.sln --no-build --verbosity minimal
+Exit code: 0
+FormaAI.Domain.Tests: 19 passed
+FormaAI.Application.Tests: 109 passed
+FormaAI.Api.IntegrationTests: 33 passed
+Total: 161 passed, 0 failed, 0 skipped
+
+git diff --check
+Exit code: 0
+```
