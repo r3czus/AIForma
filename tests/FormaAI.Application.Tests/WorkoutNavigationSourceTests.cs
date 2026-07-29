@@ -21,7 +21,8 @@ public sealed class WorkoutNavigationSourceTests
 
         Assert.Contains("<WorkoutExerciseHero", source);
         Assert.Contains("workout-superset-strip", source);
-        Assert.Contains("swap-exercise-trigger", source);
+        Assert.Contains("OnSwap=\"() => BeginSwap(exercise)\"", source);
+        Assert.Contains("OnMenu=\"OpenWorkoutMenu\"", source);
         Assert.Contains("live-timer-controls", source);
         Assert.Contains("ApplyNextPreset", source);
     }
@@ -227,13 +228,55 @@ public sealed class WorkoutNavigationSourceTests
     {
         var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
 
-        Assert.Contains("Połącz w superserię", source);
+        Assert.Contains("Połącz lub edytuj kolejność ćwiczeń", source);
         Assert.Contains("SaveSuperset", source);
         Assert.Contains("superset-builder", source);
         Assert.Contains("Liczba rund", source);
         Assert.Contains("_supersetRounds", source);
         Assert.Contains("MoveSupersetExercise", source);
         Assert.Contains("List<Guid> _supersetExerciseIds", source);
+    }
+
+    [Fact]
+    public void LiveWorkoutKeepsSecondarySessionControlsInTheFocusedOptionsSheet()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+        var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "app.css"));
+
+        Assert.Contains("@if (_workoutMenuOpen)", source);
+        Assert.Contains("workout-sheet workout-options-sheet", source);
+        Assert.Contains("<MudFocusTrap DefaultFocus=\"DefaultFocus.FirstChild\">", source);
+        Assert.Contains("aria-modal=\"true\"", source);
+        Assert.Contains("@onkeydown=\"HandleWorkoutMenuKeyDown\"", source);
+        Assert.Contains("keyboardEvent.Key == \"Escape\"", source);
+        Assert.Contains("CloseWorkoutMenu();", source);
+        Assert.Contains("workout-option-row", source);
+        Assert.Contains("Połącz lub edytuj kolejność ćwiczeń", source);
+        Assert.Contains("Notatka i typ aktualnej serii", source);
+        Assert.Contains("Dodaj ćwiczenie", source);
+        Assert.Contains("Notatka do treningu", source);
+        Assert.Contains("workout-session-metrics", source);
+        Assert.Contains("Zakończ i zobacz podsumowanie", source);
+        Assert.Contains("Porzuć trening", source);
+        Assert.Contains("_workoutMenuOpen = true;", source);
+        Assert.Contains("_supersetBuilderOpen = true;", source);
+        Assert.Matches(@"CancelSuperset\(\);\s+CloseWorkoutMenu\(\);", source);
+        Assert.DoesNotContain("swap-exercise-trigger", source);
+        Assert.DoesNotContain("superset-builder-trigger", source);
+        Assert.DoesNotContain("class=\"set-details\"", source);
+        Assert.DoesNotContain("class=\"exercise-page-actions\"", source);
+        Assert.DoesNotContain("class=\"workout-options\"", source);
+        Assert.DoesNotContain("class=\"session-actions\"", source);
+        Assert.Contains("workout-superset-strip", source);
+        Assert.Contains("<ExerciseMediaFrame Exercise=\"@SupersetExerciseMedia(member)\"", source);
+        Assert.Contains(".workout-options-sheet", css);
+        Assert.Contains(".workout-options-content", css);
+        Assert.Contains(".workout-option-row", css);
+        Assert.Contains("min-height: 56px", css);
+        Assert.Contains(".workout-option-details", css);
+        Assert.Contains(".workout-session-metrics", css);
+        Assert.Contains(".workout-options-sheet .superset-builder", css);
+        Assert.Contains("safe-area-inset-bottom", css);
     }
 
     [Fact]

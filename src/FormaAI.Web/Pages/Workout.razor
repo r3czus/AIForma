@@ -133,12 +133,6 @@
                     <span class="ai-preset-badge"><MudIcon Icon="@Icons.Material.Filled.AutoAwesome" /> Serie przygotowane przez AI</span>
                 }
 
-                <div class="exercise-live-actions">
-                    <MudButton Class="swap-exercise-trigger" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.SwapHoriz"
-                               OnClick="() => BeginSwap(exercise)">Zamień ćwiczenie</MudButton>
-                    <MudButton Class="superset-builder-trigger" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Layers"
-                               OnClick="() => BeginSuperset(exercise)">Połącz w superserię</MudButton>
-                </div>
                 @if (_swapTargetId == exercise.Id)
                 {
                     <div class="workout-sheet-backdrop" @onclick="CancelSwap">
@@ -248,8 +242,28 @@
                     </div>
                 }
 
-                @if (_supersetBuilderOpen)
+                @if (_workoutMenuOpen)
                 {
+                    <div class="workout-sheet-backdrop" @onclick="CloseWorkoutMenu">
+                        <MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
+                            <section class="workout-sheet workout-options-sheet"
+                                     role="dialog"
+                                     aria-modal="true"
+                                     aria-labelledby="workout-options-title"
+                                     tabindex="-1"
+                                     @onkeydown="HandleWorkoutMenuKeyDown"
+                                     @onclick:stopPropagation="true">
+                                <header class="workout-sheet-header">
+                                    <div>
+                                        <span class="card-kicker">Aktywna sesja</span>
+                                        <h2 id="workout-options-title">Opcje treningu</h2>
+                                    </div>
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                                                   OnClick="CloseWorkoutMenu"
+                                                   aria-label="Zamknij opcje treningu" />
+                                </header>
+                                @if (_supersetBuilderOpen)
+                                {
                     <section class="superset-builder" aria-label="Utwórz superserię">
                         <header>
                             <div><span class="card-kicker">Superseria</span><strong>Wybierz ćwiczenia wykonywane po sobie</strong></div>
@@ -301,6 +315,51 @@
                             @(_savingSuperset ? "Łączę…" : $"Utwórz superserię ({_supersetExerciseIds.Count})")
                         </MudButton>
                     </section>
+                                }
+                                else
+                                {
+                                    <div class="workout-options-content">
+                                        <button type="button" class="workout-option-row" @onclick="() => BeginSuperset(exercise)">
+                                            <MudIcon Icon="@Icons.Material.Outlined.Layers" />
+                                            <span><strong>Superseria</strong><small>Połącz lub edytuj kolejność ćwiczeń</small></span>
+                                            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                                        </button>
+                                        <details class="workout-option-details">
+                                            <summary>Notatka i typ aktualnej serii</summary>
+                                            <MudTextField @bind-Value="form.Notes" Label="Notatka do serii" MaxLength="300" />
+                                            <MudCheckBox @bind-Value="form.IsWarmup" Label="Seria rozgrzewkowa" />
+                                        </details>
+                                        <details class="workout-option-details">
+                                            <summary>Dodaj ćwiczenie</summary>
+                                            <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Ćwiczenie">
+                                                @foreach (var option in _catalog)
+                                                {
+                                                    <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                            <MudButton Variant="Variant.Outlined" FullWidth="true"
+                                                       Disabled="@(_selectedExerciseId is null)"
+                                                       OnClick="AddExercise">Dodaj do sesji</MudButton>
+                                        </details>
+                                        <details class="workout-option-details">
+                                            <summary>Notatka do treningu</summary>
+                                            <MudTextField @bind-Value="_sessionNotes" Label="Notatka" Lines="3" MaxLength="1000" />
+                                            <MudButton Variant="Variant.Text" FullWidth="true" OnClick="SaveNotes">Zapisz notatkę</MudButton>
+                                        </details>
+                                        <div class="workout-session-metrics">
+                                            <span><small>Czas</small><strong>@FormatElapsed(_elapsed)</strong></span>
+                                            <span><small>Postęp</small><strong>@SessionPercent%</strong></span>
+                                            <span><small>Serie</small><strong>@CompletedSets/@PlannedSets</strong></span>
+                                        </div>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                                                   OnClick="Complete">Zakończ i zobacz podsumowanie</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true"
+                                                   OnClick="Abandon">Porzuć trening</MudButton>
+                                    </div>
+                                }
+                            </section>
+                        </MudFocusTrap>
+                    </div>
                 }
 
                 <div class="live-timer-controls">
@@ -338,6 +397,7 @@
                                 var memberIndex = OrderedExercises.ToList().FindIndex(x => x.Id == member.Id);
                                 <button type="button" class="@(member.Id == exercise.Id ? "active" : null)" aria-current="@(member.Id == exercise.Id ? "step" : null)" @onclick="() => SelectExercise(memberIndex)">
                                     <span>A@(member.SupersetPosition)</span>
+                                    <ExerciseMediaFrame Exercise="@SupersetExerciseMedia(member)" Alt="" Compact="true" />
                                     <strong>@member.ExerciseName</strong>
                                     <small>@member.Sets.Count/@member.PlannedSets serii</small>
                                 </button>
@@ -428,32 +488,7 @@
                     </MudButton>
                 </div>
 
-                <details class="set-details">
-                    <summary>Notatka i typ serii</summary>
-                    <MudTextField @bind-Value="form.Notes" Label="Notatka do serii" MaxLength="300" />
-                    <MudCheckBox @bind-Value="form.IsWarmup" Label="Seria rozgrzewkowa" />
-                </details>
-
-                <div class="exercise-page-actions">
-                    <MudButton Variant="Variant.Outlined" Disabled="@(_activeExerciseIndex == 0)" OnClick="PreviousExercise">Poprzednie</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_activeExerciseIndex >= OrderedExercises.Count - 1)" OnClick="NextExercise">Następne ćwiczenie</MudButton>
-                </div>
-
-                <details class="workout-options">
-                    <summary>Opcje ćwiczenia i sesji</summary>
-                    <MudSelect T="Guid?" @bind-Value="_selectedExerciseId" Label="Dodaj inne ćwiczenie">
-                        @foreach (var option in _catalog) { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Name</MudSelectItem> }
-                    </MudSelect>
-                    <MudButton Variant="Variant.Outlined" FullWidth="true" Disabled="@(_selectedExerciseId is null)" OnClick="AddExercise">Dodaj do sesji</MudButton>
-                    <MudTextField @bind-Value="_sessionNotes" Label="Notatka do treningu" Lines="3" MaxLength="1000" />
-                    <MudButton Variant="Variant.Text" FullWidth="true" OnClick="SaveNotes">Zapisz notatkę</MudButton>
-                </details>
             </article>
-
-            <div class="session-actions">
-                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="Complete">Zakończ i zobacz podsumowanie</MudButton>
-                <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" OnClick="Abandon">Porzuć trening</MudButton>
-            </div>
             </main>
         }
         else if (_session.CardioEntries is { Count: > 0 })
@@ -546,6 +581,8 @@
     private WorkoutExerciseResponse? ActiveExercise => OrderedExercises.ElementAtOrDefault(_activeExerciseIndex);
     private ExerciseResponse? ActiveExerciseMedia =>
         ActiveExercise?.ExerciseId is Guid exerciseId ? _catalog.FirstOrDefault(x => x.Id == exerciseId) : null;
+    private ExerciseResponse? SupersetExerciseMedia(WorkoutExerciseResponse exercise) =>
+        exercise.ExerciseId is Guid exerciseId ? _catalog.FirstOrDefault(x => x.Id == exerciseId) : null;
     private IReadOnlyList<WorkoutExerciseResponse> SupersetMembers =>
         ActiveExercise?.SupersetGroupId is Guid groupId
             ? OrderedExercises.Where(x => x.SupersetGroupId == groupId).OrderBy(x => x.SupersetPosition).ToList()
@@ -710,7 +747,17 @@
     private void BackToTraining() => Navigation.NavigateTo("/training");
     private void OpenHistory() => _historyOpen = true;
     private void OpenWorkoutMenu() => _workoutMenuOpen = true;
-    private void CloseWorkoutMenu() => _workoutMenuOpen = false;
+    private void CloseWorkoutMenu()
+    {
+        _workoutMenuOpen = false;
+        CancelSuperset();
+    }
+
+    private void HandleWorkoutMenuKeyDown(KeyboardEventArgs keyboardEvent)
+    {
+        if (keyboardEvent.Key == "Escape")
+            CloseWorkoutMenu();
+    }
     private void BeginSwap(WorkoutExerciseResponse exercise)
     {
         _swapTargetId = exercise.Id;
@@ -766,6 +813,7 @@
 
     private void BeginSuperset(WorkoutExerciseResponse exercise)
     {
+        _workoutMenuOpen = true;
         _supersetExerciseIds.Clear();
         if (exercise.SupersetGroupId is Guid groupId)
         {
@@ -823,6 +871,7 @@
                     _supersetIntervalSeconds,
                     _supersetRestSeconds));
             CancelSuperset();
+            CloseWorkoutMenu();
             Snackbar.Add("Superseria została zapisana.", Severity.Success);
         }
         catch (HttpRequestException ex)
