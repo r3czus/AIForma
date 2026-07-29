@@ -277,6 +277,12 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains(".workout-session-metrics", css);
         Assert.Contains(".workout-options-sheet .superset-builder", css);
         Assert.Contains("safe-area-inset-bottom", css);
+        Assert.Matches(@"\.workout-options-sheet \.superset-builder\s*\{[^}]*padding:\s*20px 20px max\(20px, env\(safe-area-inset-bottom\)\);", css);
+        Assert.Matches(@"\.workout-option-details summary\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;[^}]*min-height:\s*44px;", css);
+        Assert.Contains(".workout-option-details summary:focus-visible", css);
+        Assert.DoesNotContain(".set-details", css);
+        Assert.DoesNotContain(".workout-options {", css);
+        Assert.DoesNotContain(".exercise-live-actions", css);
     }
 
     [Fact]
