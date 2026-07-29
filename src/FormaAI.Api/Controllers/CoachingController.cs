@@ -155,7 +155,7 @@ public sealed class CoachingController(AppDbContext db, IAssistantModel assistan
     [RequestSizeLimit(15 * 1024 * 1024)]
     public async Task<ActionResult<ProgressPhotoResponse>> AddPhoto([FromForm] IFormFile photo, [FromForm] DateOnly localDate, [FromForm] ProgressPhotoPose pose, CancellationToken cancellationToken)
     {
-        if (photo.Length is 0 or > 15 * 1024 * 1024 || !photo.ContentType.StartsWith("image/")) return BadRequest("Wybierz zdjęcie JPG, PNG, WEBP lub HEIC do 15 MB.");
+        if (photo.Length is 0 or > 15 * 1024 * 1024 || !photo.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)) return BadRequest("Wybierz zdjęcie JPG, PNG, WEBP lub HEIC do 15 MB.");
         var storage = Path.Combine(environment.ContentRootPath, "App_Data", "progress-photos");
         Directory.CreateDirectory(storage);
         var extension = Path.GetExtension(photo.FileName);
@@ -218,5 +218,5 @@ public sealed class CoachingController(AppDbContext db, IAssistantModel assistan
     private static DateOnly? DateAt(IReadOnlyList<DateTime> dates, int count) => dates.Count >= count ? DateOnly.FromDateTime(dates[count - 1]) : null;
     private string UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static WeeklyReviewResponse ReviewResponse(WeeklyReview x) => new(x.Id, x.WeekStarting, x.Energy, x.Sleep, x.Hunger, x.Recovery, x.Stress, x.Notes, x.DeviationReasons, x.Summary);
-    private static ProgressPhotoResponse PhotoResponse(ProgressPhoto x) => new(x.Id, x.LocalDate, x.Pose, $"api/v1/coaching/photos/{x.Id}/content");
+    private static ProgressPhotoResponse PhotoResponse(ProgressPhoto x) => new(x.Id, x.LocalDate, x.Pose, $"/api/v1/coaching/photos/{x.Id}/content");
 }

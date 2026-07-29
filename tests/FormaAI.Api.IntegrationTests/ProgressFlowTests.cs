@@ -53,6 +53,34 @@ public sealed class ProgressFlowTests : IClassFixture<FormaAiFactory>
         Assert.Equal(200m, otherProgress.CurrentAverageKg);
     }
 
+    [Fact]
+    public async Task ProgressPhotoUsesRootRelativeAuthenticatedContentUrl()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "progress-photo@example.test");
+        var expected = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+
+        using var content = new MultipartFormDataContent();
+        var photo = new ByteArrayContent(expected);
+        photo.Headers.ContentType = new("image/png");
+        content.Add(photo, "photo", "progress.png");
+        content.Add(new StringContent("2026-07-20"), "localDate");
+        content.Add(new StringContent("Front"), "pose");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/coaching/photos") { Content = content };
+        var csrf = await client.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+
+        using var upload = await client.SendAsync(request);
+        upload.EnsureSuccessStatusCode();
+        var saved = (await upload.Content.ReadFromJsonAsync<ProgressPhotoResponse>())!;
+
+        Assert.StartsWith("/api/v1/coaching/photos/", saved.Url, StringComparison.Ordinal);
+        using var download = await client.GetAsync(saved.Url);
+        download.EnsureSuccessStatusCode();
+        Assert.Equal("image/png", download.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(expected, await download.Content.ReadAsByteArrayAsync());
+    }
+
     private static async Task Register(HttpClient client, string email) =>
         _ = await Send<RegisterRequest, CurrentUserResponse>(client, "api/account/register", new(email, "FormaAI!123", "UTC"));
 
