@@ -909,7 +909,7 @@ body:has(.workout-mode) .page-content { padding-bottom: 28px; }
 .food-page .module-tabs .mud-tab:nth-child(2) { display: none; }
 .set-grid, .set-entry { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 12px 0; }
 .set-entry > :nth-child(3) { grid-column: 1 / -1; }
-.workout-mode {
+.content-wrap.workout-mode {
     animation: none;
     max-width: 760px !important;
     transform: none;
