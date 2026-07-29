@@ -255,6 +255,8 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("exercise-media-frame", component);
         Assert.Contains("<ExerciseMediaFrame", details);
         Assert.Contains("ExerciseMediaPolicy.Accept", details);
+        Assert.Contains("exercise-media-camera-action", details);
+        Assert.Contains("Icons.Material.Outlined.AddAPhoto", details);
         Assert.Contains("<ExerciseMediaFrame", training);
         Assert.Contains("<ExerciseMediaFrame", builder);
         Assert.Contains("<ExerciseMediaFrame", workout);
@@ -492,7 +494,9 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("TrainingApi.SaveCompleted", builder);
         Assert.Contains("workout-sessions/completed", client);
         Assert.Contains("MudDatePicker", dialog);
-        Assert.Contains("MaxDate=\"DateTime.Today\"", dialog);
+        Assert.Contains("MaxDate=\"MaxDate\"", dialog);
+        Assert.Contains("MaxDate=\"_accountToday\"", builder);
+        Assert.Contains("Account.GetProfile()", builder);
         Assert.Contains("Wybierz dzień treningu", dialog);
     }
 
@@ -505,6 +509,7 @@ public sealed class WorkoutNavigationSourceTests
 
         Assert.Contains("addEventListener('push'", worker);
         Assert.Contains("addEventListener('notificationclick'", worker);
+        Assert.Contains("openWindow.navigate(url)", worker);
         Assert.Contains("function isStandalone", settings);
         Assert.Contains("install-required", settings);
         Assert.Contains("status: 'active'", settings);
@@ -513,6 +518,15 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("PushSetupResult", profile);
         Assert.Contains("_pushStatus", profile);
         Assert.Contains("result.Status", profile);
+    }
+
+    [Fact]
+    public void ProgressPhotoPickerCanSelectTheSameFileAgain()
+    {
+        var photos = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "ProgressPhotos.razor"));
+
+        Assert.Contains("@key=\"_fileInputKey\"", photos);
+        Assert.Contains("_fileInputKey++;", photos);
     }
 
     [Fact]

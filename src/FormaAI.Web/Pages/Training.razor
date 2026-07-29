@@ -403,7 +403,9 @@
     {
         _allExercises = await TrainingApi.GetExercises();
         _exercises = _allExercises;
-        _libraryExercises = _allExercises;
+        _libraryExercises = string.IsNullOrWhiteSpace(_librarySearch)
+            ? _allExercises
+            : await TrainingApi.GetExercises(_librarySearch);
         _plans = await TrainingApi.GetPlans();
         _today = await TrainingApi.GetToday();
         _activeSession = await TrainingApi.GetActiveSession();

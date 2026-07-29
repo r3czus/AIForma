@@ -14,7 +14,7 @@ namespace FormaAI.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/v1")]
-public sealed class TrainingController(AppDbContext db, IWebHostEnvironment environment, IConfiguration configuration) : ControllerBase
+public sealed class TrainingController(AppDbContext db, IWebHostEnvironment environment) : ControllerBase
 {
     [HttpGet("exercises")]
     public async Task<IReadOnlyList<ExerciseResponse>> Exercises([FromQuery] string? query)
@@ -810,8 +810,8 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
             x.MediaSourceUrl,
             CanEditMedia(x));
     }
-    private bool CanEditMedia(Exercise exercise) => exercise.OwnerUserId == UserId() ||
-        exercise.OwnerUserId is null && string.Equals(User.Identity?.Name, configuration["Admin:Email"], StringComparison.OrdinalIgnoreCase);
+    private bool CanEditMedia(Exercise exercise) =>
+        exercise.OwnerUserId is null || exercise.OwnerUserId == UserId();
     private static void DeleteStoredMedia(string storage, string? storageName)
     {
         if (string.IsNullOrWhiteSpace(storageName)) return;

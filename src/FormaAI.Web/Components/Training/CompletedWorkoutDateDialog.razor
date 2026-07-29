@@ -20,14 +20,14 @@
             <MudDatePicker Label="Data treningu"
                            Date="Date"
                            DateChanged="ChangeDate"
-                           MaxDate="DateTime.Today"
+                           MaxDate="MaxDate"
                            DateFormat="dd.MM.yyyy"
                            Disabled="Saving" />
             <footer>
                 <MudButton Variant="Variant.Text" Disabled="Saving" OnClick="Close">Anuluj</MudButton>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
-                           Disabled="@(Saving || Date is null || Date.Value.Date > DateTime.Today)"
+                           Disabled="@(Saving || Date is null || Date.Value.Date > MaxDate.Date)"
                            OnClick="Save">
                     @(Saving ? "Zapisuję…" : "Zapisz trening")
                 </MudButton>
@@ -39,6 +39,7 @@
 @code {
     [Parameter] public bool Open { get; set; }
     [Parameter] public DateTime? Date { get; set; }
+    [Parameter] public DateTime MaxDate { get; set; } = DateTime.Today;
     [Parameter] public EventCallback<DateTime?> DateChanged { get; set; }
     [Parameter] public bool Saving { get; set; }
     [Parameter] public EventCallback OnSave { get; set; }

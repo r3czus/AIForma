@@ -69,6 +69,9 @@ self.addEventListener('notificationclick', event => {
     event.notification.close();
     event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
         const openWindow = windows.find(window => 'focus' in window);
-        return openWindow ? openWindow.focus() : clients.openWindow(event.notification.data?.url || '/');
+        const url = event.notification.data?.url || '/';
+        return openWindow
+            ? openWindow.navigate(url).then(client => client.focus())
+            : clients.openWindow(url);
     }));
 });

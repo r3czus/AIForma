@@ -220,7 +220,8 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
             return Conflict("Najpierw dokończ albo porzuć aktywny trening.");
 
         var payload = CompletedWorkoutPayload(draft);
-        await ValidateCompletedWorkout(userId, payload, cancellationToken);
+        if (await CompletedWorkoutValidationError(userId, payload, cancellationToken) is { } validationError)
+            return ValidationProblem(validationError);
         var exerciseIds = payload.Exercises.Select(x => x.ExerciseId).Distinct().ToList();
         var exercises = await db.Exercises
             .Include(x => x.MuscleEngagements)
@@ -483,7 +484,8 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
         if (draft.Status != AssistantDraftStatus.Pending)
             return Conflict("Ten szkic nie oczekuje już na zatwierdzenie.");
         var payload = new AssistantCompletedWorkoutDraftPayload(request.LocalDate, request.Name, request.Exercises, request.Cardio);
-        await ValidateCompletedWorkout(userId, payload, cancellationToken);
+        if (await CompletedWorkoutValidationError(userId, payload, cancellationToken) is { } validationError)
+            return ValidationProblem(validationError);
         draft.UpdatePayload(JsonSerializer.Serialize(payload, JsonOptions));
         await db.SaveChangesAsync(cancellationToken);
         return CompletedWorkoutDraftResponse(draft);
@@ -566,7 +568,8 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
             return Conflict("Ten szkic nie oczekuje już na zatwierdzenie.");
 
         var payload = CompletedWorkoutPayload(draft);
-        await ValidateCompletedWorkout(userId, payload, cancellationToken);
+        if (await CompletedWorkoutValidationError(userId, payload, cancellationToken) is { } validationError)
+            return ValidationProblem(validationError);
         var occurrenceUtc = await CompletedWorkoutOccurrenceUtc(userId, payload.LocalDate, cancellationToken);
         var exerciseIds = payload.Exercises.Select(x => x.ExerciseId).Distinct().ToList();
         var exercises = await db.Exercises
@@ -648,6 +651,26 @@ public sealed class AssistantController(AppDbContext db, IAssistantModel model) 
         if (count != ids.Count)
             throw new ArgumentException("exercise_not_found");
         _ = await CompletedWorkoutOccurrenceUtc(userId, payload.LocalDate, cancellationToken);
+    }
+
+    private async Task<string?> CompletedWorkoutValidationError(
+        string userId,
+        AssistantCompletedWorkoutDraftPayload payload,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await ValidateCompletedWorkout(userId, payload, cancellationToken);
+            return null;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return "Nie można zapisać treningu w przyszłości.";
+        }
+        catch (ArgumentException)
+        {
+            return "Sprawdź nazwę, datę, ćwiczenia, serie i cardio.";
+        }
     }
 
     private async Task<DateTime> CompletedWorkoutOccurrenceUtc(

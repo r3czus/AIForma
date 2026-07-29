@@ -315,6 +315,38 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     }
 
     [Fact]
+    public async Task AuthenticatedUserCanAddPhotoToGlobalExercise()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "global-exercise-photo@example.test");
+        var exercise = new Exercise(null, $"Globalne ćwiczenie {Guid.NewGuid():N}", MuscleGroup.Back, Equipment.Cable);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Exercises.Add(exercise);
+            await db.SaveChangesAsync();
+        }
+
+        var before = await client.GetFromJsonAsync<ExerciseResponse>($"api/v1/exercises/{exercise.Id}");
+        Assert.True(before!.CanEditMedia);
+
+        using var content = new MultipartFormDataContent();
+        var bytes = new ByteArrayContent([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        bytes.Headers.ContentType = new("image/png");
+        content.Add(bytes, "media", "ruch.png");
+        content.Add(new StringContent("Użytkownik FormaAI"), "author");
+        content.Add(new StringContent("Materiał własny"), "license");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/exercises/{exercise.Id}/media") { Content = content };
+        var csrf = await client.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+
+        var upload = await client.SendAsync(request);
+        upload.EnsureSuccessStatusCode();
+        var saved = (await upload.Content.ReadFromJsonAsync<ExerciseResponse>())!;
+        Assert.Equal("image/png", saved.MediaContentType);
+    }
+
+    [Fact]
     public async Task UserCanCreateSupersetDuringWorkout()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

@@ -33,9 +33,19 @@
     else
     {
         <section class="exercise-motion-card" aria-label="Podgląd ruchu ćwiczenia">
-            <ExerciseMediaFrame Exercise="_exercise"
-                                Alt="@($"Podgląd wykonania: {_exercise.Name}")"
-                                AllowPlayback="true" />
+            <div class="exercise-media-stage">
+                <ExerciseMediaFrame Exercise="_exercise"
+                                    Alt="@($"Podgląd wykonania: {_exercise.Name}")"
+                                    AllowPlayback="true" />
+                @if (string.IsNullOrWhiteSpace(_exercise.MediaUrl) && _exercise.CanEditMedia)
+                {
+                    <label class="exercise-media-camera-action">
+                        <MudIcon Icon="@Icons.Material.Outlined.AddAPhoto" />
+                        <span>Dodaj zdjęcie</span>
+                        <InputFile OnChange="SelectMedia" accept="@ExerciseMediaPolicy.Accept" disabled="@_mediaSaving" />
+                    </label>
+                }
+            </div>
             @if (!string.IsNullOrWhiteSpace(_exercise.MediaUrl))
             {
                 @if (!string.IsNullOrWhiteSpace(_exercise.MediaAttribution))
@@ -48,11 +58,11 @@
             }
             @if (_exercise.CanEditMedia)
             {
-                <details class="exercise-media-editor">
+                <details class="exercise-media-editor" open="@(_mediaFile is not null)">
                     <summary>@(_exercise.MediaUrl is null ? "Dodaj zdjęcie, GIF lub film" : "Zmień zdjęcie, GIF lub film")</summary>
                     <label class="multi-photo-picker">
-                        <MudIcon Icon="@Icons.Material.Outlined.Movie" />
-                        <strong>@(_mediaFile?.Name ?? "Wybierz GIF, MP4 lub WebM")</strong>
+                        <MudIcon Icon="@Icons.Material.Outlined.AddAPhoto" />
+                        <strong>@(_mediaFile?.Name ?? "Wybierz zdjęcie, GIF lub film")</strong>
                         <span>Maksymalnie 15 MB.</span>
                         <InputFile OnChange="SelectMedia" accept="@ExerciseMediaPolicy.Accept" disabled="@_mediaSaving" />
                     </label>

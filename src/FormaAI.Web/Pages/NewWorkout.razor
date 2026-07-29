@@ -301,6 +301,7 @@
 
 <CompletedWorkoutDateDialog Open="_completedDateDialogOpen"
                             Date="_completedDate"
+                            MaxDate="_accountToday"
                             DateChanged="date => _completedDate = date"
                             Saving="_saving"
                             OnSave="SaveWorkoutAsCompleted"
@@ -321,6 +322,7 @@
     private bool _showManualErrors;
     private bool _completedDateDialogOpen;
     private DateTime? _completedDate = DateTime.Today;
+    private DateTime _accountToday = DateTime.Today;
     private WorkoutBuilderMode _completedSaveMode;
     private int _searchVersion;
 
@@ -336,6 +338,22 @@
             Navigation.NavigateTo("/");
             return;
         }
+        var profile = await Account.GetProfile();
+        try
+        {
+            _accountToday = TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById(profile.TimeZoneId)).Date;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            _accountToday = DateTime.Today;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            _accountToday = DateTime.Today;
+        }
+        _completedDate = _accountToday;
         var active = await TrainingApi.GetActiveSession();
         if (active is not null)
         {
@@ -447,7 +465,7 @@
         _completedSaveMode = mode;
         _completedDate = mode == WorkoutBuilderMode.Ai && _aiDraft is not null
             ? _aiDraft.LocalDate.ToDateTime(TimeOnly.MinValue)
-            : DateTime.Today;
+            : _accountToday;
         _completedDateDialogOpen = true;
     }
 
@@ -460,7 +478,7 @@
 
     private async Task SaveWorkoutAsCompleted()
     {
-        if (_completedDate is null || _completedDate.Value.Date > DateTime.Today || _saving)
+        if (_completedDate is null || _completedDate.Value.Date > _accountToday || _saving)
             return;
         var localDate = DateOnly.FromDateTime(_completedDate.Value);
         _saving = true;

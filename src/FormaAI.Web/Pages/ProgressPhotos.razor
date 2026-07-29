@@ -15,7 +15,7 @@
             <strong>@(_files.Count == 0 ? "Wybierz zdjęcia z galerii" : $"Wybrano: {_files.Count}")</strong>
             <span>Maksymalnie 5 zdjęć, każde do 15 MB.</span>
             @if (_files.Count > 0) { <small>@string.Join(" · ", _files.Select(x => x.Name))</small> }
-            <InputFile OnChange="SelectFiles" accept="image/*" multiple disabled="@_saving" />
+            <InputFile @key="_fileInputKey" OnChange="SelectFiles" accept="image/*" multiple disabled="@_saving" />
         </label>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_files.Count == 0 || _saving)" OnClick="Save">@(_saving ? "Zapisuję zdjęcia…" : "Zapisz prywatne zdjęcia")</MudButton>
     </MudPaper>
@@ -33,7 +33,7 @@
 </MudContainer>
 
 @code {
-    private IReadOnlyList<ProgressPhotoResponse> _photos = []; private readonly HashSet<Guid> _selected = []; private IReadOnlyList<IBrowserFile> _files = []; private DateTime? _date = DateTime.Today; private ProgressPhotoPose _pose; private ProgressPhotoPose _filter; private bool _loading = true; private bool _saving;
+    private IReadOnlyList<ProgressPhotoResponse> _photos = []; private readonly HashSet<Guid> _selected = []; private IReadOnlyList<IBrowserFile> _files = []; private DateTime? _date = DateTime.Today; private ProgressPhotoPose _pose; private ProgressPhotoPose _filter; private bool _loading = true; private bool _saving; private int _fileInputKey;
     private IReadOnlyList<ProgressPhotoResponse> Filtered => _photos.Where(x => x.Pose == _filter).OrderBy(x => x.LocalDate).ToList();
     protected override async Task OnInitializedAsync() { if (await Account.GetCurrentUser() is null) { Navigation.NavigateTo("/"); return; } await Reload(); _loading = false; }
     private void SelectFiles(InputFileChangeEventArgs args)
@@ -56,6 +56,7 @@
             catch (HttpRequestException) { failed++; }
         }
         _files = [];
+        _fileInputKey++;
         _filter = _pose;
         await Reload();
         Snackbar.Add(failed == 0 ? $"Zapisano prywatnie {saved} zdjęć." : $"Zapisano {saved}, odrzucono {failed}.", failed == 0 ? Severity.Success : Severity.Warning);

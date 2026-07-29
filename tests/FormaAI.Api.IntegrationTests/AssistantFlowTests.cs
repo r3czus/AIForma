@@ -126,6 +126,16 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
         Assert.Equal(2, response.CompletedWorkoutDraft.Exercises.Single().Sets.Count);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("api/v1/workout-sessions/active")).StatusCode);
 
+        var futureResponse = await SendResponse(
+            client,
+            HttpMethod.Put,
+            $"api/v1/assistant/actions/{response.CompletedWorkoutDraft.Id}/completed-workout",
+            new UpdateAssistantCompletedWorkoutDraftRequest(
+                "Trening z przyszłości",
+                DateOnly.FromDateTime(DateTime.UtcNow).AddDays(2),
+                response.CompletedWorkoutDraft.Exercises));
+        Assert.Equal(HttpStatusCode.BadRequest, futureResponse.StatusCode);
+
         var correctedExercise = response.CompletedWorkoutDraft.Exercises.Single() with
         {
             Sets =
@@ -357,6 +367,18 @@ public sealed class AssistantFlowTests : IClassFixture<AssistantFormaAiFactory>
         var response = await client.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<TResponse>())!;
+    }
+
+    private static async Task<HttpResponseMessage> SendResponse<TRequest>(
+        HttpClient client,
+        HttpMethod method,
+        string uri,
+        TRequest body)
+    {
+        var csrf = await client.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        var request = new HttpRequestMessage(method, uri) { Content = JsonContent.Create(body) };
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.Token);
+        return await client.SendAsync(request);
     }
 }
 
