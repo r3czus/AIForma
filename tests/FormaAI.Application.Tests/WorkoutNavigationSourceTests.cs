@@ -225,8 +225,8 @@ public sealed class WorkoutNavigationSourceTests
     {
         var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "NewWorkout.razor"));
 
-        Assert.Contains("Zapisz jako wykonany", source);
-        Assert.Contains("SaveAiWorkoutAsCompleted", source);
+        Assert.Contains(">Zapisz trening</MudButton>", source);
+        Assert.Contains("SaveWorkoutAsCompleted", source);
         Assert.Contains("Rozpocznij ten trening", source);
         Assert.Contains("StartAiWorkout", source);
     }
