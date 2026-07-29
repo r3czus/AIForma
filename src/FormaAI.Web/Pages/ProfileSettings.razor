@@ -103,7 +103,11 @@
                         </MudSelect>
                         <div class="settings-field-grid"><MudTimePicker @bind-Time="_quietFrom" Label="Cisza nocna od" /><MudTimePicker @bind-Time="_quietTo" Label="Cisza nocna do" /><MudNumericField @bind-Value="_maxReminders" Label="Maks. dziennie" Min="1" Max="6" /></div>
                         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Na iPhonie dodaj FormaAI do ekranu początkowego. Wtedy Safari może wyświetlać systemowe powiadomienia aplikacji webowej.</MudAlert>
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.NotificationsActive" OnClick="EnableNotifications">Włącz i przetestuj powiadomienie</MudButton>
+                        @if (_pushStatus is not null)
+                        {
+                            <MudAlert Severity="@PushSeverity" Variant="Variant.Outlined">@_pushMessage</MudAlert>
+                        }
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.NotificationsActive" Disabled="_pushBusy" OnClick="EnableNotifications">@(_pushBusy ? "Uruchamiam powiadomienia…" : "Włącz i przetestuj powiadomienie")</MudButton>
                     </section>
                     break;
                 case "workouts":
@@ -168,6 +172,15 @@
     private TimeSpan? _quietFrom = new(22, 0, 0);
     private TimeSpan? _quietTo = new(7, 0, 0);
     private int _maxReminders = 3;
+    private string? _pushStatus;
+    private string? _pushMessage;
+    private bool _pushBusy;
+    private Severity PushSeverity => _pushStatus switch
+    {
+        "active" => Severity.Success,
+        "denied" or "error" => Severity.Error,
+        _ => Severity.Warning
+    };
     private string DailyGoalAdjustment
     {
         get
@@ -236,10 +249,32 @@
 
     private async Task EnableNotifications()
     {
-        var publicKey = await Coaching.GetPushPublicKey();
-        var subscription = await Js.InvokeAsync<PushSubscriptionRequest?>("formaSettings.enablePushNotifications", publicKey);
-        if (subscription is not null) { await Coaching.SavePushSubscription(subscription); _reminders = true; Snackbar.Add("Powiadomienia działają także po zamknięciu aplikacji.", Severity.Success); }
-        else Snackbar.Add("Telefon nie obsługuje powiadomień albo nie udzielił zgody.", Severity.Warning);
+        if (_pushBusy) return;
+        _pushBusy = true;
+        try
+        {
+            var publicKey = await Coaching.GetPushPublicKey();
+            var result = await Js.InvokeAsync<PushSetupResult>("formaSettings.enablePushNotifications", publicKey);
+            _pushStatus = result.Status;
+            _pushMessage = result.Message;
+            if (result.Status == "active" && result.Subscription is not null)
+            {
+                await Coaching.SavePushSubscription(result.Subscription);
+                _reminders = true;
+                _pushMessage = "Powiadomienia są aktywne. Wysłaliśmy test na to urządzenie.";
+                Snackbar.Add("Powiadomienia działają także po zamknięciu aplikacji.", Severity.Success);
+            }
+        }
+        catch (Exception exception) when (exception is JSException or HttpRequestException)
+        {
+            _pushStatus = "error";
+            _pushMessage = "Nie udało się połączyć telefonu z usługą powiadomień. Spróbuj ponownie.";
+            Snackbar.Add(_pushMessage, Severity.Error);
+        }
+        finally
+        {
+            _pushBusy = false;
+        }
     }
 
     private async Task Save()
@@ -290,4 +325,6 @@
         public string Icon { get; set; } = icon;
         public string Color { get; set; } = color;
     }
+
+    private sealed record PushSetupResult(string Status, PushSubscriptionRequest? Subscription, string? Message);
 }

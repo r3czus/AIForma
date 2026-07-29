@@ -496,6 +496,25 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("Wybierz dzień treningu", dialog);
     }
 
+    [Fact]
+    public void PublishedPwaHandlesPushAndReportsIphoneSetupStates()
+    {
+        var worker = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "service-worker.published.js"));
+        var settings = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "js", "forma-settings.js"));
+        var profile = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "ProfileSettings.razor"));
+
+        Assert.Contains("addEventListener('push'", worker);
+        Assert.Contains("addEventListener('notificationclick'", worker);
+        Assert.Contains("function isStandalone", settings);
+        Assert.Contains("install-required", settings);
+        Assert.Contains("status: 'active'", settings);
+        Assert.Contains("status: 'denied'", settings);
+        Assert.Contains("status: 'error'", settings);
+        Assert.Contains("PushSetupResult", profile);
+        Assert.Contains("_pushStatus", profile);
+        Assert.Contains("result.Status", profile);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

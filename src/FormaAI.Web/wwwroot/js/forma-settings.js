@@ -28,14 +28,73 @@ window.formaSettings = (() => {
         return Uint8Array.from([...raw].map(char => char.charCodeAt(0)));
     }
 
+    function isStandalone() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true;
+    }
+
     async function enablePushNotifications(publicKey) {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
-        if (await Notification.requestPermission() !== 'granted') return null;
-        const registration = await navigator.serviceWorker.ready;
-        let subscription = await registration.pushManager.getSubscription();
-        if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(publicKey) });
-        const json = subscription.toJSON();
-        return { endpoint: json.endpoint, p256Dh: json.keys.p256dh, auth: json.keys.auth };
+        const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        if (isIos && !isStandalone()) {
+            return {
+                status: 'install-required',
+                message: 'Na iPhonie dodaj FormaAI do ekranu początkowego i otwórz ją z ikony.'
+            };
+        }
+        if (!window.isSecureContext ||
+            !('serviceWorker' in navigator) ||
+            !('Notification' in window) ||
+            !('PushManager' in window)) {
+            return {
+                status: 'unsupported',
+                message: 'Ta przeglądarka nie obsługuje bezpiecznych powiadomień aplikacji webowej.'
+            };
+        }
+        if (!publicKey) {
+            return { status: 'error', message: 'Brakuje konfiguracji powiadomień po stronie serwera.' };
+        }
+
+        try {
+            const permission = Notification.permission === 'default'
+                ? await Notification.requestPermission()
+                : Notification.permission;
+            if (permission !== 'granted') {
+                return {
+                    status: 'denied',
+                    message: permission === 'denied'
+                        ? 'Powiadomienia są zablokowane w ustawieniach systemowych.'
+                        : 'Nie udzielono zgody na powiadomienia.'
+                };
+            }
+
+            const registration = await navigator.serviceWorker.ready;
+            let subscription = await registration.pushManager.getSubscription();
+            if (!subscription) {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: decodeKey(publicKey)
+                });
+            }
+            const json = subscription.toJSON();
+            if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+                return { status: 'error', message: 'Telefon zwrócił niepełną subskrypcję powiadomień.' };
+            }
+            return {
+                status: 'active',
+                subscription: {
+                    endpoint: json.endpoint,
+                    p256Dh: json.keys.p256dh,
+                    auth: json.keys.auth
+                }
+            };
+        } catch (error) {
+            return {
+                status: 'error',
+                message: error instanceof Error
+                    ? error.message
+                    : 'Nie udało się uruchomić powiadomień.'
+            };
+        }
     }
 
     async function scheduleMealReminders(meals, minutesBefore) {
