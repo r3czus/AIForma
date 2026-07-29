@@ -317,8 +317,11 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
     [Fact]
     public async Task AuthenticatedUserCanAddPhotoToGlobalExercise()
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        var options = new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") };
+        var client = _factory.CreateClient(options);
+        var other = _factory.CreateClient(options);
         await Register(client, "global-exercise-photo@example.test");
+        await Register(other, "global-exercise-photo-other@example.test");
         var exercise = new Exercise(null, $"Globalne ćwiczenie {Guid.NewGuid():N}", MuscleGroup.Back, Equipment.Cable);
         using (var scope = _factory.Services.CreateScope())
         {
@@ -344,6 +347,18 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
         upload.EnsureSuccessStatusCode();
         var saved = (await upload.Content.ReadFromJsonAsync<ExerciseResponse>())!;
         Assert.Equal("image/png", saved.MediaContentType);
+
+        using var replacementContent = new MultipartFormDataContent();
+        var replacementBytes = new ByteArrayContent([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        replacementBytes.Headers.ContentType = new("image/png");
+        replacementContent.Add(replacementBytes, "media", "podmiana.png");
+        replacementContent.Add(new StringContent("Inny użytkownik"), "author");
+        replacementContent.Add(new StringContent("Materiał własny"), "license");
+        using var replacement = new HttpRequestMessage(HttpMethod.Post, $"api/v1/exercises/{exercise.Id}/media") { Content = replacementContent };
+        var otherCsrf = await other.GetFromJsonAsync<AntiforgeryResponse>("api/account/antiforgery");
+        replacement.Headers.Add("X-CSRF-TOKEN", otherCsrf!.Token);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await other.SendAsync(replacement)).StatusCode);
     }
 
     [Fact]
