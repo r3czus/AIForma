@@ -7,7 +7,7 @@
 <PageTitle>Zdjęcia progresu · FormaAI</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="content-wrap module-page photos-page">
-    <header class="module-heading compact-heading"><MudIconButton Icon="@Icons.Material.Outlined.ArrowBack" Href="/progress" aria-label="Wróć" /><div><span class="page-kicker">Prywatna historia</span><MudText Typo="Typo.h4">Zdjęcia progresu</MudText><p>Porównuj tę samą pozę i podobne warunki. Zdjęcia wymagają zalogowania i nie są publicznymi plikami.</p></div></header>
+    <header class="module-heading compact-heading progress-photo-heading"><MudIconButton Icon="@Icons.Material.Outlined.ArrowBack" Href="/progress" aria-label="Wróć" /><div><span class="page-kicker">Prywatna historia</span><MudText Typo="Typo.h4">Zdjęcia progresu</MudText><p>Porównuj tę samą pozę i podobne warunki. Zdjęcia wymagają zalogowania i nie są publicznymi plikami.</p></div></header>
     <MudPaper Class="progress-card photo-upload-card" Elevation="0">
         <div class="field-grid"><MudDatePicker Label="Data zdjęcia" @bind-Date="_date" DateFormat="dd.MM.yyyy" /><MudSelect T="ProgressPhotoPose" @bind-Value="_pose" Label="Poza"><MudSelectItem Value="ProgressPhotoPose.Front">Przód</MudSelectItem><MudSelectItem Value="ProgressPhotoPose.Side">Bok</MudSelectItem><MudSelectItem Value="ProgressPhotoPose.Back">Tył</MudSelectItem></MudSelect></div>
         <label class="multi-photo-picker">

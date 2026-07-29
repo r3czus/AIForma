@@ -1389,3 +1389,47 @@ button:disabled,
     .meal-copy-backdrop { padding: 0; }
     .meal-copy-dialog { border-bottom: 0; border-radius: 16px 16px 0 0; max-height: 92dvh; }
 }
+
+.meal-slot-heading:has(.meal-slot-actions) {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.meal-slot-actions {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.meal-slot-actions .mud-icon-root {
+    color: var(--ink) !important;
+}
+
+.meal-slot-actions .mud-icon-button {
+    border-color: var(--rule-strong);
+}
+
+.meal-slot-expand {
+    flex: 0 0 44px;
+}
+
+.progress-photo-heading > .mud-icon-button {
+    align-self: start;
+    margin-top: 2px;
+}
+
+@media (max-width: 600px) {
+    .meal-slot-heading:has(.meal-slot-actions) {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .meal-slot-heading:has(.meal-slot-actions) .meal-slot-stats {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .meal-slot-actions {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+    }
+}

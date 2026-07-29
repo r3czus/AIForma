@@ -458,6 +458,24 @@ public sealed class WorkoutNavigationSourceTests
             compactHistoryLoad);
     }
 
+    [Fact]
+    public void MobileFollowUpActionsStayVisibleAndAligned()
+    {
+        var food = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Food.razor"));
+        var photos = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "ProgressPhotos.razor"));
+        var home = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Home.razor"));
+        var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "forma-signal.css"));
+
+        Assert.Contains("class=\"meal-slot-actions\"", food);
+        Assert.Contains("Class=\"meal-slot-overflow\"", food);
+        Assert.Contains("Class=\"meal-slot-expand\"", food);
+        Assert.Contains("progress-photo-heading", photos);
+        Assert.DoesNotContain(">Zapytaj asystenta</MudButton>", home);
+        Assert.Contains(".meal-slot-actions .mud-icon-root", css);
+        Assert.Contains("color: var(--ink) !important", css);
+        Assert.Contains(".progress-photo-heading > .mud-icon-button", css);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

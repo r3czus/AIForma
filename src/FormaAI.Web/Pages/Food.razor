@@ -81,14 +81,18 @@
                                 </div>
                                 @if (meals.Count == 0)
                                 {
-                                    <MudIconButton Icon="@Icons.Material.Outlined.Add" OnClick="() => StartMeal(slot)" aria-label="@($"Dodaj do sekcji {slot}")" />
+                                    <div class="meal-slot-actions">
+                                        <MudIconButton Icon="@Icons.Material.Outlined.Add" OnClick="() => StartMeal(slot)" aria-label="@($"Dodaj do sekcji {slot}")" />
+                                    </div>
                                 }
                                 else
                                 {
-                                    <MudMenu Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="@($"Opcje sekcji {slot}")">
-                                        <MudMenuItem Icon="@Icons.Material.Outlined.ContentCopy" OnClick="CopyFrom">Kopiuj z innego dnia</MudMenuItem>
-                                    </MudMenu>
-                                    <MudIconButton Icon="@(IsMealSlotOpen(slot) ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)" OnClick="() => ToggleMealSlot(slot)" aria-label="@($"Pokaż lub ukryj sekcję {slot}")" />
+                                    <div class="meal-slot-actions">
+                                        <MudMenu Class="meal-slot-overflow" Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="@($"Opcje sekcji {slot}")">
+                                            <MudMenuItem Icon="@Icons.Material.Outlined.ContentCopy" OnClick="CopyFrom">Kopiuj z innego dnia</MudMenuItem>
+                                        </MudMenu>
+                                        <MudIconButton Class="meal-slot-expand" Icon="@(IsMealSlotOpen(slot) ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)" OnClick="() => ToggleMealSlot(slot)" aria-label="@($"Pokaż lub ukryj sekcję {slot}")" />
+                                    </div>
                                 }
                             </header>
                             @if (meals.Count > 0 && IsMealSlotOpen(slot))
