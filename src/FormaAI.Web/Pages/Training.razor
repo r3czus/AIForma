@@ -250,19 +250,44 @@
             <MudTabPanel Text="Ćwiczenia">
                 <div hidden="@_exerciseEditorOpen">
                 <div class="tab-section-heading"><div><span class="card-kicker">Biblioteka</span><h2>Ćwiczenia</h2></div><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="StartNewExercise">Dodaj ćwiczenie</MudButton></div>
-                <div class="exercise-index">
-                    @foreach (var exercise in _allExercises)
+                <div class="exercise-library-search">
+                    <MudTextField T="string"
+                                  Value="_librarySearch"
+                                  ValueChanged="SearchLibraryExercises"
+                                  Label="Szukaj ćwiczenia"
+                                  Placeholder="Nazwa, partia mięśniowa, sprzęt lub opis"
+                                  Immediate="true"
+                                  DebounceInterval="250"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Outlined.Search" />
+                    @if (_librarySearching) { <MudProgressCircular Indeterminate="true" Size="Size.Small" /> }
+                </div>
+                @if (_libraryExercises.Count == 0 && !_librarySearching)
+                {
+                    <div class="module-empty exercise-library-empty">
+                        <MudIcon Icon="@Icons.Material.Outlined.SearchOff" />
+                        <div><strong>Brak ćwiczeń pasujących do wyszukiwania</strong><span>Zmień nazwę, partię mięśniową, sprzęt albo fragment opisu.</span></div>
+                    </div>
+                }
+                <div class="exercise-index exercise-library-grid">
+                    @foreach (var exercise in _libraryExercises)
                     {
-                        <article class="exercise-card">
-                            <div>
-                                <strong>@exercise.Name</strong>
-                                <div class="exercise-card-actions">
-                                    @if (exercise.IsOwn) { <small>Własne</small><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditLibraryExercise(exercise)" aria-label="Edytuj własne ćwiczenie" /> }
-                                    <MudIconButton Icon="@Icons.Material.Outlined.Image" Size="Size.Small" Href="@($"/training/exercises/{exercise.Id}")" aria-label="@($"Otwórz szczegóły i media: {exercise.Name}")" />
+                        <article class="exercise-library-card">
+                            <a class="exercise-library-media-link" href="@($"/training/exercises/{exercise.Id}")" aria-label="@($"Otwórz ćwiczenie {exercise.Name}")">
+                                <ExerciseMediaFrame Exercise="exercise" Alt="@($"Podgląd ćwiczenia {exercise.Name}")" />
+                            </a>
+                            <div class="exercise-library-content">
+                                <header>
+                                    <div><span class="card-kicker">Ćwiczenie</span><h3>@exercise.Name</h3></div>
+                                    <div class="exercise-card-actions">
+                                        @if (exercise.IsOwn) { <small>Własne</small><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditLibraryExercise(exercise)" aria-label="Edytuj własne ćwiczenie" /> }
+                                        <MudIconButton Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" Href="@($"/training/exercises/{exercise.Id}")" aria-label="@($"Otwórz szczegóły: {exercise.Name}")" />
+                                    </div>
+                                </header>
+                                <span class="exercise-library-meta">@EngagementLabel(exercise) · @EquipmentName(exercise.Equipment)</span>
+                                <p class="exercise-library-technique">@(string.IsNullOrWhiteSpace(exercise.Description) ? "Otwórz szczegóły, aby zobaczyć ustawienie, wykonanie i wskazówki bezpieczeństwa." : exercise.Description)</p>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" EndIcon="@Icons.Material.Outlined.ArrowForward" Href="@($"/training/exercises/{exercise.Id}")">Zobacz wykonanie</MudButton>
                                 </div>
-                            </div>
-                            <span>@EngagementLabel(exercise) · @EquipmentName(exercise.Equipment)</span>
-                            @if (!string.IsNullOrWhiteSpace(exercise.Description)) { <p>@exercise.Description</p> }
                         </article>
                     }
                 </div>
@@ -321,8 +346,12 @@
 
     private IReadOnlyList<ExerciseResponse> _exercises = [];
     private IReadOnlyList<ExerciseResponse> _allExercises = [];
+    private IReadOnlyList<ExerciseResponse> _libraryExercises = [];
     private string _exerciseSearch = string.Empty;
     private int _exerciseSearchVersion;
+    private string _librarySearch = string.Empty;
+    private int _librarySearchVersion;
+    private bool _librarySearching;
     private IReadOnlyList<TrainingPlanResponse> _plans = [];
     private readonly Dictionary<Guid, Guid> _selectedPlanDays = [];
     private TodayWorkoutResponse? _today;
@@ -374,6 +403,7 @@
     {
         _allExercises = await TrainingApi.GetExercises();
         _exercises = _allExercises;
+        _libraryExercises = _allExercises;
         _plans = await TrainingApi.GetPlans();
         _today = await TrainingApi.GetToday();
         _activeSession = await TrainingApi.GetActiveSession();
@@ -405,6 +435,28 @@
         {
             if (searchVersion == _exerciseSearchVersion)
                 Snackbar.Add("Nie udało się wyszukać ćwiczeń.", Severity.Error);
+        }
+    }
+    private async Task SearchLibraryExercises(string value)
+    {
+        _librarySearch = value;
+        var searchVersion = ++_librarySearchVersion;
+        _librarySearching = true;
+        try
+        {
+            var results = await TrainingApi.GetExercises(value);
+            if (searchVersion == _librarySearchVersion)
+                _libraryExercises = results;
+        }
+        catch (HttpRequestException)
+        {
+            if (searchVersion == _librarySearchVersion)
+                Snackbar.Add("Nie udało się przeszukać biblioteki ćwiczeń.", Severity.Error);
+        }
+        finally
+        {
+            if (searchVersion == _librarySearchVersion)
+                _librarySearching = false;
         }
     }
     private void AddExercise()

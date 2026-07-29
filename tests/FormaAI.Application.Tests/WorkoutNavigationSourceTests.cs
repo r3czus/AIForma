@@ -515,6 +515,22 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("result.Status", profile);
     }
 
+    [Fact]
+    public void ExerciseLibraryUsesSearchableMediaLedCards()
+    {
+        var training = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Training.razor"));
+        var css = File.ReadAllText(SourcePath("src", "FormaAI.Web", "wwwroot", "css", "forma-signal.css"));
+
+        Assert.Contains("class=\"exercise-library-search\"", training);
+        Assert.Contains("SearchLibraryExercises", training);
+        Assert.Contains("class=\"exercise-library-card\"", training);
+        Assert.Contains("<ExerciseMediaFrame", training);
+        Assert.Contains("Brak ćwiczeń pasujących do wyszukiwania", training);
+        Assert.Contains("exercise-library-technique", training);
+        Assert.Contains(".exercise-library-card", css);
+        Assert.Contains("-webkit-line-clamp", css);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

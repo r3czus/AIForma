@@ -24,11 +24,21 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         var search = WildcardSearch.Parse(query);
         if (!string.IsNullOrWhiteSpace(search.Value))
         {
+            var muscleGroups = Enum.GetValues<MuscleGroup>()
+                .Where(x => ExerciseSearchTerms(x).Any(term => term.Contains(search.Value, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+            var equipment = Enum.GetValues<Equipment>()
+                .Where(x => ExerciseSearchTerms(x).Any(term => term.Contains(search.Value, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
             exercises = search.Mode switch
             {
                 WildcardSearchMode.StartsWith => exercises.Where(x => x.Name.StartsWith(search.Value)),
                 WildcardSearchMode.EndsWith => exercises.Where(x => x.Name.EndsWith(search.Value)),
-                _ => exercises.Where(x => x.Name.Contains(search.Value))
+                _ => exercises.Where(x =>
+                    x.Name.Contains(search.Value) ||
+                    x.Description != null && x.Description.Contains(search.Value) ||
+                    muscleGroups.Contains(x.PrimaryMuscleGroup) ||
+                    equipment.Contains(x.Equipment))
             };
         }
         return (await exercises.OrderBy(x => x.Name).Take(50).ToListAsync()).Select(ExerciseResponse).ToList();
@@ -707,6 +717,31 @@ public sealed class TrainingController(AppDbContext db, IWebHostEnvironment envi
         return rows is null || rows.Count == 0 || rows.Count is >= 1 and <= 5 && rows.All(x => x.Percentage is >= 1 and <= 100)
             && rows.Sum(x => x.Percentage) == 100 && rows.Select(x => x.MuscleGroup).Distinct().Count() == rows.Count;
     }
+    private static IReadOnlyList<string> ExerciseSearchTerms(MuscleGroup group) => group switch
+    {
+        MuscleGroup.Chest => ["chest", "klatka", "piersiowe"],
+        MuscleGroup.Back => ["back", "plecy"],
+        MuscleGroup.Shoulders => ["shoulders", "barki"],
+        MuscleGroup.Biceps => ["biceps"],
+        MuscleGroup.Triceps => ["triceps"],
+        MuscleGroup.Quadriceps => ["quadriceps", "czworogłowe", "uda"],
+        MuscleGroup.Hamstrings => ["hamstrings", "dwugłowe", "tył uda"],
+        MuscleGroup.Glutes => ["glutes", "pośladki"],
+        MuscleGroup.Calves => ["calves", "łydki"],
+        MuscleGroup.Core => ["core", "brzuch"],
+        MuscleGroup.FullBody => ["full body", "całe ciało"],
+        _ => ["forearms", "przedramiona"]
+    };
+    private static IReadOnlyList<string> ExerciseSearchTerms(Equipment equipment) => equipment switch
+    {
+        Equipment.Barbell => ["barbell", "sztanga"],
+        Equipment.Dumbbell => ["dumbbell", "hantle", "hantel"],
+        Equipment.Machine => ["machine", "maszyna"],
+        Equipment.Cable => ["cable", "wyciąg", "linka"],
+        Equipment.Bodyweight => ["bodyweight", "masa ciała"],
+        Equipment.Kettlebell => ["kettlebell", "odważnik"],
+        _ => ["other", "inny sprzęt"]
+    };
     private static IEnumerable<(MuscleGroup Group, int Percentage)> Engagements(SaveExerciseRequest request) =>
         request.MuscleEngagements is { Count: > 0 } ? request.MuscleEngagements.Select(x => (x.MuscleGroup, x.Percentage)) : [(request.MuscleGroup, 100)];
     private static bool ValidSupersets(IReadOnlyList<PlannedExerciseRequest> exercises)

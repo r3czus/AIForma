@@ -698,6 +698,47 @@ button:disabled,
 .plan-step.active i { background: var(--action); }
 .exercise-index { gap: 0; }
 .exercise-card { background: transparent; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; min-height: 92px; padding: 16px 4px; }
+.exercise-library-search {
+    align-items: center;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-top: 18px;
+}
+.exercise-library-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 18px;
+}
+.exercise-library-card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    min-width: 0;
+    overflow: hidden;
+}
+.exercise-library-media-link { color: inherit; display: block; text-decoration: none; }
+.exercise-library-card .exercise-media-frame { aspect-ratio: 16 / 10; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; }
+.exercise-library-content { display: grid; gap: 10px; padding: 16px; }
+.exercise-library-content > header { align-items: start; display: flex; gap: 10px; justify-content: space-between; }
+.exercise-library-content h3 { font-size: 1.45rem; margin: 3px 0 0; }
+.exercise-library-meta { color: var(--muted); font-size: .76rem; line-height: 1.45; }
+.exercise-library-technique {
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    color: var(--muted);
+    display: -webkit-box;
+    font-size: .8rem;
+    line-height: 1.55;
+    margin: 0;
+    overflow: hidden;
+}
+.exercise-library-empty { margin-top: 18px; }
+
+@media (max-width: 700px) {
+    .exercise-library-grid { grid-template-columns: 1fr; }
+}
 .day-exercise-row,
 .muscle-engagement-row { min-height: 58px; }
 .schedule-options summary { min-height: 44px; padding: 12px 0; }

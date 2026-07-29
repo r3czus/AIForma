@@ -464,6 +464,31 @@ public sealed class TrainingFlowTests : IClassFixture<FormaAiFactory>
         Assert.Equal(HttpStatusCode.NotFound, active.StatusCode);
     }
 
+    [Fact]
+    public async Task ExerciseSearchMatchesDescriptionMuscleAndEquipment()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        await Register(client, "exercise-library-search@example.test");
+        var exercise = await Send<SaveExerciseRequest, ExerciseResponse>(
+            client,
+            HttpMethod.Post,
+            "api/v1/exercises",
+            new(
+                "Ruch testowy biblioteki",
+                MuscleGroup.Chest,
+                Equipment.Barbell,
+                false,
+                "Prowadź łopatki stabilnie podczas całego ruchu."));
+
+        var byDescription = await client.GetFromJsonAsync<List<ExerciseResponse>>("api/v1/exercises?query=łopatki");
+        var byMuscle = await client.GetFromJsonAsync<List<ExerciseResponse>>("api/v1/exercises?query=klatka");
+        var byEquipment = await client.GetFromJsonAsync<List<ExerciseResponse>>("api/v1/exercises?query=sztanga");
+
+        Assert.Contains(byDescription!, x => x.Id == exercise.Id);
+        Assert.Contains(byMuscle!, x => x.Id == exercise.Id);
+        Assert.Contains(byEquipment!, x => x.Id == exercise.Id);
+    }
+
     private static Task<ExerciseResponse> CreateExercise(HttpClient client, string name, MuscleGroup group, Equipment equipment) =>
         Send<SaveExerciseRequest, ExerciseResponse>(client, HttpMethod.Post, "api/v1/exercises", new(name, group, equipment, false));
 
