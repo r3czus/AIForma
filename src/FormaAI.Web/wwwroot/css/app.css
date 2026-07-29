@@ -2731,6 +2731,8 @@ body:has(.workout-live-skeleton) .page-content { padding: 0; }
 .workout-sheet-header h2 { margin: 2px 0 0; }
 .workout-swap-sheet {
     background: #fff;
+    display: flex;
+    flex-direction: column;
     max-height: min(920px, calc(100dvh - 48px));
     max-width: 640px;
     min-height: min(760px, calc(100dvh - 48px));
@@ -2789,6 +2791,11 @@ body:has(.workout-swap-sheet) .bottom-nav { display: none; }
     flex: 1;
     min-height: 180px;
     overflow-y: auto;
+}
+.workout-swap-sheet .swap-exercise-results {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 0;
 }
 .swap-exercise-results .swap-result {
     align-items: center;

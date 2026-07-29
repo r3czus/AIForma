@@ -194,7 +194,7 @@
                                 </div>
 
                                 <div class="swap-exercise-results" aria-live="polite">
-                                    @if (_catalog.Count == 0)
+                                    @if (_catalogLoading)
                                     {
                                         <div class="swap-loading-state">
                                             <MudProgressCircular Indeterminate="true" Size="Size.Small" />
@@ -493,6 +493,7 @@
     private readonly Dictionary<Guid, SetForm> _forms = [];
     private readonly Dictionary<Guid, IReadOnlyList<ExerciseHistoryEntry>> _history = [];
     private IReadOnlyList<ExerciseResponse> _catalog = [];
+    private bool _catalogLoading = true;
     private readonly List<string> _newRecords = [];
     private IReadOnlyList<ExerciseProgressionResponse> _progressions = [];
     private Guid? _swapTargetId;
@@ -579,7 +580,15 @@
             await LoadTrainingCalories();
         }
         _elapsed = (_session.FinishedAtUtc ?? DateTime.UtcNow) - _session.StartedAtUtc;
-        _catalog = await TrainingApi.GetExercises();
+        _catalogLoading = true;
+        try
+        {
+            _catalog = await TrainingApi.GetExercises();
+        }
+        finally
+        {
+            _catalogLoading = false;
+        }
 
         foreach (var exercise in _session.Exercises)
         {

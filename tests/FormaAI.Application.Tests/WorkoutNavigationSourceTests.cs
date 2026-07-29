@@ -91,6 +91,9 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("_swapSimilarOnly", source);
         Assert.Contains("SwapOptions", source);
         Assert.Contains(".Where(x => !used.Contains(x.Id))", source);
+        Assert.Contains("private bool _catalogLoading = true;", source);
+        Assert.Contains("@if (_catalogLoading)", source);
+        Assert.Contains("_catalogLoading = false;", source);
         Assert.Contains("<ExerciseMediaFrame Exercise=\"option\"", source);
         Assert.Contains("swap-result-action", source);
         Assert.Contains("Disabled=\"@(_selectedExerciseId is null || _swapping)\"", source);
@@ -100,6 +103,10 @@ public sealed class WorkoutNavigationSourceTests
         Assert.Contains("SwapExplanation(exercise)", source);
         Assert.Contains(".workout-swap-sheet", css);
         Assert.Contains("min-height: 100dvh", css);
+        Assert.Contains(".workout-swap-sheet .swap-exercise-results", css);
+        Assert.Contains("max-height: none", css);
+        Assert.Contains("min-height: 0", css);
+        Assert.Contains("flex: 1 1 auto", css);
         Assert.Contains(".swap-result-action", css);
         Assert.Contains("height: 48px", css);
         Assert.Contains("var(--action-soft)", css);
