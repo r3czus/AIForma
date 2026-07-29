@@ -242,3 +242,86 @@ No whitespace errors.
 
 - This worker session did not launch an authenticated browser session, so physical pointer feel, iOS overscroll, and visual dark-theme rendering were verified by compiled Razor/CSS contracts rather than an end-to-end browser pass.
 - The integration-test request-body-size warnings come from the in-memory test host and predate this change; all integration tests pass.
+
+## Follow-up: raw-input versus delayed-history race
+
+The final re-review found one additional Important race: a `MudNumericField`
+with deferred model updates could contain focused, in-progress text while the
+bound `SetForm` still matched the defaults captured before an asynchronous
+history request. The completing request could therefore treat the form as
+untouched and seed over the input.
+
+### Follow-up TDD evidence
+
+The tests were added before the production decision helper and Razor changes.
+
+First RED:
+
+```text
+dotnet test tests/FormaAI.Application.Tests/FormaAI.Application.Tests.csproj --no-restore --filter "FullyQualifiedName~WorkoutSetSeedDecisionTests|FullyQualifiedName~LiveWorkoutMarksEverySetNumberInputDirtyBeforeDelayedSeeding" --verbosity minimal
+Exit code: 1
+WorkoutSetSeedDecisionTests.cs(7,29): error CS0246: WorkoutSetSeedSnapshot could not be found
+```
+
+After adding only a compile shell whose decisions returned `false`, the
+behavioral/source-contract RED was:
+
+```text
+Exit code: 1
+3 failed, 3 passed, 6 total
+```
+
+The failures proved that:
+
+- untouched defaults were not yet eligible for delayed history;
+- a pre-interaction preset was not yet eligible;
+- none of the three numeric controls marked raw input interaction.
+
+Focused GREEN:
+
+```text
+Exit code: 0
+0 failed, 6 passed, 6 total
+```
+
+### Follow-up implementation
+
+- Added `WorkoutSetSeedDecision` and `WorkoutSetSeedSnapshot` as a real
+  application-level policy with behavioral xUnit coverage.
+- Added sticky `SetForm.UserInteracted` state. It is set by a bubbling raw
+  `@oninput` handler around each of the weight, repetitions, and RIR controls,
+  so even invalid or not-yet-parsed text blocks later seeding.
+- Set `Immediate="true"` on all three controls as supplemental model
+  freshness; the dirty guard remains authoritative.
+- Delayed history now requires: seeding requested, no user interaction, no
+  completed set, and an unchanged captured model snapshot.
+- AI preset application now refuses after user interaction, while initial
+  presets and untouched history defaults remain eligible.
+- Added a source contract that counts every numeric control in the active set
+  row and requires a matching raw-input dirty wrapper and `Immediate="true"`.
+
+### Follow-up full verification
+
+```text
+dotnet build FormaAI.sln --no-restore --verbosity minimal
+Exit code: 0
+Build succeeded: 0 errors, 0 warnings
+
+dotnet test FormaAI.sln --no-build --verbosity minimal
+Exit code: 0
+FormaAI.Domain.Tests: 19 passed
+FormaAI.Application.Tests: 105 passed
+FormaAI.Api.IntegrationTests: 33 passed
+Total: 157 passed, 0 failed, 0 skipped
+
+git diff --check
+Exit code: 0
+```
+
+Follow-up files:
+
+- `src/FormaAI.Application/Training/WorkoutSetSeedDecision.cs`
+- `src/FormaAI.Web/Pages/Workout.razor`
+- `src/FormaAI.Web/wwwroot/css/app.css`
+- `tests/FormaAI.Application.Tests/WorkoutSetSeedDecisionTests.cs`
+- `tests/FormaAI.Application.Tests/WorkoutNavigationSourceTests.cs`

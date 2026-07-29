@@ -2701,6 +2701,7 @@ body:has(.workout-live-skeleton) .page-content { padding: 0; }
 }
 .live-set-row .mud-input-control { margin: 0; min-width: 0; }
 .live-set-row .mud-input { font-size: 1rem; min-width: 0; }
+.live-set-input { min-width: 0; }
 .live-set-row .set-status.current { color: var(--action); }
 .set-validation-error {
     background: color-mix(in srgb, var(--danger) 8%, var(--surface));

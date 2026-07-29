@@ -498,21 +498,30 @@
                          role="row"
                          aria-invalid="@(form.ValidationError is null ? "false" : "true")">
                         <span class="set-number">@(form.SetNumber ?? exercise.Sets.Count + 1)</span>
-                        <MudNumericField @bind-Value="form.WeightKg"
-                                         aria-label="Ciężar w kilogramach"
-                                         Min="0m"
-                                         Max="1000m"
-                                         HideSpinButtons="true" />
-                        <MudNumericField @bind-Value="form.Repetitions"
-                                         aria-label="Liczba powtórzeń"
-                                         Min="1"
-                                         Max="1000"
-                                         HideSpinButtons="true" />
-                        <MudNumericField @bind-Value="form.Rir"
-                                         aria-label="Powtórzenia w zapasie"
-                                         Min="0m"
-                                         Max="10m"
-                                         HideSpinButtons="true" />
+                        <div class="live-set-input" @oninput="() => MarkFormInteracted(form)">
+                            <MudNumericField @bind-Value="form.WeightKg"
+                                             aria-label="Ciężar w kilogramach"
+                                             Min="0m"
+                                             Max="1000m"
+                                             Immediate="true"
+                                             HideSpinButtons="true" />
+                        </div>
+                        <div class="live-set-input" @oninput="() => MarkFormInteracted(form)">
+                            <MudNumericField @bind-Value="form.Repetitions"
+                                             aria-label="Liczba powtórzeń"
+                                             Min="1"
+                                             Max="1000"
+                                             Immediate="true"
+                                             HideSpinButtons="true" />
+                        </div>
+                        <div class="live-set-input" @oninput="() => MarkFormInteracted(form)">
+                            <MudNumericField @bind-Value="form.Rir"
+                                             aria-label="Powtórzenia w zapasie"
+                                             Min="0m"
+                                             Max="10m"
+                                             Immediate="true"
+                                             HideSpinButtons="true" />
+                        </div>
                         <span class="set-status current"><MudIcon Icon="@Icons.Material.Outlined.Edit" /></span>
                     </div>
                     @if (form.ValidationError is not null)
@@ -769,19 +778,18 @@
 
         _historyStates[exerciseId] = AuxiliaryLoadState.Loading;
         var form = _forms[exercise.Id];
-        var weightBeforeLoad = form.WeightKg;
-        var repetitionsBeforeLoad = form.Repetitions;
-        var rirBeforeLoad = form.Rir;
+        var formBeforeLoad = new WorkoutSetSeedSnapshot(form.WeightKg, form.Repetitions, form.Rir);
         try
         {
             var history = await TrainingApi.GetHistory(exerciseId);
             _history[exerciseId] = history;
             _historyStates[exerciseId] = AuxiliaryLoadState.Loaded;
-            if (seedForm &&
-                exercise.Sets.Count == 0 &&
-                form.WeightKg == weightBeforeLoad &&
-                form.Repetitions == repetitionsBeforeLoad &&
-                form.Rir == rirBeforeLoad &&
+            if (WorkoutSetSeedDecision.CanApplyDelayedHistory(
+                    seedForm,
+                    form.UserInteracted,
+                    exercise.Sets.Count,
+                    formBeforeLoad,
+                    new WorkoutSetSeedSnapshot(form.WeightKg, form.Repetitions, form.Rir)) &&
                 history.FirstOrDefault() is { } last)
             {
                 form.WeightKg = last.WeightKg;
@@ -906,8 +914,16 @@
         form.ValidationError = null;
     }
 
+    private static void MarkFormInteracted(SetForm form)
+    {
+        form.UserInteracted = true;
+    }
+
     private static bool ApplyNextPreset(WorkoutExerciseResponse exercise, SetForm form)
     {
+        if (!WorkoutSetSeedDecision.CanApplyProgrammaticSeed(form.UserInteracted))
+            return false;
+
         var nextNumber = exercise.Sets.Count(x => x.SetType == SetType.Working) + 1;
         var preset = exercise.Presets?.FirstOrDefault(x => x.SetNumber == nextNumber);
         if (preset is null) return false;
@@ -1314,5 +1330,6 @@
         public int? SetNumber { get; set; }
         public string? Notes { get; set; }
         public string? ValidationError { get; set; }
+        public bool UserInteracted { get; set; }
     }
 }

@@ -409,6 +409,26 @@ public sealed class WorkoutNavigationSourceTests
         Assert.True(cardioIndex > heroIndex, "Mixed-session cardio must not precede the exercise hero.");
     }
 
+    [Fact]
+    public void LiveWorkoutMarksEverySetNumberInputDirtyBeforeDelayedSeeding()
+    {
+        var source = File.ReadAllText(SourcePath("src", "FormaAI.Web", "Pages", "Workout.razor"));
+        var activeRow = Section(source, "<div class=\"live-set-row active", "@if (form.ValidationError");
+        var historyLoad = Section(source, "private async Task LoadHistoryAsync", "private async Task LoadCompletionDataAsync");
+        var presetSeed = Section(source, "private static bool ApplyNextPreset", "private async Task Reload");
+        var numericControlCount = activeRow.Split("<MudNumericField", StringSplitOptions.None).Length - 1;
+
+        Assert.Equal(3, numericControlCount);
+        Assert.Equal(numericControlCount, activeRow.Split("class=\"live-set-input\"", StringSplitOptions.None).Length - 1);
+        Assert.Equal(numericControlCount, activeRow.Split("@oninput=\"() => MarkFormInteracted(form)\"", StringSplitOptions.None).Length - 1);
+        Assert.Equal(numericControlCount, activeRow.Split("Immediate=\"true\"", StringSplitOptions.None).Length - 1);
+        Assert.Contains("private static void MarkFormInteracted(SetForm form)", source);
+        Assert.Contains("form.UserInteracted = true;", source);
+        Assert.Contains("public bool UserInteracted { get; set; }", source);
+        Assert.Contains("WorkoutSetSeedDecision.CanApplyDelayedHistory", historyLoad);
+        Assert.Contains("WorkoutSetSeedDecision.CanApplyProgrammaticSeed", presetSeed);
+    }
+
     private static string SourcePath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
